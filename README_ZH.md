@@ -28,13 +28,14 @@
 
 <table>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.4-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.4"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.6-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.5-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.5"/><br/><sub><b>OpenAI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.7-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.1%20Pro-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 </tr>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-DeepSeek%20V3.2-4D6BFF?style=for-the-badge&logoColor=white" alt="DeepSeek"/><br/><sub><b>DeepSeek</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-通义千问3.6--Plus-6C3AFF?style=for-the-badge&logoColor=white" alt="Qwen"/><br/><sub><b>阿里巴巴</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-DeepSeek%20V4%20Pro-4D6BFF?style=for-the-badge&logoColor=white" alt="DeepSeek"/><br/><sub><b>DeepSeek</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-通义千问3.6%20Max-6C3AFF?style=for-the-badge&logoColor=white" alt="Qwen"/><br/><sub><b>阿里巴巴</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K2.6-111827?style=for-the-badge&logoColor=white" alt="Kimi"/><br/><sub><b>月之暗面</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-豆包--Seed%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Doubao"/><br/><sub><b>字节跳动</b></sub></td>
 </tr>
 </table>
@@ -72,15 +73,16 @@
 
 ### 🤖 多模型智能
 
-支持来自 6 家领先供应商的 7 个前沿 AI 模型，通过统一界面访问。对话中随时切换模型，上下文完整保留。
+支持来自 7 家领先供应商的 8 个前沿 AI 模型，通过统一界面访问。对话中随时切换模型，上下文完整保留。
 
 | 模型 | 供应商 | 上下文窗口 | 输入类型 | 深度思考 | 联网搜索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **GPT-5.4** | OpenAI | 272K | 文本、图像、文件 | ✅ | ✅ |
-| **Claude Opus 4.6** | Anthropic | 200K | ��本、图像、文件 | ✅ | ✅ |
+| **GPT-5.5** | OpenAI | 1M | 文本、图像、文件 | ✅ | ✅ |
+| **Claude Opus 4.7** | Anthropic | 1M | 文本、图像、文件 | ✅ | ✅ |
 | **Gemini 3.1 Pro** | Google | 1M | 文本、图像、文件、视频、音频 | ✅ | ✅ |
-| **DeepSeek V3.2** | DeepSeek | 128K | 文本 | — | ✅ |
-| **通义千问3.6-Plus** | 阿里巴巴 | 128K | 文本 | — | ✅ |
+| **DeepSeek V4 Pro** | DeepSeek | 1M | 文本 | — | ✅ |
+| **通义千问3.6 Max** | 阿里巴巴 | 256K | 文本 | — | ✅ |
+| **Kimi K2.6** | 月之暗面 | 256K | 文本、图像 | ✅ | ✅ |
 | **豆包-Seed 2.0** | 字节跳动 | 256K | 文本、图像、视频 | ✅ | ✅ |
 
 <br/>
@@ -96,8 +98,8 @@ Vectaix AI 的核心亮点。灵感来源于现实世界中理事会的审议机
                                        │
                           ┌────────────┼────────────┐
                           ▼            ▼            ▼
-                   ┌────────────┐┌──────��─────┐┌────────────┐
-                   │  GPT-5.4   ││Claude Opus ││Gemini 3.1  │
+                   ┌────────────┐┌────────────┐┌────────────┐
+                   │  GPT-5.5   ││Claude Opus ││Gemini 3.1  │
                    │  （专家）   ││ （专家）    ││ （专家）    │
                    └─────┬──────┘└─────┬──────┘└─────┬──────┘
                          │             │             │
@@ -116,7 +118,7 @@ Vectaix AI 的核心亮点。灵感来源于现实世界中理事会的审议机
 
 **工作原理：**
 
-1. **并行生成** — 你的问题同时发送给 GPT-5.4、Claude Opus 4.6 和 Gemini 3.1 Pro
+1. **并行生成** — 你的问题同时发送给 GPT-5.5、Claude Opus 4.7 和 Gemini 3.1 Pro
 2. **独立推理** — 每位专家利用自身优势和知识独立思考
 3. **结构化综合** — 共识模型分析所有回答，识别出：
    - ✅ **共识要点** — 所有专家达成一致的观点

@@ -55,7 +55,7 @@ export function extractOpenAIResponseText(payload) {
 
   const outputs = Array.isArray(payload?.output) ? payload.output : [];
 
-  // Try to extract text from output_text type items (GPT-5.4 style: response.output contains {type: "output_text", text: "..."} directly)
+  // Try to extract text from Responses API output_text items.
   const outputTextItems = outputs.filter((item) => item?.type === "output_text" || item?.type === "text");
   if (outputTextItems.length > 0) {
     return outputTextItems

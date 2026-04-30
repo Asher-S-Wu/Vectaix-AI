@@ -7,6 +7,7 @@ import {
     estimateTokens
 } from '@/app/api/chat/utils';
 import { getAttachmentInputType } from '@/lib/shared/attachments';
+import { getModelConfig } from '@/lib/shared/models';
 import {
     parseMaxTokens,
     parseSystemPrompt,
@@ -33,7 +34,7 @@ import {
 } from '@/lib/server/files/service';
 
 import {
-    buildOpenAIInputFromHistory,
+    buildResponsesInputFromHistory,
     extractOpenAIFunctionCalls,
     extractOpenAIResponseReasoning,
     extractOpenAIResponseText,
@@ -71,12 +72,23 @@ import { assertRequestSize, parseJsonRequest } from '@/lib/server/api/routeHelpe
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function findLatestOpenAIResponseId(messages) {
+function getOpenAICompatibleProviderStateKey(provider) {
+    return provider === 'moonshot' ? 'kimi' : 'openai';
+}
+
+function buildOpenAICompatibleReasoning(provider) {
+    if (provider === 'moonshot') {
+        return { effort: 'high' };
+    }
+    return { effort: 'xhigh', summary: 'auto' };
+}
+
+function findLatestOpenAIResponseId(messages, providerStateKey = 'openai') {
     if (!Array.isArray(messages)) return '';
     for (let index = messages.length - 1; index >= 0; index -= 1) {
         const message = messages[index];
-        const responseId = typeof message?.providerState?.openai?.responseId === 'string'
-            ? message.providerState.openai.responseId.trim()
+        const responseId = typeof message?.providerState?.[providerStateKey]?.responseId === 'string'
+            ? message.providerState[providerStateKey].responseId.trim()
             : '';
         if (responseId) return responseId;
     }
@@ -142,6 +154,9 @@ export async function POST(req) {
 
         const { baseUrl: apiBaseUrl, apiKey } = resolveOpenAIProviderConfig();
         const apiModel = model;
+        const modelConfig = getModelConfig(model);
+        const apiProvider = modelConfig?.provider || 'openai';
+        const providerStateKey = getOpenAICompatibleProviderStateKey(apiProvider);
 
         const currentAttachments = Array.isArray(config?.attachments)
             ? config.attachments.filter((item) => getAttachmentInputType(item?.category) === 'file' && isNonEmptyString(item?.url))
@@ -189,7 +204,7 @@ export async function POST(req) {
         } = await ensureConversationForChatRequest({
             userId: user.userId,
             conversationId: conversationId || null,
-            expectedProvider: 'openai',
+            expectedProvider: apiProvider,
             prompt,
             fallbackTitle: isNonEmptyString(prompt)
                 ? prompt
@@ -221,7 +236,7 @@ export async function POST(req) {
                 conversationId: currentConversationId,
                 signal: req?.signal,
             });
-            openaiInput = await buildOpenAIInputFromHistory(effectiveMsgs, { fileTextMap: historyFileTextMap });
+            openaiInput = await buildResponsesInputFromHistory(effectiveMsgs, { providerStateKey, fileTextMap: historyFileTextMap });
         } else {
             const effectiveHistory = (limit > 0 && Number.isFinite(limit)) ? history.slice(-limit) : history;
             effectiveHistoryMessages = effectiveHistory;
@@ -238,7 +253,7 @@ export async function POST(req) {
                 conversationId: currentConversationId,
                 signal: req?.signal,
             });
-            openaiInput = await buildOpenAIInputFromHistory(effectiveHistory, { fileTextMap: historyFileTextMap });
+            openaiInput = await buildResponsesInputFromHistory(effectiveHistory, { providerStateKey, fileTextMap: historyFileTextMap });
         }
 
         let dbImageEntries = [];
@@ -305,13 +320,13 @@ export async function POST(req) {
         const currentTurnInput = !isRegenerateMode && baseInput.length > 0
             ? baseInput[baseInput.length - 1]
             : null;
-        const latestOpenAIResponseId = isRegenerateMode ? '' : findLatestOpenAIResponseId(effectiveHistoryMessages);
+        const latestOpenAIResponseId = isRegenerateMode ? '' : findLatestOpenAIResponseId(effectiveHistoryMessages, providerStateKey);
 
         const baseRequestBody = {
             model: apiModel,
             stream: false,
             max_output_tokens: maxTokens,
-            reasoning: { effort: 'xhigh', summary: 'auto' },
+            reasoning: buildOpenAICompatibleReasoning(apiProvider),
             store: true,
         };
 
@@ -620,7 +635,7 @@ export async function POST(req) {
                             parts: [{ text: fullText }],
                             providerState: finalPayload
                                 ? {
-                                    openai: {
+                                    [providerStateKey]: {
                                         responseId: typeof finalPayload?.id === 'string' ? finalPayload.id : '',
                                         output: normalizeOpenAIOutputItems(finalPayload?.output),
                                     },

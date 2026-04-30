@@ -28,13 +28,14 @@
 
 <table>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.4-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.4"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.6-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.5-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.5"/><br/><sub><b>OpenAI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.7-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.1%20Pro-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 </tr>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-DeepSeek%20V3.2-4D6BFF?style=for-the-badge&logoColor=white" alt="DeepSeek"/><br/><sub><b>DeepSeek</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen3.6%20Plus-6C3AFF?style=for-the-badge&logoColor=white" alt="Qwen"/><br/><sub><b>Alibaba</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-DeepSeek%20V4%20Pro-4D6BFF?style=for-the-badge&logoColor=white" alt="DeepSeek"/><br/><sub><b>DeepSeek</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen3.6%20Max-6C3AFF?style=for-the-badge&logoColor=white" alt="Qwen"/><br/><sub><b>Alibaba</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K2.6-111827?style=for-the-badge&logoColor=white" alt="Kimi"/><br/><sub><b>Moonshot AI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Doubao--Seed%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Doubao"/><br/><sub><b>ByteDance</b></sub></td>
 </tr>
 </table>
@@ -72,15 +73,16 @@ At its core is **Council Mode**, a novel multi-agent consensus framework that di
 
 ### 🤖 Multi-Model Intelligence
 
-Access 7 frontier AI models from 6 leading providers through a unified interface. Switch models mid-conversation with full context preservation.
+Access 8 frontier AI models from 7 leading providers through a unified interface. Switch models mid-conversation with full context preservation.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **GPT-5.4** | OpenAI | 272K | Text, Image, File | ✅ | ✅ |
-| **Claude Opus 4.6** | Anthropic | 200K | Text, Image, File | ✅ | ✅ |
+| **GPT-5.5** | OpenAI | 1M | Text, Image, File | ✅ | ✅ |
+| **Claude Opus 4.7** | Anthropic | 1M | Text, Image, File | ✅ | ✅ |
 | **Gemini 3.1 Pro** | Google | 1M | Text, Image, File, Video, Audio | ✅ | ✅ |
-| **DeepSeek V3.2** | DeepSeek | 128K | Text | — | ✅ |
-| **Qwen3.6-Plus** | Alibaba | 128K | Text | — | ✅ |
+| **DeepSeek V4 Pro** | DeepSeek | 1M | Text | — | ✅ |
+| **Qwen3.6 Max** | Alibaba | 256K | Text | — | ✅ |
+| **Kimi K2.6** | Moonshot AI | 256K | Text, Image | ✅ | ✅ |
 | **Doubao-Seed 2.0** | ByteDance | 256K | Text, Image, Video | ✅ | ✅ |
 
 <br/>
@@ -97,7 +99,7 @@ The crown jewel of Vectaix AI. Inspired by the deliberative processes of real-wo
                           ┌────────────┼────────────┐
                           ▼            ▼            ▼
                    ┌────────────┐┌────────────┐┌────────────┐
-                   │  GPT-5.4   ││Claude Opus ││Gemini 3.1  │
+                   │  GPT-5.5   ││Claude Opus ││Gemini 3.1  │
                    │  (Expert)  ││  (Expert)  ││  (Expert)  │
                    └─────┬──────┘└─────┬──────┘└─────┬──────┘
                          │             │             │
@@ -118,7 +120,7 @@ The crown jewel of Vectaix AI. Inspired by the deliberative processes of real-wo
 
 **How it works:**
 
-1. **Parallel Generation** — Your query is simultaneously sent to GPT-5.4, Claude Opus 4.6, and Gemini 3.1 Pro
+1. **Parallel Generation** — Your query is simultaneously sent to GPT-5.5, Claude Opus 4.7, and Gemini 3.1 Pro
 2. **Independent Reasoning** — Each expert reasons independently with its own strengths and knowledge
 3. **Structured Synthesis** — A consensus model analyzes all responses, identifying:
    - ✅ **Agreement** — Points where all experts converge

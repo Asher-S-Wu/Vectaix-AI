@@ -6,7 +6,7 @@ import {
     sanitizeStoredMessagesStrict,
     estimateTokens,
 } from '@/app/api/chat/utils';
-import { DEEPSEEK_CHAT_MODEL, DEEPSEEK_REASONER_MODEL } from '@/lib/shared/models';
+import { DEEPSEEK_V4_PRO_MODEL } from '@/lib/shared/models';
 import { resolveDeepSeekProviderConfig } from '@/lib/modelRoutes';
 import {
     buildDirectChatSystemPrompt,
@@ -193,8 +193,7 @@ export async function POST(req) {
         const user = authResult.auth;
 
         const { baseUrl: deepseekBaseUrl, apiKey } = resolveDeepSeekProviderConfig();
-        const rawApiModel = model === DEEPSEEK_REASONER_MODEL ? DEEPSEEK_REASONER_MODEL : DEEPSEEK_CHAT_MODEL;
-        const apiModel = rawApiModel;
+        const apiModel = DEEPSEEK_V4_PRO_MODEL;
 
         let deepseekInput = [];
         const limit = Number.parseInt(historyLimit, 10);
