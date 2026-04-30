@@ -684,7 +684,7 @@ export default function ChatApp() {
     if (loading || messages.some((m) => m.isStreaming)) return;
 
     const currentIsCouncil = isCouncilModel(model);
-    const nextModelConfig = CHAT_MODELS.find((m) => m.id === nextModel);
+    const nextModelConfig = getModelConfig(nextModel);
     const nextIsCouncil = isCouncilModel(nextModel);
 
     if (messages.length > 0 && currentIsCouncil !== nextIsCouncil) {
