@@ -15,6 +15,7 @@ import {
   COUNCIL_MODEL_ID,
   DEFAULT_MODEL,
   isCouncilModel,
+  isImageGenModel,
   isPrimaryChatModelId,
   resolveUsableModelId,
 } from "@/lib/shared/models";
@@ -545,7 +546,7 @@ export default function ChatApp() {
 
         if (targetModel !== model) {
           setModel(targetModel);
-          if (!isCouncilModel(targetModel)) {
+          if (!isCouncilModel(targetModel) && !isImageGenModel(targetModel)) {
             lastTextModelRef.current = targetModel;
           }
         }
@@ -686,17 +687,26 @@ export default function ChatApp() {
     const currentIsCouncil = isCouncilModel(model);
     const nextModelConfig = getModelConfig(nextModel);
     const nextIsCouncil = isCouncilModel(nextModel);
+    const currentIsImageGen = isImageGenModel(model);
+    const nextIsImageGen = isImageGenModel(nextModel);
 
-    if (messages.length > 0 && currentIsCouncil !== nextIsCouncil) {
+    const needsNewConversation = (currentIsCouncil !== nextIsCouncil)
+      || (currentIsImageGen !== nextIsImageGen);
+
+    if (messages.length > 0 && needsNewConversation) {
+      let reason = "Council 和普通模型不能在同一个会话里混用。";
+      if (currentIsImageGen || nextIsImageGen) {
+        reason = "图片生成模型和文本模型不能在同一个会话里混用。";
+      }
       setConfirmModalConfig({
         title: "切换模型",
-        message: `切换到 ${nextModelConfig?.name || "所选模型"} 需要新建对话。\nCouncil 和普通模型不能在同一个会话里混用。\n\n是否新建对话并切换模型？`,
+        message: `切换到 ${nextModelConfig?.name || "所选模型"} 需要新建对话。\n${reason}\n\n是否新建对话并切换模型？`,
         onConfirm: () => {
           userInterruptedRef.current = false;
           setCurrentConversationId(null);
           setMessages([]);
           setModel(nextModel);
-          if (!nextIsCouncil) {
+          if (!nextIsCouncil && !nextIsImageGen) {
             lastTextModelRef.current = nextModel;
           }
         }
@@ -706,10 +716,10 @@ export default function ChatApp() {
     }
 
     setModel(nextModel);
-    if (!nextIsCouncil) {
+    if (!nextIsCouncil && !nextIsImageGen) {
       lastTextModelRef.current = nextModel;
     }
-    if (currentConversationId && !currentIsCouncil && !nextIsCouncil) {
+    if (currentConversationId && !currentIsCouncil && !nextIsCouncil && !currentIsImageGen && !nextIsImageGen) {
       persistConversationModel(currentConversationId, nextModel);
     }
   };

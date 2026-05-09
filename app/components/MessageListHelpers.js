@@ -207,7 +207,7 @@ export function Thumb({ src, className = "", onClick }) {
       <img
         src={src}
         alt=""
-        className="block max-w-[240px] max-h-[180px] w-auto h-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
+        className="block max-w-[280px] sm:max-w-[240px] max-h-[240px] sm:max-h-[180px] w-auto h-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
         loading="eager"
         decoding="async"
       />

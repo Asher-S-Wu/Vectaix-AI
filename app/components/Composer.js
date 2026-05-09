@@ -17,6 +17,7 @@ import {
   countCompletedCouncilRounds,
   getModelAttachmentSupport,
   isCouncilModel,
+  isImageGenModel,
 } from "@/lib/shared/models";
 import {
   getAttachmentInputType,
@@ -64,6 +65,9 @@ export default function Composer({
   const textareaRef = useRef(null);
   const mountedRef = useRef(true);
   const isCouncilSelected = isCouncilModel(model);
+  const isImageGenSelected = isImageGenModel(model);
+  const [imageGenSize, setImageGenSize] = useState("1:1");
+  const [imageGenResolution, setImageGenResolution] = useState("1k");
   const {
     supportsImages,
     supportsDocuments,
@@ -339,7 +343,11 @@ export default function Composer({
       toast.warning(`Council 最多支持 ${COUNCIL_MAX_ROUNDS} 轮对话，请新建对话继续。`);
       return;
     }
-    onSend({ text, attachments: validAttachments });
+    if (isImageGenSelected) {
+      onSend({ text, attachments: validAttachments, imageGenSize, imageGenResolution });
+    } else {
+      onSend({ text, attachments: validAttachments });
+    }
     setInput("");
     clearAllAttachments();
   };
@@ -393,18 +401,47 @@ export default function Composer({
                 ready={modelReady}
                 includeCouncil={false}
               />
-              <SettingsMenu
-                model={model}
-                ready={modelReady}
-                webSearch={webSearch}
-                setWebSearch={setWebSearch}
-                chatSystemPrompt={chatSystemPrompt}
-                onChatSystemPromptSave={onChatSystemPromptSave}
-                systemPrompts={systemPrompts}
-                addSystemPrompt={addSystemPrompt}
-                updateSystemPrompt={updateSystemPrompt}
-                deleteSystemPrompt={deleteSystemPrompt}
-              />
+              {isImageGenSelected ? (
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <select
+                    value={imageGenSize}
+                    onChange={(e) => setImageGenSize(e.target.value)}
+                    className="px-1.5 sm:px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm bg-transparent text-zinc-600 dark:text-zinc-400 outline-none cursor-pointer"
+                  >
+                    <option value="1:1">1:1</option>
+                    <option value="16:9">16:9</option>
+                    <option value="9:16">9:16</option>
+                    <option value="4:3">4:3</option>
+                    <option value="3:4">3:4</option>
+                    <option value="3:2">3:2</option>
+                    <option value="2:3">2:3</option>
+                    <option value="2:1">2:1</option>
+                    <option value="1:2">1:2</option>
+                  </select>
+                  <select
+                    value={imageGenResolution}
+                    onChange={(e) => setImageGenResolution(e.target.value)}
+                    className="px-1.5 sm:px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm bg-transparent text-zinc-600 dark:text-zinc-400 outline-none cursor-pointer"
+                  >
+                    <option value="1k">1K</option>
+                    <option value="2k">2K</option>
+                    <option value="4k">4K</option>
+                  </select>
+                </div>
+              ) : (
+                <SettingsMenu
+                  model={model}
+                  ready={modelReady}
+                  webSearch={webSearch}
+                  setWebSearch={setWebSearch}
+                  chatSystemPrompt={chatSystemPrompt}
+                  onChatSystemPromptSave={onChatSystemPromptSave}
+                  systemPrompts={systemPrompts}
+                  addSystemPrompt={addSystemPrompt}
+                  updateSystemPrompt={updateSystemPrompt}
+                  deleteSystemPrompt={deleteSystemPrompt}
+                />
+              )}
             </>
           ) : null}
         </div>
@@ -442,7 +479,7 @@ export default function Composer({
             onFocus={() => setIsMainInputFocused(true)}
             onBlur={() => setIsMainInputFocused(false)}
             readOnly={hasReachedCouncilRoundLimit}
-            placeholder={hasReachedCouncilRoundLimit ? `已达到 ${COUNCIL_MAX_ROUNDS} 轮上限...` : "给 AI 发送消息..."}
+            placeholder={hasReachedCouncilRoundLimit ? `已达到 ${COUNCIL_MAX_ROUNDS} 轮上限...` : isImageGenSelected ? "描述您想生成的图片..." : "给 AI 发送消息..."}
             className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base md:text-[15px] text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none py-2 min-h-[44px] transition-all scrollbar-none"
             rows={1}
           />

@@ -11,6 +11,7 @@ const PROVIDER_ICONS = {
   openai: "https://cdn.marmot-cloud.com/storage/zenmux/2025/10/15/Mm7IePA/Property-1GPT.svg",
   seed: "https://cdn.marmot-cloud.com/storage/zenmux/2025/11/11/OXR17nY/Property-1seed.svg",
   deepseek: "https://cdn.marmot-cloud.com/storage/zenmux/2025/10/15/tmeJLqx/Property-1deepseek.svg",
+  "image-gen": "https://cdn.marmot-cloud.com/storage/zenmux/2025/10/15/Mm7IePA/Property-1GPT.svg",
 };
 
 const COUNCIL_PROVIDERS = ["openai", "claude", "gemini", "seed"];
