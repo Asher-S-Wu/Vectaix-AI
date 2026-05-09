@@ -66,7 +66,7 @@ export default function ModelSelector({
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               className="absolute bottom-full left-0 mb-2 w-[min(88vw,248px)] bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 p-2 z-50"
             >
-              <div className="max-h-[360px] overflow-y-auto pr-1 mobile-scroll custom-scrollbar">
+              <div className="max-h-[360px] overflow-y-auto pr-1 mobile-scroll fade-scrollbar">
                 {(() => {
                   const groups = {};
                   selectableModels.forEach((item) => {

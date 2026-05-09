@@ -137,7 +137,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 space-y-1 fade-scrollbar">
           {conversations.map((conv) => (
             <div
               key={conv._id}

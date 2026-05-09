@@ -731,7 +731,7 @@ export default function ThinkingBlock({
                         </button>
                         {expandedTimelineId === "__simple__" ? (
                           <div
-                            className={`thinking-content thinking-content-panel bg-white/60 dark:bg-zinc-800/60 border overflow-y-auto w-full max-w-full md:max-w-[760px] text-zinc-400 transition-all duration-500 ${isStreaming ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(37,99,235,0.12)] dark:shadow-[0_0_15px_rgba(37,99,235,0.1)]" : "border-zinc-200/60 dark:border-zinc-700/60"}`}
+                            className={`thinking-content thinking-content-panel bg-white/60 dark:bg-zinc-800/60 border overflow-y-auto fade-scrollbar w-full max-w-full md:max-w-[760px] text-zinc-400 transition-all duration-500 ${isStreaming ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(37,99,235,0.12)] dark:shadow-[0_0_15px_rgba(37,99,235,0.1)]" : "border-zinc-200/60 dark:border-zinc-700/60"}`}
                             ref={containerRef}
                           >
                             <Markdown

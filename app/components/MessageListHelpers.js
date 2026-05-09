@@ -310,7 +310,7 @@ export function Citations({ citations }) {
               </button>
             </div>
 
-            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+            <div className="max-h-[60vh] overflow-y-auto fade-scrollbar">
               <div className="flex flex-col gap-2">
                 {uniqueCitations.map((citation, idx) => {
                   const domain = getDomainFromUrl(citation.url) || citation.url;
@@ -365,7 +365,7 @@ export function ToolRunPreview({ tool }) {
 
   if (isWebBrowsingIdentifier(toolIdentifier) && Array.isArray(tool.state?.results) && tool.state.results.length > 0) {
     return (
-      <div className="flex max-h-[320px] flex-col gap-1.5 overflow-y-auto pr-1 mobile-scroll overscroll-contain custom-scrollbar">
+      <div className="flex max-h-[320px] flex-col gap-1.5 overflow-y-auto pr-1 mobile-scroll overscroll-contain fade-scrollbar">
         {tool.state.results.slice(0, WEB_BROWSING_PREVIEW_LIMIT).map((item, index) => {
           const href = typeof item?.url === "string" ? item.url : "";
           const title = typeof item?.title === "string" && item.title ? item.title : href;

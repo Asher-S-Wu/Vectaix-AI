@@ -306,7 +306,7 @@ export default function MessageList({
     <div
       ref={listRef}
       onScroll={onScroll}
-      className={`flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 py-4 space-y-4 scroll-smooth custom-scrollbar mobile-scroll ${fontSizeClass}`}
+      className={`flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 py-4 space-y-4 scroll-smooth fade-scrollbar mobile-scroll ${fontSizeClass}`}
     >
       <ImageLightbox open={lightboxOpen} onClose={closeLightbox} src={lightboxSrc} />
 
@@ -477,7 +477,7 @@ export default function MessageList({
                         ref={editTextareaRef}
                         value={editingContent}
                         onChange={(e) => onEditingContentChange(e.target.value)}
-                        className="block w-full max-h-[45vh] resize-none overflow-y-auto bg-transparent p-0 text-sm leading-6 text-zinc-800 dark:text-zinc-100 outline-none"
+                        className="block w-full max-h-[45vh] resize-none overflow-y-auto fade-scrollbar bg-transparent p-0 text-sm leading-6 text-zinc-800 dark:text-zinc-100 outline-none"
                       />
                     </div>
                     <div className="flex gap-2">

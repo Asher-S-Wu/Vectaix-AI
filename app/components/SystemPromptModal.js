@@ -130,7 +130,7 @@ export default function SystemPromptModal({
                   预设库
                 </h3>
               </div>
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 fade-scrollbar">
                 {systemPrompts && systemPrompts.length > 0 ? (
                   systemPrompts.map((preset) => (
                     <div
@@ -174,7 +174,7 @@ export default function SystemPromptModal({
               </div>
               
               {/* Body */}
-              <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
+              <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto fade-scrollbar">
                 {editingId ? (
                   <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2">
                     <div className="flex items-center justify-between mb-4">
@@ -190,7 +190,7 @@ export default function SystemPromptModal({
                       className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary mb-4 transition-all"
                     />
                     <textarea
-                      className="flex-1 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 text-sm text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all leading-relaxed custom-scrollbar"
+                      className="flex-1 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 text-sm text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all leading-relaxed fade-scrollbar"
                       placeholder="输入预设的提示词内容..."
                       value={editContent}
                       onChange={e => setEditContent(e.target.value)}
@@ -216,7 +216,7 @@ export default function SystemPromptModal({
                       </button>
                     </div>
                     <textarea
-                      className="flex-1 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-5 text-[15px] text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all leading-relaxed shadow-inner custom-scrollbar"
+                      className="flex-1 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-5 text-[15px] text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all leading-relaxed shadow-inner fade-scrollbar"
                       placeholder="默认无。在这里输入的内容，将会在每次发送消息时，追加到大模型的系统提示词最后。"
                       value={draft}
                       onChange={e => setDraft(e.target.value)}

@@ -104,26 +104,37 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.fade-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s;
 }
 
-::-webkit-scrollbar-track {
+.fade-scrollbar.is-scrolling {
+  scrollbar-color: #a1a1aa transparent;
+}
+
+.fade-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.fade-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
-  border-radius: 3px;
+.fade-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 0.3s;
 }
 
-::-webkit-scrollbar-thumb:hover {
+.fade-scrollbar.is-scrolling::-webkit-scrollbar-thumb {
+  background: #71717a;
+}
+
+.fade-scrollbar.is-scrolling::-webkit-scrollbar-thumb:hover {
   background: #a1a1aa;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
 }
 
 /* Mobile Safe Area */

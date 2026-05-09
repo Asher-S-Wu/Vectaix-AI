@@ -108,7 +108,7 @@ export default function Markdown({
                   <span>{lang || "code"}</span>
                   <CodeCopyButton text={String(children).replace(/\n$/, "")} />
                 </div>
-                <pre className="!bg-zinc-900 !m-0 !rounded-none p-4 overflow-x-auto scrollbar-thin">
+                <pre className="!bg-zinc-900 !m-0 !rounded-none p-4 overflow-x-auto fade-scrollbar">
                   <code className={`${className} !bg-transparent text-[13.5px] leading-relaxed`} {...props}>
                     {children}
                   </code>

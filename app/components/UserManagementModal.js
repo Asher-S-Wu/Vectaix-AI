@@ -255,7 +255,7 @@ export default function UserManagementModal({ open, onClose }) {
               </AnimatePresence>
 
               {/* 用户列表 */}
-              <div className="flex-1 overflow-y-auto px-6 py-3">
+              <div className="flex-1 overflow-y-auto fade-scrollbar px-6 py-3">
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
                     <RefreshCw size={20} className="animate-spin text-zinc-400" />

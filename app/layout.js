@@ -3,6 +3,7 @@ import 'katex/dist/katex.min.css';
 import 'highlight.js/styles/github-dark.css';
 import { headers } from 'next/headers';
 import { ToastProvider } from './components/ToastProvider';
+import FadeScrollbarGlobal from './components/FadeScrollbarGlobal';
 import { UI_THEME_MODE_KEY } from '@/lib/shared/storageKeys';
 
 export const metadata = {
@@ -55,6 +56,7 @@ export default async function RootLayout({ children }) {
                 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
             </head>
             <body>
+                <FadeScrollbarGlobal />
                 <ToastProvider>
                     <div className="main-layout h-full">
                         {children}
