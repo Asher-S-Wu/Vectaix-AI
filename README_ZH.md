@@ -30,12 +30,11 @@
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.5-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.5"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.7-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.6-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.1%20Pro-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-DeepSeek%20V4%20Pro-4D6BFF?style=for-the-badge&logoColor=white" alt="DeepSeek"/><br/><sub><b>DeepSeek</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-通义千问3.6%20Max-6C3AFF?style=for-the-badge&logoColor=white" alt="Qwen"/><br/><sub><b>阿里巴巴</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K2.6-111827?style=for-the-badge&logoColor=white" alt="Kimi"/><br/><sub><b>月之暗面</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-豆包--Seed%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Doubao"/><br/><sub><b>字节跳动</b></sub></td>
 </tr>
 </table>
@@ -73,16 +72,15 @@
 
 ### 🤖 多模型智能
 
-支持来自 7 家领先供应商的 8 个前沿 AI 模型，通过统一界面访问。对话中随时切换模型，上下文完整保留。
+支持来自 5 家领先供应商的 6 个前沿 AI 模型，通过统一界面访问。对话中随时切换模型，上下文完整保留。
 
 | 模型 | 供应商 | 上下文窗口 | 输入类型 | 深度思考 | 联网搜索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-5.5** | OpenAI | 1M | 文本、图像、文件 | ✅ | ✅ |
 | **Claude Opus 4.7** | Anthropic | 1M | 文本、图像、文件 | ✅ | ✅ |
+| **Claude Opus 4.6** | Anthropic | 1M | 文本、图像、文件 | ✅ | ✅ |
 | **Gemini 3.1 Pro** | Google | 1M | 文本、图像、文件、视频、音频 | ✅ | ✅ |
 | **DeepSeek V4 Pro** | DeepSeek | 1M | 文本 | — | ✅ |
-| **通义千问3.6 Max** | 阿里巴巴 | 256K | 文本 | — | ✅ |
-| **Kimi K2.6** | 月之暗面 | 256K | 文本、图像 | ✅ | ✅ |
 | **豆包-Seed 2.0** | 字节跳动 | 256K | 文本、图像、视频 | ✅ | ✅ |
 
 <br/>
@@ -252,7 +250,6 @@ vectaix-ai/
 │   │   ├── google/           # Gemini API 路由
 │   │   ├── openai/           # GPT API 路由
 │   │   ├── deepseek/         # DeepSeek API 路由
-│   │   ├── qwen/             # 通义千问 API 路由
 │   │   ├── bytedance/        # 豆包-Seed API 路由
 │   │   ├── council/          # Council Mode 编排
 │   │   ├── chat/             # 共享聊天工具与压缩
@@ -314,7 +311,7 @@ vectaix-ai/
 | **后端** | Next.js API Routes · Node.js · SSE（Server-Sent Events）流式传输 |
 | **数据库** | MongoDB + Mongoose ODM |
 | **存储** | Vercel Blob（文件上传与附件） |
-| **AI 供应商** | Google GenAI SDK · Anthropic SDK · OpenAI API · DeepSeek · Qwen · ByteDance Seed |
+| **AI 供应商** | Google GenAI SDK · Anthropic SDK · OpenAI API · DeepSeek · ByteDance Seed |
 | **代码执行** | Vercel Sandbox（隔离运行时） |
 | **认证** | JWT (jose) · bcryptjs |
 | **渲染** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
@@ -361,7 +358,6 @@ npm run dev
 | `ANTHROPIC_API_KEY` | — | Anthropic Claude API 密钥 |
 | `OPENAI_API_KEY` | — | OpenAI GPT API 密钥 |
 | `DEEPSEEK_API_KEY` | — | DeepSeek API 密钥 |
-| `QWEN_API_KEY` | — | 阿里巴巴通义千问 API 密钥 |
 | `SEED_API_KEY` | — | 字节跳动豆包-Seed API 密钥 |
 | `BLOB_READ_WRITE_TOKEN` | — | Vercel Blob 存储令牌 |
 

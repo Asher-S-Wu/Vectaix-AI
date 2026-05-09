@@ -30,12 +30,11 @@
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.5-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.5"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.7-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.6-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.1%20Pro-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-DeepSeek%20V4%20Pro-4D6BFF?style=for-the-badge&logoColor=white" alt="DeepSeek"/><br/><sub><b>DeepSeek</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen3.6%20Max-6C3AFF?style=for-the-badge&logoColor=white" alt="Qwen"/><br/><sub><b>Alibaba</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K2.6-111827?style=for-the-badge&logoColor=white" alt="Kimi"/><br/><sub><b>Moonshot AI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Doubao--Seed%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Doubao"/><br/><sub><b>ByteDance</b></sub></td>
 </tr>
 </table>
@@ -73,16 +72,15 @@ At its core is **Council Mode**, a novel multi-agent consensus framework that di
 
 ### 🤖 Multi-Model Intelligence
 
-Access 8 frontier AI models from 7 leading providers through a unified interface. Switch models mid-conversation with full context preservation.
+Access 6 frontier AI models from 5 leading providers through a unified interface. Switch models mid-conversation with full context preservation.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-5.5** | OpenAI | 1M | Text, Image, File | ✅ | ✅ |
 | **Claude Opus 4.7** | Anthropic | 1M | Text, Image, File | ✅ | ✅ |
+| **Claude Opus 4.6** | Anthropic | 1M | Text, Image, File | ✅ | ✅ |
 | **Gemini 3.1 Pro** | Google | 1M | Text, Image, File, Video, Audio | ✅ | ✅ |
 | **DeepSeek V4 Pro** | DeepSeek | 1M | Text | — | ✅ |
-| **Qwen3.6 Max** | Alibaba | 256K | Text | — | ✅ |
-| **Kimi K2.6** | Moonshot AI | 256K | Text, Image | ✅ | ✅ |
 | **Doubao-Seed 2.0** | ByteDance | 256K | Text, Image, Video | ✅ | ✅ |
 
 <br/>
@@ -254,7 +252,6 @@ vectaix-ai/
 │   │   ├── google/           # Gemini API route
 │   │   ├── openai/           # GPT API route
 │   │   ├── deepseek/         # DeepSeek API route
-│   │   ├── qwen/             # Qwen API route
 │   │   ├── bytedance/        # Doubao-Seed API route
 │   │   ├── council/          # Council Mode orchestration
 │   │   ├── chat/             # Shared chat utilities & compression
@@ -316,7 +313,7 @@ vectaix-ai/
 | **Backend** | Next.js API Routes · Node.js · SSE (Server-Sent Events) Streaming |
 | **Database** | MongoDB with Mongoose ODM |
 | **Storage** | Vercel Blob (file uploads & attachments) |
-| **AI Providers** | Google GenAI SDK · Anthropic SDK · OpenAI API · DeepSeek · Qwen · ByteDance Seed |
+| **AI Providers** | Google GenAI SDK · Anthropic SDK · OpenAI API · DeepSeek · ByteDance Seed |
 | **Code Execution** | Vercel Sandbox (isolated runtime) |
 | **Auth** | JWT (jose) · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
@@ -363,7 +360,6 @@ npm run dev
 | `ANTHROPIC_API_KEY` | — | Anthropic Claude API key |
 | `OPENAI_API_KEY` | — | OpenAI GPT API key |
 | `DEEPSEEK_API_KEY` | — | DeepSeek API key |
-| `QWEN_API_KEY` | — | Alibaba Qwen API key |
 | `SEED_API_KEY` | — | ByteDance Doubao-Seed API key |
 | `BLOB_READ_WRITE_TOKEN` | — | Vercel Blob storage token |
 

@@ -9,6 +9,7 @@ import {
 import { getAttachmentInputType } from '@/lib/shared/attachments';
 import { getModelConfig } from '@/lib/shared/models';
 import {
+    clampMaxTokens,
     parseMaxTokens,
     parseSystemPrompt,
     parseWebSearchConfig,
@@ -73,13 +74,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 function getOpenAICompatibleProviderStateKey(provider) {
-    return provider === 'moonshot' ? 'kimi' : 'openai';
+    return 'openai';
 }
 
 function buildOpenAICompatibleReasoning(provider) {
-    if (provider === 'moonshot') {
-        return { effort: 'high' };
-    }
     return { effort: 'xhigh', summary: 'auto' };
 }
 
@@ -152,7 +150,7 @@ export async function POST(req) {
         if (authResult?.response) return authResult.response;
         const user = authResult.auth;
 
-        const { baseUrl: apiBaseUrl, apiKey } = resolveOpenAIProviderConfig();
+        const { baseUrl: apiBaseUrl, apiKey } = resolveOpenAIProviderConfig(model);
         const apiModel = model;
         const modelConfig = getModelConfig(model);
         const apiProvider = modelConfig?.provider || 'openai';
@@ -314,6 +312,7 @@ export async function POST(req) {
         } catch (error) {
             return Response.json({ error: error?.message || '配置无效' }, { status: 400 });
         }
+        const normalizedMaxTokens = clampMaxTokens(maxTokens, 128000);
         const userSystemPrompt = parseSystemPrompt(config?.systemPrompt);
         const systemPromptSuffix = parseSystemPrompt(config?.systemPromptSuffix);
         const baseInput = Array.isArray(openaiInput) ? openaiInput : [];
@@ -325,7 +324,7 @@ export async function POST(req) {
         const baseRequestBody = {
             model: apiModel,
             stream: false,
-            max_output_tokens: maxTokens,
+            max_output_tokens: normalizedMaxTokens,
             reasoning: buildOpenAICompatibleReasoning(apiProvider),
             store: true,
         };

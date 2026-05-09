@@ -9,10 +9,8 @@ const PROVIDER_ICONS = {
   gemini: "https://cdn.marmot-cloud.com/storage/zenmux/2025/12/25/XQVLSt6/Gemini-model-logo.svg",
   claude: "https://cdn.marmot-cloud.com/storage/zenmux/2025/10/15/dzvOyI0/Property-1Claude.svg",
   openai: "https://cdn.marmot-cloud.com/storage/zenmux/2025/10/15/Mm7IePA/Property-1GPT.svg",
-  moonshot: "https://cdn.marmot-cloud.com/storage/zenmux/2025/10/15/mitcnMm/Property-1KIMI.svg",
   seed: "https://cdn.marmot-cloud.com/storage/zenmux/2025/11/11/OXR17nY/Property-1seed.svg",
   deepseek: "https://cdn.marmot-cloud.com/storage/zenmux/2025/10/15/tmeJLqx/Property-1deepseek.svg",
-  qwen: "https://cdn.marmot-cloud.com/storage/zenmux/2026/04/01/qeMamJm/Property-1Qwen.svg",
 };
 
 const COUNCIL_PROVIDERS = ["openai", "claude", "gemini", "seed"];

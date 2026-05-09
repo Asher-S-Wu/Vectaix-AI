@@ -30,12 +30,11 @@
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.5-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.5"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.7-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.6-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.1%20Pro-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-DeepSeek%20V4%20Pro-4D6BFF?style=for-the-badge&logoColor=white" alt="DeepSeek"/><br/><sub><b>DeepSeek</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen3.6%20Max-6C3AFF?style=for-the-badge&logoColor=white" alt="Qwen"/><br/><sub><b>Alibaba</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K2.6-111827?style=for-the-badge&logoColor=white" alt="Kimi"/><br/><sub><b>Moonshot AI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Doubao--Seed%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Doubao"/><br/><sub><b>ByteDance</b></sub></td>
 </tr>
 </table>
@@ -73,16 +72,15 @@
 
 ### 🤖 マルチモデルインテリジェンス
 
-7つの主要プロバイダーから8つのフロンティアAIモデルに、統一インターフェースでアクセス。会話中にモデルを切り替えても、コンテキストは完全に保持されます。
+5つの主要プロバイダーから6つのフロンティアAIモデルに、統一インターフェースでアクセス。会話中にモデルを切り替えても、コンテキストは完全に保持されます。
 
 | モデル | プロバイダー | コンテキスト | 入力タイプ | 思考 | ウェブ検索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-5.5** | OpenAI | 1M | テキスト、画像、ファイル | ✅ | ✅ |
 | **Claude Opus 4.7** | Anthropic | 1M | テキスト、画像、ファイル | ✅ | ✅ |
+| **Claude Opus 4.6** | Anthropic | 1M | テキスト、画像、ファイル | ✅ | ✅ |
 | **Gemini 3.1 Pro** | Google | 1M | テキスト、画像、ファイル、動画、音声 | ✅ | ✅ |
 | **DeepSeek V4 Pro** | DeepSeek | 1M | テキスト | — | ✅ |
-| **Qwen3.6 Max** | Alibaba | 256K | テキスト | — | ✅ |
-| **Kimi K2.6** | Moonshot AI | 256K | テキスト、画像 | ✅ | ✅ |
 | **Doubao-Seed 2.0** | ByteDance | 256K | テキスト、画像、動画 | ✅ | ✅ |
 
 <br/>
@@ -253,7 +251,6 @@ vectaix-ai/
 │   │   ├── google/           # Gemini APIルート
 │   │   ├── openai/           # GPT APIルート
 │   │   ├── deepseek/         # DeepSeek APIルート
-│   │   ├── qwen/             # Qwen APIルート
 │   │   ├── bytedance/        # Doubao-Seed APIルート
 │   │   ├── council/          # Council Modeオーケストレーション
 │   │   ├── chat/             # 共有チャットユーティリティ＆圧縮
@@ -315,7 +312,7 @@ vectaix-ai/
 | **バックエンド** | Next.js API Routes · Node.js · SSE（Server-Sent Events）ストリーミング |
 | **データベース** | MongoDB + Mongoose ODM |
 | **ストレージ** | Vercel Blob（ファイルアップロード＆添付） |
-| **AIプロバイダー** | Google GenAI SDK · Anthropic SDK · OpenAI API · DeepSeek · Qwen · ByteDance Seed |
+| **AIプロバイダー** | Google GenAI SDK · Anthropic SDK · OpenAI API · DeepSeek · ByteDance Seed |
 | **コード実行** | Vercel Sandbox（隔離ランタイム） |
 | **認証** | JWT (jose) · bcryptjs |
 | **レンダリング** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
@@ -362,7 +359,6 @@ npm run dev
 | `ANTHROPIC_API_KEY` | — | Anthropic Claude APIキー |
 | `OPENAI_API_KEY` | — | OpenAI GPT APIキー |
 | `DEEPSEEK_API_KEY` | — | DeepSeek APIキー |
-| `QWEN_API_KEY` | — | Alibaba Qwen APIキー |
 | `SEED_API_KEY` | — | ByteDance Doubao-Seed APIキー |
 | `BLOB_READ_WRITE_TOKEN` | — | Vercel Blobストレージトークン |
 

@@ -508,7 +508,7 @@ export async function POST(req) {
                             body: JSON.stringify({ ...requestBody, stream: true }),
                             signal: req?.signal,
                         }, {
-                            label: `zenmux:seed:${apiModel}`,
+                            label: `ark:seed:${apiModel}`,
                         });
                         if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504)) {
                             await new Promise((resolve) => setTimeout(resolve, 800));
@@ -521,7 +521,7 @@ export async function POST(req) {
                                 body: JSON.stringify({ ...requestBody, stream: true }),
                                 signal: req?.signal,
                             }, {
-                                label: `zenmux:seed:${apiModel}`,
+                                label: `ark:seed:${apiModel}`,
                             });
                         }
                         if (!response.ok) {
@@ -804,9 +804,9 @@ export async function POST(req) {
         let errorMessage = error?.message;
 
         if (rawStatus === 401) {
-            errorMessage = 'Seed 接口认证失败，请检查 ZENMUX_API_KEY';
-        } else if (error?.message?.includes('ZENMUX_API_KEY')) {
-            errorMessage = 'Seed 接口未正确配置，请检查 ZENMUX_API_KEY';
+            errorMessage = 'Seed 接口认证失败，请检查 ARK_API_KEY';
+        } else if (error?.message?.includes('ARK_API_KEY')) {
+            errorMessage = 'Seed 接口未正确配置，请检查 ARK_API_KEY';
         }
 
         return Response.json({ error: errorMessage }, { status });

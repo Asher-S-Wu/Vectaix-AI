@@ -2,6 +2,7 @@ import Conversation from '@/models/Conversation';
 import {
     fetchImageAsBase64,
     generateMessageId,
+    getStoredPartsFromMessage,
     isNonEmptyString,
     sanitizeStoredMessagesStrict,
     estimateTokens,
@@ -45,8 +46,6 @@ import {
     SSE_PADDING,
     HEARTBEAT_INTERVAL_MS,
 } from '@/lib/server/chat/routeConstants';
-import { consumeStrictResponsesStream } from '@/lib/server/chat/responsesStream';
-import { fetchWithZenmuxRateLimit } from '@/lib/server/providers/zenmuxRateLimit';
 import {
     buildSseResponseHeaders,
     ensureConversationForChatRequest,
@@ -56,13 +55,6 @@ import {
     validateChatRequestBody,
 } from '@/lib/server/chat/routeHelpers';
 import { assertRequestSize, parseJsonRequest } from '@/lib/server/api/routeHelpers';
-import {
-    buildResponsesInputFromHistory,
-    extractOpenAIFunctionCalls,
-    extractOpenAIResponseReasoning,
-    extractOpenAIResponseText,
-    normalizeOpenAIOutputItems,
-} from '@/app/api/openai/openaiHelpers';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -171,6 +163,346 @@ function createDeepSeekUpstreamDebugSession(meta) {
     };
 }
 
+function extractDeepSeekContentText(content) {
+    if (typeof content === 'string') return content;
+    if (!Array.isArray(content)) return '';
+    return content
+        .map((part) => {
+            if (typeof part === 'string') return part;
+            if (typeof part?.text === 'string') return part.text;
+            if (typeof part?.content === 'string') return part.content;
+            return '';
+        })
+        .join('');
+}
+
+function responseContentToChatContent(content) {
+    if (typeof content === 'string') return content;
+    if (!Array.isArray(content)) return '';
+
+    const parts = [];
+    for (const part of content) {
+        if (!part || typeof part !== 'object') continue;
+        if (typeof part.text === 'string') {
+            parts.push({ type: 'text', text: part.text });
+            continue;
+        }
+        if (typeof part.image_url === 'string' && part.image_url) {
+            parts.push({ type: 'image_url', image_url: { url: part.image_url } });
+        }
+    }
+
+    if (parts.length === 0) return '';
+    if (parts.every((part) => part.type === 'text')) {
+        return parts.map((part) => part.text).join('\n');
+    }
+    return parts;
+}
+
+function responseInputItemToChatMessage(item) {
+    if (!item || typeof item !== 'object') return null;
+
+    if (item.type === 'function_call_output') {
+        const toolCallId = typeof item.call_id === 'string' ? item.call_id : '';
+        const content = typeof item.output === 'string' ? item.output : JSON.stringify(item.output || {});
+        if (!toolCallId) return null;
+        return { role: 'tool', tool_call_id: toolCallId, content };
+    }
+
+    if (item.type === 'message' || item.role) {
+        const role = item.role === 'model' ? 'assistant' : item.role;
+        if (role !== 'user' && role !== 'assistant' && role !== 'system' && role !== 'tool') return null;
+        const message = {
+            role,
+            content: responseContentToChatContent(item.content),
+        };
+        if (role === 'assistant' && typeof item.reasoning_content === 'string' && item.reasoning_content) {
+            message.reasoning_content = item.reasoning_content;
+        }
+        if (role === 'assistant' && Array.isArray(item.tool_calls) && item.tool_calls.length > 0) {
+            message.tool_calls = item.tool_calls;
+        }
+        if (role === 'tool' && typeof item.tool_call_id === 'string') {
+            message.tool_call_id = item.tool_call_id;
+        }
+        return message.content || message.tool_calls ? message : null;
+    }
+
+    if (item.type === 'output_text' || item.type === 'text') {
+        const text = typeof item.text === 'string' ? item.text : '';
+        return text ? { role: 'assistant', content: text } : null;
+    }
+
+    return null;
+}
+
+async function storedPartToDeepSeekContent(part, role) {
+    if (!part || typeof part !== 'object') return null;
+
+    if (isNonEmptyString(part.text)) {
+        return { type: 'text', text: part.text };
+    }
+
+    if (role !== 'assistant') {
+        const url = part?.inlineData?.url;
+        if (isNonEmptyString(url)) {
+            const { base64Data, mimeType: fetchedMimeType } = await fetchImageAsBase64(url);
+            const mimeType = part.inlineData?.mimeType || fetchedMimeType;
+            return {
+                type: 'image_url',
+                image_url: { url: `data:${mimeType};base64,${base64Data}` },
+            };
+        }
+    }
+
+    return null;
+}
+
+async function buildDeepSeekMessagesFromHistory(messages) {
+    const output = [];
+    for (const msg of messages) {
+        if (msg?.role !== 'user' && msg?.role !== 'model') continue;
+
+        if (msg.role === 'model') {
+            const providerOutput = Array.isArray(msg?.providerState?.deepseek?.output)
+                ? msg.providerState.deepseek.output
+                : [];
+            if (providerOutput.length > 0) {
+                for (const item of providerOutput) {
+                    const providerMessage = responseInputItemToChatMessage(item);
+                    if (providerMessage) output.push(providerMessage);
+                }
+                continue;
+            }
+        }
+
+        const role = msg.role === 'model' ? 'assistant' : 'user';
+        const contentParts = [];
+        const storedParts = getStoredPartsFromMessage(msg);
+        for (const storedPart of storedParts) {
+            const part = await storedPartToDeepSeekContent(storedPart, role);
+            if (part) contentParts.push(part);
+        }
+
+        if (contentParts.length === 0 && isNonEmptyString(msg.content)) {
+            contentParts.push({ type: 'text', text: msg.content });
+        }
+
+        if (contentParts.length > 0) {
+            output.push({
+                role,
+                content: contentParts.every((part) => part.type === 'text')
+                    ? contentParts.map((part) => part.text).join('\n')
+                    : contentParts,
+            });
+        }
+    }
+    return output;
+}
+
+function getDeepSeekChatTools(apiNames) {
+    return getOpenAIWebTools(apiNames).map((tool) => ({
+        type: 'function',
+        function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.parameters,
+        },
+    }));
+}
+
+function normalizeDeepSeekToolCalls(toolCalls) {
+    if (!Array.isArray(toolCalls)) return [];
+    return toolCalls
+        .map((toolCall, index) => {
+            const id = typeof toolCall?.id === 'string' && toolCall.id
+                ? toolCall.id
+                : `call_${index}`;
+            const name = typeof toolCall?.function?.name === 'string' ? toolCall.function.name : '';
+            const args = typeof toolCall?.function?.arguments === 'string'
+                ? toolCall.function.arguments
+                : JSON.stringify(toolCall?.function?.arguments || {});
+            if (!name) return null;
+            return {
+                id,
+                type: 'function',
+                function: {
+                    name,
+                    arguments: args,
+                },
+            };
+        })
+        .filter(Boolean);
+}
+
+function buildDeepSeekAssistantMessage(payload) {
+    const message = {
+        role: 'assistant',
+        content: typeof payload?.content === 'string' ? payload.content : '',
+    };
+    if (typeof payload?.reasoning_content === 'string' && payload.reasoning_content) {
+        message.reasoning_content = payload.reasoning_content;
+    }
+    const toolCalls = normalizeDeepSeekToolCalls(payload?.toolCalls);
+    if (toolCalls.length > 0) {
+        message.tool_calls = toolCalls;
+    }
+    return message;
+}
+
+function extractDeepSeekFunctionCalls(payload) {
+    return normalizeDeepSeekToolCalls(payload?.toolCalls).map((toolCall) => ({
+        id: toolCall.id,
+        call_id: toolCall.id,
+        name: toolCall.function.name,
+        arguments: toolCall.function.arguments,
+    }));
+}
+
+function buildDeepSeekProviderOutput({ content, reasoningContent }) {
+    const item = {
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'output_text', text: content || '' }],
+    };
+    if (reasoningContent) {
+        item.reasoning_content = reasoningContent;
+    }
+    return [item];
+}
+
+async function consumeDeepSeekChatCompletionStream({
+    response,
+    signal,
+    onEvent,
+    onParseError,
+    onDone,
+    onThoughtDelta,
+    onTextDelta,
+}) {
+    if (!response?.body?.getReader) {
+        throw new Error('DeepSeek 上游缺少可读取的响应流');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let content = '';
+    let reasoningContent = '';
+    let id = '';
+    let model = '';
+    let usage = null;
+    let finishReason = null;
+    const toolCallsByIndex = new Map();
+
+    const processPayload = (data) => {
+        if (!data || data === '[DONE]') {
+            onDone?.();
+            return;
+        }
+
+        let event;
+        try {
+            event = JSON.parse(data);
+        } catch {
+            onParseError?.(data);
+            return;
+        }
+
+        onEvent?.(event);
+        if (typeof event?.id === 'string') id = event.id;
+        if (typeof event?.model === 'string') model = event.model;
+        if (event?.usage && typeof event.usage === 'object') usage = event.usage;
+
+        const choice = Array.isArray(event?.choices) ? event.choices[0] : null;
+        if (!choice) return;
+        if (typeof choice.finish_reason === 'string') finishReason = choice.finish_reason;
+
+        const delta = choice.delta || {};
+        const reasoningDelta = typeof delta.reasoning_content === 'string' ? delta.reasoning_content : '';
+        if (reasoningDelta) {
+            reasoningContent += reasoningDelta;
+            onThoughtDelta?.(reasoningDelta);
+        }
+
+        const textDelta = typeof delta.content === 'string' ? delta.content : '';
+        if (textDelta) {
+            content += textDelta;
+            onTextDelta?.(textDelta);
+        }
+
+        if (Array.isArray(delta.tool_calls)) {
+            for (const toolCallDelta of delta.tool_calls) {
+                const index = Number.isInteger(toolCallDelta?.index) ? toolCallDelta.index : toolCallsByIndex.size;
+                const existing = toolCallsByIndex.get(index) || {
+                    id: '',
+                    type: 'function',
+                    function: { name: '', arguments: '' },
+                };
+                if (typeof toolCallDelta.id === 'string') existing.id = toolCallDelta.id;
+                if (typeof toolCallDelta.type === 'string') existing.type = toolCallDelta.type;
+                if (typeof toolCallDelta?.function?.name === 'string') {
+                    existing.function.name += toolCallDelta.function.name;
+                }
+                if (typeof toolCallDelta?.function?.arguments === 'string') {
+                    existing.function.arguments += toolCallDelta.function.arguments;
+                }
+                toolCallsByIndex.set(index, existing);
+            }
+        }
+    };
+
+    while (true) {
+        if (signal?.aborted) {
+            const error = new Error('The operation was aborted.');
+            error.name = 'AbortError';
+            throw error;
+        }
+
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data:')) continue;
+            processPayload(trimmed.slice(5).trim());
+        }
+    }
+
+    buffer += decoder.decode();
+    for (const line of buffer.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+        processPayload(trimmed.slice(5).trim());
+    }
+
+    const toolCalls = Array.from(toolCallsByIndex.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([, toolCall]) => toolCall)
+        .filter((toolCall) => toolCall?.function?.name);
+
+    return {
+        id,
+        model,
+        content,
+        reasoning_content: reasoningContent,
+        toolCalls,
+        usage,
+        choices: [{
+            finish_reason: finishReason,
+            message: {
+                role: 'assistant',
+                content,
+                reasoning_content: reasoningContent,
+                tool_calls: toolCalls.length > 0 ? toolCalls : null,
+            },
+        }],
+    };
+}
+
 export async function POST(req) {
     let writePermitTime = null;
     const deepSeekTraceId = buildDeepSeekTraceId();
@@ -248,11 +580,11 @@ export async function POST(req) {
         if (isRegenerateMode) {
             const msgs = storedMessagesForRegenerate;
             const effectiveMsgs = (limit > 0 && Number.isFinite(limit)) ? msgs.slice(-limit) : msgs;
-            deepseekInput = await buildResponsesInputFromHistory(effectiveMsgs, { providerStateKey: 'deepseek' });
+            deepseekInput = await buildDeepSeekMessagesFromHistory(effectiveMsgs);
         } else {
             const safeHistory = Array.isArray(history) ? history : [];
             const effectiveHistory = (limit > 0 && Number.isFinite(limit)) ? safeHistory.slice(-limit) : safeHistory;
-            deepseekInput = await buildResponsesInputFromHistory(effectiveHistory, { providerStateKey: 'deepseek' });
+            deepseekInput = await buildDeepSeekMessagesFromHistory(effectiveHistory);
         }
 
         let dbImageEntries = [];
@@ -260,21 +592,26 @@ export async function POST(req) {
         if (!isRegenerateMode) {
             const userContent = [];
             if (isNonEmptyString(prompt)) {
-                userContent.push({ type: 'input_text', text: prompt });
+                userContent.push({ type: 'text', text: prompt });
             }
             if (config?.images?.length > 0) {
                 for (const img of config.images) {
                     if (img?.url) {
                         const { base64Data, mimeType } = await fetchImageAsBase64(img.url);
                         userContent.push({
-                            type: 'input_image',
-                            image_url: `data:${mimeType};base64,${base64Data}`,
+                            type: 'image_url',
+                            image_url: { url: `data:${mimeType};base64,${base64Data}` },
                         });
                         dbImageEntries.push({ url: img.url, mimeType });
                     }
                 }
             }
-            deepseekInput.push({ role: 'user', content: userContent });
+            deepseekInput.push({
+                role: 'user',
+                content: userContent.every((part) => part.type === 'text')
+                    ? userContent.map((part) => part.text).join('\n')
+                    : userContent,
+            });
         }
 
         let maxTokens;
@@ -337,7 +674,7 @@ export async function POST(req) {
             historyCount: Array.isArray(history) ? history.length : 0,
             inputCount: Array.isArray(baseInput) ? baseInput.length : 0,
             imageCount: dbImageEntries.length,
-            maxTokens: clampMaxTokens(maxTokens, 64000),
+            maxTokens: clampMaxTokens(maxTokens, 384000),
         }));
 
         const encoder = new TextEncoder();
@@ -412,7 +749,7 @@ export async function POST(req) {
                     });
                     const runtime = createWebBrowsingRuntime({ webSearchOptions: webSearchConfig });
                     const toolRecords = [];
-                    const requestResponsesStream = async (requestBody, onThought, onText, debugMeta = {}) => {
+                    const requestChatCompletionsStream = async (requestBody, onThought, onText, debugMeta = {}) => {
                         const upstreamDebug = createDeepSeekUpstreamDebugSession({
                             traceId: deepSeekTraceId,
                             conversationId: currentConversationId || '',
@@ -420,14 +757,15 @@ export async function POST(req) {
                             ...debugMeta,
                         });
                         upstreamDebug.start({
-                            inputCount: Array.isArray(requestBody?.input) ? requestBody.input.length : 0,
+                            messageCount: Array.isArray(requestBody?.messages) ? requestBody.messages.length : 0,
                             hasTools: Array.isArray(requestBody?.tools) && requestBody.tools.length > 0,
                             toolTypes: Array.isArray(requestBody?.tools)
-                                ? requestBody.tools.map((tool) => tool?.type || tool?.name || 'unknown').slice(0, 8)
+                                ? requestBody.tools.map((tool) => tool?.function?.name || tool?.type || 'unknown').slice(0, 8)
                                 : [],
-                            maxOutputTokens: Number.isFinite(requestBody?.max_output_tokens) ? requestBody.max_output_tokens : null,
+                            maxTokens: Number.isFinite(requestBody?.max_tokens) ? requestBody.max_tokens : null,
+                            reasoningEffort: requestBody?.reasoning_effort || '',
                         });
-                        const request = async () => fetchWithZenmuxRateLimit(`${deepseekBaseUrl}/responses`, {
+                        const request = async () => fetch(`${deepseekBaseUrl}/chat/completions`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -435,8 +773,6 @@ export async function POST(req) {
                             },
                             body: JSON.stringify({ ...requestBody, stream: true }),
                             signal: req?.signal,
-                        }, {
-                            label: `zenmux:deepseek:${apiModel}`,
                         });
 
                         let response = await request();
@@ -458,7 +794,7 @@ export async function POST(req) {
                         let streamedText = '';
 
                         try {
-                            const finalPayload = await consumeStrictResponsesStream({
+                            const finalPayload = await consumeDeepSeekChatCompletionStream({
                                 response,
                                 signal: req?.signal,
                                 onEvent: (event) => {
@@ -477,15 +813,14 @@ export async function POST(req) {
                                     streamedText += text;
                                     onText?.(text);
                                 },
-                                missingCompletedMessage: 'DeepSeek 上游缺少 response.completed 事件',
                             });
                             upstreamDebug.finish({
                                 upstreamStatus: response.status,
                                 contentType: response.headers.get('content-type') || '',
                                 streamedTextLength: streamedText.length,
-                                finalTextLength: extractOpenAIResponseText(finalPayload).length,
-                                finalTextPreview: truncateDeepSeekLogText(extractOpenAIResponseText(finalPayload), 400),
-                                functionCallCount: extractOpenAIFunctionCalls(finalPayload).length,
+                                finalTextLength: extractDeepSeekContentText(finalPayload?.content).length,
+                                finalTextPreview: truncateDeepSeekLogText(finalPayload?.content, 400),
+                                functionCallCount: extractDeepSeekFunctionCalls(finalPayload).length,
                                 finalResponseId: typeof finalPayload?.id === 'string' ? finalPayload.id : '',
                             });
                             return finalPayload;
@@ -499,7 +834,10 @@ export async function POST(req) {
                         }
                     };
 
-                    let nextInput = [...baseInput];
+                    let nextMessages = [
+                        { role: 'system', content: finalSystemPrompt },
+                        ...baseInput,
+                    ];
                     let finalPayload = null;
                     const roundController = enableWebSearch
                         ? createWebBrowsingRoundController({ maxRounds: WEB_BROWSING_MAX_ROUNDS })
@@ -510,15 +848,13 @@ export async function POST(req) {
                         const availableToolApiNames = enableWebSearch ? roundController.getAvailableToolApiNames() : [];
                         const requestBody = {
                             model: apiModel,
-                            stream: false,
-                            max_output_tokens: clampMaxTokens(maxTokens, 64000),
-                            store: true,
-                            reasoning: { effort: 'high' },
-                            instructions: finalSystemPrompt,
-                            input: nextInput,
+                            messages: nextMessages,
+                            max_tokens: clampMaxTokens(maxTokens, 384000),
+                            thinking: { type: 'enabled' },
+                            reasoning_effort: 'max',
                         };
                         if (enableWebSearch && availableToolApiNames.length > 0) {
-                            requestBody.tools = getOpenAIWebTools(availableToolApiNames);
+                            requestBody.tools = getDeepSeekChatTools(availableToolApiNames);
                         }
 
                         console.info('[DeepSeek debug] pass start', JSON.stringify({
@@ -527,10 +863,10 @@ export async function POST(req) {
                             pass: pass + 1,
                             maxPasses,
                             availableToolApiNames,
-                            inputCount: Array.isArray(nextInput) ? nextInput.length : 0,
+                            messageCount: Array.isArray(nextMessages) ? nextMessages.length : 0,
                         }));
 
-                        const payload = await requestResponsesStream(requestBody, (thought) => {
+                        const payload = await requestChatCompletionsStream(requestBody, (thought) => {
                             sendEvent({ type: 'thought', content: thought });
                         }, (text) => {
                             sendEvent({ type: 'text', content: text });
@@ -540,23 +876,23 @@ export async function POST(req) {
                         });
                         if (clientAborted) break;
 
-                        const thought = extractOpenAIResponseReasoning(payload);
+                        const thought = typeof payload?.reasoning_content === 'string' ? payload.reasoning_content : '';
                         if (thought) {
                             fullThought = fullThought ? `${fullThought}\n\n${thought}` : thought;
                         }
 
-                        const functionCalls = enableWebSearch ? extractOpenAIFunctionCalls(payload) : [];
+                        const functionCalls = enableWebSearch ? extractDeepSeekFunctionCalls(payload) : [];
+                        const passText = extractDeepSeekContentText(payload?.content);
                         console.info('[DeepSeek debug] pass result', JSON.stringify({
                             traceId: deepSeekTraceId,
                             conversationId: currentConversationId || '',
                             pass: pass + 1,
                             responseId: typeof payload?.id === 'string' ? payload.id : '',
-                            textLength: extractOpenAIResponseText(payload).length,
+                            textLength: passText.length,
                             thoughtLength: thought.length,
                             functionCallCount: functionCalls.length,
                         }));
                         if (functionCalls.length === 0) {
-                            const passText = extractOpenAIResponseText(payload);
                             if (passText) {
                                 finalPayload = payload;
                                 fullText = passText;
@@ -589,13 +925,7 @@ export async function POST(req) {
                             break;
                         }
 
-                        const selectedCallIds = new Set(selectedFunctionCalls.map((item) => item.call_id));
-                        const responseOutputItems = normalizeOpenAIOutputItems(payload?.output).filter((item) =>
-                            item?.type !== 'function_call'
-                            || !item?.call_id
-                            || selectedCallIds.has(item.call_id)
-                        );
-                        const toolOutputItems = [];
+                        nextMessages.push(buildDeepSeekAssistantMessage(payload));
 
                         for (let functionCallIndex = 0; functionCallIndex < selectedFunctionCalls.length; functionCallIndex += 1) {
                             const functionCall = selectedFunctionCalls[functionCallIndex];
@@ -618,41 +948,40 @@ export async function POST(req) {
                                 status: toolExecution?.toolRecord?.status || '',
                                 outputLength: typeof toolExecution?.outputText === 'string' ? toolExecution.outputText.length : 0,
                             }));
-                            toolOutputItems.push({
-                                type: 'function_call_output',
-                                call_id: functionCall.call_id,
-                                output: toolExecution.outputText,
+                            nextMessages.push({
+                                role: 'tool',
+                                tool_call_id: functionCall.call_id,
+                                content: toolExecution.outputText,
                             });
                         }
-
-                        nextInput = [
-                            ...nextInput,
-                            ...responseOutputItems,
-                            ...toolOutputItems,
-                        ];
                     }
 
                     const shouldForceFinalAnswer = enableWebSearch
                         && !finalPayload
                         && !clientAborted
-                        && Array.isArray(nextInput)
-                        && nextInput.length > 0;
+                        && Array.isArray(nextMessages)
+                        && nextMessages.length > 1;
 
                     if (shouldForceFinalAnswer) {
                         console.info('[DeepSeek debug] force final answer', JSON.stringify({
                             traceId: deepSeekTraceId,
                             conversationId: currentConversationId || '',
-                            inputCount: Array.isArray(nextInput) ? nextInput.length : 0,
+                            messageCount: Array.isArray(nextMessages) ? nextMessages.length : 0,
                             toolRecordCount: toolRecords.length,
                         }));
-                        const payload = await requestResponsesStream({
+                        const forcedMessages = [
+                            {
+                                role: 'system',
+                                content: buildForcedFinalAnswerInstructions(finalSystemPrompt),
+                            },
+                            ...nextMessages.filter((message) => message?.role !== 'system'),
+                        ];
+                        const payload = await requestChatCompletionsStream({
                             model: apiModel,
-                            stream: false,
-                            max_output_tokens: clampMaxTokens(maxTokens, 64000),
-                            store: true,
-                            reasoning: { effort: 'high' },
-                            instructions: buildForcedFinalAnswerInstructions(finalSystemPrompt),
-                            input: nextInput,
+                            messages: forcedMessages,
+                            max_tokens: clampMaxTokens(maxTokens, 384000),
+                            thinking: { type: 'enabled' },
+                            reasoning_effort: 'max',
                         }, (thought) => {
                             sendEvent({ type: 'thought', content: thought });
                         }, (text) => {
@@ -661,12 +990,12 @@ export async function POST(req) {
                             stage: 'forced_final',
                         });
                         if (!clientAborted) {
-                            const thought = extractOpenAIResponseReasoning(payload);
+                            const thought = typeof payload?.reasoning_content === 'string' ? payload.reasoning_content : '';
                             if (thought) {
                                 fullThought = fullThought ? `${fullThought}\n\n${thought}` : thought;
                             }
                             finalPayload = payload;
-                            fullText = extractOpenAIResponseText(payload);
+                            fullText = extractDeepSeekContentText(payload?.content);
                         }
                     }
 
@@ -675,7 +1004,7 @@ export async function POST(req) {
                             traceId: deepSeekTraceId,
                             conversationId: currentConversationId || '',
                             toolRecordCount: toolRecords.length,
-                            nextInputCount: Array.isArray(nextInput) ? nextInput.length : 0,
+                            nextMessageCount: Array.isArray(nextMessages) ? nextMessages.length : 0,
                         }));
                         throw new Error('DeepSeek 工具循环未返回最终答案');
                     }
@@ -723,7 +1052,10 @@ export async function POST(req) {
                                 ? {
                                     deepseek: {
                                         responseId: typeof finalPayload?.id === 'string' ? finalPayload.id : '',
-                                        output: normalizeOpenAIOutputItems(finalPayload?.output),
+                                        output: buildDeepSeekProviderOutput({
+                                            content: fullText,
+                                            reasoningContent: fullThought,
+                                        }),
                                     },
                                 }
                                 : null,
@@ -820,9 +1152,9 @@ export async function POST(req) {
         let errorMessage = error?.message;
 
         if (isUpstreamAuthError) {
-            errorMessage = '模型服务认证失败，请检查接口配置';
-        } else if (error?.message?.includes('API_KEY')) {
-            errorMessage = 'API configuration error. Please check your API keys.';
+            errorMessage = 'DeepSeek 接口认证失败，请检查 DEEPSEEK_API_KEY';
+        } else if (error?.message?.includes('DEEPSEEK_API_KEY')) {
+            errorMessage = 'DeepSeek 接口未正确配置，请检查 DEEPSEEK_API_KEY';
         }
 
         return Response.json({ error: errorMessage }, { status });

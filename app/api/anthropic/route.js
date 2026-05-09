@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import Conversation from '@/models/Conversation';
 import {
-    CLAUDE_OPUS_MODEL,
     getDefaultMaxTokensForModel,
     getModelConfig,
+    isClaudeOpusModel,
 } from '@/lib/shared/models';
 import {
     fetchImageAsBase64,
@@ -234,7 +234,7 @@ export async function POST(req) {
             return Response.json({ error: 'unsupported anthropic-compatible model' }, { status: 400 });
         }
 
-        const providerConfig = await resolveAnthropicProviderConfig();
+        const providerConfig = await resolveAnthropicProviderConfig(model);
         const { baseUrl: anthropicBaseUrl, apiKey } = providerConfig;
         const apiModel = resolveAnthropicApiModel(model);
         const client = new Anthropic({
@@ -411,7 +411,7 @@ export async function POST(req) {
         let maxTokens;
         const modelConfig = getModelConfig(model);
         const supportsMaxTokensControl = modelConfig?.supportsMaxTokensControl === true;
-        const maxTokenCap = model.startsWith(CLAUDE_OPUS_MODEL) ? 128000 : 64000;
+        const maxTokenCap = isClaudeOpusModel(model) ? 128000 : 64000;
         try {
             maxTokens = supportsMaxTokensControl
                 ? parseMaxTokens(config?.maxTokens)
@@ -573,7 +573,7 @@ export async function POST(req) {
                         };
 
                         if (isClaudeModel(model)) {
-                            requestParams.thinking = { type: "adaptive" };
+                            requestParams.thinking = { type: "adaptive", display: "summarized" };
                             requestParams.output_config = {
                                 effort: 'max'
                             };

@@ -25,6 +25,8 @@ import {
 import { resolveGeminiProviderConfig } from '@/lib/modelRoutes';
 import { buildDirectChatSystemPrompt } from '@/lib/server/chat/systemPromptBuilder';
 import {
+    clampMaxTokens,
+    parseGeminiThinkingLevel,
     parseMaxTokens,
     parseSystemPrompt,
     parseWebSearchConfig,
@@ -411,8 +413,10 @@ export async function POST(req) {
         const safeGenerationConfig = { ...generationConfig };
         delete safeGenerationConfig.temperature;
         let maxTokens;
+        let thinkingLevel;
         try {
             maxTokens = parseMaxTokens(config?.maxTokens);
+            thinkingLevel = parseGeminiThinkingLevel(config?.thinkingLevel ?? "high");
         } catch (error) {
             return Response.json({ error: error?.message || '配置无效' }, { status: 400 });
         }
@@ -420,9 +424,9 @@ export async function POST(req) {
         const baseConfig = {
             ...safeGenerationConfig,
             temperature: 1.0,
-            maxOutputTokens: maxTokens,
+            maxOutputTokens: clampMaxTokens(maxTokens, 65536),
             thinkingConfig: {
-                thinkingLevel: 'HIGH',
+                thinkingLevel,
                 includeThoughts: true
             }
         };

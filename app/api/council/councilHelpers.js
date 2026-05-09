@@ -751,7 +751,7 @@ async function requestClaudeExpert({ prompt, imagePayloads, expert, searchContex
       system: [{ type: "text", text: systemPrompt }],
       messages: workingMessages,
       ...(availableToolApiNames.length > 0 ? { tools: getAnthropicWebTools(availableToolApiNames) } : {}),
-      thinking: { type: "adaptive" },
+      thinking: { type: "adaptive", display: "summarized" },
       output_config: { effort: expert.thinkingLevel },
     }), signal);
     const state = extractClaudeResponseState(response);
