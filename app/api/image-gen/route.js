@@ -42,7 +42,7 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MAX_POLL_ITERATIONS = 120;
+const MAX_POLL_ITERATIONS = 60;
 const POLL_INTERVAL_MS = 3000;
 
 const VALID_SIZES = new Set([
@@ -360,7 +360,7 @@ export async function POST(req) {
                     }
 
                     if (!imageUrl) {
-                        throw new Error('图片生成超时，请稍后重试');
+                        throw new Error('包含敏感元素，重新生成');
                     }
 
                     // 下载生成的图片并上传到 Vercel Blob
