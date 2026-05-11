@@ -71,6 +71,7 @@ export default function ChatLayout({
       <div className="flex-1 flex flex-col w-full h-full relative overflow-hidden">
         <ChatHeader
           onToggleSidebar={onToggleSidebar}
+          onStartNewChat={onStartNewChat}
           model={composerProps?.model}
           onModeChange={composerProps?.onModeChange}
           modelReady={isSettingsReady}

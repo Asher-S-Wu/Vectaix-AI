@@ -119,12 +119,13 @@ export default function Sidebar({
   return (
     <>
       <div
-        className={`fixed md:relative z-40 w-72 max-w-[85vw] h-full glass-effect border-r border-zinc-200/50 flex-col transition-all duration-300 ${isOpen ? "translate-x-0 flex" : "-translate-x-full md:translate-x-0 hidden md:flex"
+        className={`fixed md:relative z-50 md:z-40 w-72 max-w-[85vw] h-full glass-effect border-r border-zinc-200/50 flex-col transition-all duration-300 ${isOpen ? "translate-x-0 flex" : "-translate-x-full md:translate-x-0 hidden md:flex"
           }`}
       >
         <div className="p-3 border-b border-zinc-200/50 dark:border-zinc-800/50 flex items-center gap-2">
           <button
             onClick={onStartNewChat}
+            type="button"
             className="flex-1 flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.97] group border border-zinc-200/70 dark:border-zinc-700/70 hover:border-primary/40"
           >
             <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-200">
@@ -132,7 +133,7 @@ export default function Sidebar({
             </span>
             新建对话
           </button>
-          <button onClick={onClose} className="md:hidden p-2 text-zinc-400 hover:bg-zinc-100 rounded-lg">
+          <button onClick={onClose} type="button" aria-label="关闭对话列表" className="md:hidden p-2 text-zinc-400 hover:bg-zinc-100 rounded-lg">
             <X size={20} />
           </button>
         </div>
