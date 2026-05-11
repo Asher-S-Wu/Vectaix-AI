@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Copy, KeyRound, RefreshCw, Search, Sparkles, Trash2, Users, X } from "lucide-react";
 import { apiJson } from "@/lib/client/apiClient";
-import { useToast } from "./ToastProvider";
-import ConfirmModal from "./ConfirmModal";
+import { useToast } from "../common/ToastProvider";
+import ConfirmModal from "../modals/ConfirmModal";
 
 export default function UserManagementModal({ open, onClose }) {
   const toast = useToast();

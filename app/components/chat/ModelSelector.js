@@ -11,7 +11,7 @@ import {
   MODEL_GROUP_TITLES,
   MODEL_DISPLAY_GROUP,
 } from "@/lib/shared/models";
-import { ModelGlyph } from "./ModelVisuals";
+import { ModelGlyph } from "../common/ModelVisuals";
 
 export default function ModelSelector({
   model,

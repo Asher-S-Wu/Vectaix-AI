@@ -3,9 +3,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import ChatHeader from "./ChatHeader";
-import Composer from "./Composer";
-import MessageList from "./MessageList";
-import ProfileModal from "./ProfileModal";
+import Composer from "../chat/Composer";
+import MessageList from "../message/MessageList";
+import ProfileModal from "../settings/ProfileModal";
 import Sidebar from "./Sidebar";
 
 export default function ChatLayout({

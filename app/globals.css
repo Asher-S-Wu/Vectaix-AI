@@ -137,22 +137,8 @@ h1, h2, h3, h4, h5, h6 {
   background: #a1a1aa;
 }
 
-/* Mobile Safe Area */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 16px);
-}
-
 .mobile-scroll {
   -webkit-overflow-scrolling: touch;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 
 /* ===== Prose for Markdown ===== */
@@ -394,22 +380,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .ai-glow-active::after { opacity: 0.15; }
-
-/* ===== Light Mode (default) ===== */
-.light-mode {
-  --bg-primary: #ffffff;
-  --bg-secondary: #fafafa;
-  --bg-tertiary: #f4f4f5;
-  --text-primary: #18181b;
-  --text-secondary: #52525b;
-  --text-muted: #71717a;
-  --border-color: #e4e4e7;
-  --border-light: #f4f4f5;
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(228, 228, 231, 0.6);
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-}
 
 /* ===== Dark Mode ===== */
 .dark-mode {
@@ -653,11 +623,6 @@ h1, h2, h3, h4, h5, h6 {
   background-color: #52525b !important;
 }
 
-.dark-mode .thinking-btn-error {
-  background-color: rgba(127, 29, 29, 0.4) !important;
-  color: #fca5a5 !important;
-}
-
 .dark-mode .thinking-step-error {
   color: #fca5a5 !important;
 }
@@ -780,84 +745,11 @@ h1, h2, h3, h4, h5, h6 {
   .thinking-btn { padding: 0.55em 0.85em; }
 }
 
-/* ===== Token Counter ===== */
-.token-counter-ring {
-  cursor: default;
-  background: none;
-  border: none;
-  padding: 0;
-  outline: none;
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.token-counter-bg-ring { stroke: #e4e4e7; }
-.dark-mode .token-counter-bg-ring { stroke: #52525b; }
-
-.token-counter-tooltip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: none;
-  padding: 12px 14px;
-  width: 240px;
-  z-index: 60;
-  pointer-events: none;
-  animation: tokenTooltipIn 0.15s ease-out;
-}
-
-.dark-mode .token-counter-tooltip {
-  box-shadow: none;
-}
-
-@keyframes tokenTooltipIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(4px) scale(0.96); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-}
-
-.token-tooltip-header { font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
-.token-tooltip-rows { display: flex; flex-direction: column; gap: 4px; }
-.token-tooltip-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; line-height: 1.5; }
-.token-tooltip-label { color: var(--text-muted); }
-.token-tooltip-note { font-size: 10px; color: var(--text-muted); margin-left: 2px; }
-.token-tooltip-value { color: var(--text-secondary); font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-.token-tooltip-divider { height: 1px; background: var(--border-color); margin: 8px 0; }
-.token-tooltip-total { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 600; color: var(--text-primary); }
-.token-tooltip-bar-bg { margin-top: 8px; height: 4px; border-radius: 2px; background: var(--bg-tertiary); overflow: hidden; }
-.token-tooltip-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease, background-color 0.3s ease; min-width: 1px; }
-.token-tooltip-pct { margin-top: 4px; font-size: 10px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
-
-/* Token Progress Colors */
-.token-progress-red { stroke: #ef4444; }
-.token-progress-orange { stroke: #f97316; }
-.token-progress-amber { stroke: #f59e0b; }
-.token-progress-neutral { stroke: #a1a1aa; }
-.dark-mode .token-progress-neutral { stroke: #71717a; }
-
-.token-progress-red-bar { background-color: #ef4444; }
-.token-progress-orange-bar { background-color: #f97316; }
-.token-progress-amber-bar { background-color: #f59e0b; }
-.token-progress-neutral-bar { background-color: #a1a1aa; }
-.dark-mode .token-progress-neutral-bar { background-color: #71717a; }
-
-.token-progress-red-text { color: #ef4444; }
-.token-progress-orange-text { color: #f97316; }
-.token-progress-amber-text { color: #f59e0b; }
-.token-progress-neutral-text { color: #a1a1aa; }
-.dark-mode .token-progress-neutral-text { color: #71717a; }
-
 /* ===== Auth Modal Dark Mode ===== */
 .dark-mode .auth-modal { background-color: var(--bg-secondary); }
 .dark-mode .auth-modal .text-zinc-900 { color: var(--text-primary) !important; }
 .dark-mode .auth-input { background-color: var(--bg-tertiary); border-color: var(--border-color); color: var(--text-primary); }
 .dark-mode .auth-input:focus { border-color: #71717a; }
-.dark-mode .auth-secondary-btn { background-color: var(--bg-tertiary); color: var(--text-primary); }
-.dark-mode .auth-secondary-btn:hover:not(:disabled) { background-color: #52525b; }
-.dark-mode .auth-secondary-btn:disabled { background-color: var(--bg-tertiary); opacity: 0.6; }
 
 /* ===== Toast Dark Mode ===== */
 .toast-success { background-color: #ecfdf5; border-color: #a7f3d0; }
@@ -896,19 +788,11 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Amber / Yellow */
 .dark-mode .bg-amber-50 { background-color: rgba(120, 53, 15, 0.25) !important; }
-.dark-mode .bg-amber-100 { background-color: rgba(120, 53, 15, 0.35) !important; }
-.dark-mode .border-amber-300 { border-color: #92400e !important; }
-.dark-mode .text-amber-700 { color: #fcd34d !important; }
-.dark-mode .hover\:bg-amber-100:hover { background-color: rgba(120, 53, 15, 0.4) !important; }
 
 /* Sky / Blue */
 .dark-mode .bg-sky-100 { background-color: rgba(12, 74, 110, 0.3) !important; }
 .dark-mode .text-sky-700 { color: #7dd3fc !important; }
 .dark-mode .hover\:bg-sky-50:hover { background-color: rgba(12, 74, 110, 0.2) !important; }
-
-/* Blue */
-.dark-mode .bg-blue-50 { background-color: rgba(30, 58, 138, 0.2) !important; }
-.dark-mode .bg-blue-100 { background-color: rgba(30, 58, 138, 0.3) !important; }
 
 /* Semi-transparent white */
 .dark-mode .bg-white\/70 { background-color: rgba(39, 39, 42, 0.7) !important; }

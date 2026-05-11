@@ -9,7 +9,6 @@ import {
     getAllowedMimeTypesForExtension,
     getAttachmentCategory,
     getFileExtension,
-    isDocumentAttachment,
     isMimeAllowedForExtension,
     isSupportedUploadExtension,
     normalizeMimeType,

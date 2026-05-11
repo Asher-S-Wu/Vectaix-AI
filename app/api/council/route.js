@@ -17,12 +17,12 @@ import {
   buildCouncilUserInput,
   buildCouncilUserInputFromMessage,
   COUNCIL_EXPERT_CONFIGS,
-  createCouncilStreamHelpers,
   runCouncilExpert,
   runSeedCouncilAnalysis,
   runSeedCouncilFinalAnswer,
   runSeedTriage,
 } from "./councilHelpers";
+import { createCouncilStreamHelpers } from "./streamHelpers";
 import {
   enrichConversationPartsWithBlobIds,
   enrichStoredMessagesWithBlobIds,

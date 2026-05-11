@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, ExternalLink, FileText, Search, Terminal, X } from "lucide-react";
-import { ModelAvatar } from "./ModelVisuals";
+import { ModelAvatar } from "../common/ModelVisuals";
 import { formatAttachmentMeta } from "@/lib/shared/messageAttachments";
 import { toBlobDownloadUrl } from "@/lib/shared/blobUrls";
 import {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Plus, Trash2, Edit3, MessageSquareQuote, Check } from "lucide-react";
-import { useToast } from "./ToastProvider";
+import { useToast } from "../common/ToastProvider";
 
 export default function SystemPromptModal({
   open,

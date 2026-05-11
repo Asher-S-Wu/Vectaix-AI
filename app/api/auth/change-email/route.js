@@ -2,15 +2,14 @@ import dbConnect from '@/lib/db';
 import { getAuthPayload, signAuthToken, setAuthCookie } from '@/lib/auth';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { isValidEmail, normalizeEmail } from '@/lib/server/auth/validation';
 
 export async function POST(req) {
   try {
     await dbConnect();
     const auth = await getAuthPayload();
     if (!auth) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json({ error: '登录已过期，请重新登录' }, { status: 401 });
     }
 
     let body;
@@ -30,9 +29,9 @@ export async function POST(req) {
       return Response.json({ error: '请输入当前密码' }, { status: 400 });
     }
 
-    const normalizedEmail = newEmail.trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(newEmail);
 
-    if (!EMAIL_REGEX.test(normalizedEmail)) {
+    if (!isValidEmail(normalizedEmail)) {
       return Response.json({ error: '请输入有效的邮箱地址' }, { status: 400 });
     }
 
@@ -58,7 +57,6 @@ export async function POST(req) {
     userDoc.email = normalizedEmail;
     await userDoc.save();
 
-    // 重新签发 JWT
     const token = await signAuthToken({ userId: userDoc._id, email: normalizedEmail });
     await setAuthCookie(token);
 

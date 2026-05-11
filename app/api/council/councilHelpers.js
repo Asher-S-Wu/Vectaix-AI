@@ -12,7 +12,6 @@ import {
 import { buildForcedFinalAnswerInstructions } from "@/lib/server/chat/systemPromptBuilder";
 import {
   buildSeedRequestBody,
-  extractSeedFunctionCalls,
   extractSeedResponseText,
   requestSeedResponses,
 } from "@/lib/server/seed/service";
@@ -1254,90 +1253,5 @@ export function buildCouncilFinalMessage({
       durationMs: expert.durationMs,
     })),
     ...(analysis ? { councilAnalysis: analysis } : {}),
-  };
-}
-
-export function createCouncilStreamHelpers(controller) {
-  const encoder = new TextEncoder();
-  return {
-    sendEvent(payload) {
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-    },
-    sendText(content) {
-      if (!content) return;
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", content })}\n\n`));
-    },
-    sendCouncilExpertStates(experts) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "council_expert_states", experts })}\n\n`)
-      );
-    },
-    sendCouncilExpertState(expert) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "council_expert_state", expert })}\n\n`)
-      );
-    },
-    sendCouncilAnalysisState(analysis) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "council_analysis_state", analysis })}\n\n`)
-      );
-    },
-    sendCouncilExperts(experts) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({
-          type: "council_experts",
-          experts: experts.map((expert) => ({
-            modelId: expert.modelId,
-            label: expert.label,
-            content: expert.rawMarkdown,
-            citations: expert.citations,
-            durationMs: expert.durationMs,
-          })),
-        })}\n\n`)
-      );
-    },
-    sendCouncilExpertResult(expert) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({
-          type: "council_expert_result",
-          expert: {
-            modelId: expert.modelId,
-            label: expert.label,
-            content: expert.rawMarkdown,
-            citations: expert.citations,
-            durationMs: expert.durationMs,
-          },
-        })}\n\n`)
-      );
-    },
-    sendCouncilAnalysisResult(analysis) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "council_analysis_result", analysis })}\n\n`)
-      );
-    },
-    sendCouncilResultState(result) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "council_result_state", result })}\n\n`)
-      );
-    },
-    sendCouncilResult(content) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "council_result", content })}\n\n`)
-      );
-    },
-    sendCitations(citations) {
-      if (!Array.isArray(citations) || citations.length === 0) return;
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "citations", citations })}\n\n`)
-      );
-    },
-    sendDone() {
-      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-    },
-    sendCouncilTriage(payload) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "council_triage", ...payload })}\n\n`)
-      );
-    },
   };
 }

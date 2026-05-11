@@ -11,9 +11,9 @@ import {
   LoaderCircle,
   Scale,
 } from "lucide-react";
-import Markdown from "./Markdown";
+import Markdown from "../common/Markdown";
 import { Citations } from "./MessageListHelpers";
-import { ModelGlyph } from "./ModelVisuals";
+import { ModelGlyph } from "../common/ModelVisuals";
 import { COUNCIL_EXPERTS, SEED_MODEL_ID } from "@/lib/shared/models";
 
 const ANALYSIS_SECTIONS = [

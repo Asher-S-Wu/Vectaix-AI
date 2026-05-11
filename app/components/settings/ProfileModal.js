@@ -18,7 +18,7 @@ import {
 
 import { upload } from "@vercel/blob/client";
 import { apiJson } from "@/lib/client/apiClient";
-import { useToast } from "./ToastProvider";
+import { useToast } from "../common/ToastProvider";
 import UserManagementModal from "./UserManagementModal";
 
 export default function ProfileModal({
@@ -239,7 +239,6 @@ export default function ProfileModal({
             </div>
 
             <div className="space-y-3">
-              {/* 个人信息 */}
               <button
                 onClick={() => setShowPersonalInfo(!showPersonalInfo)}
                 className="w-full flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 transition-colors"
@@ -262,7 +261,6 @@ export default function ProfileModal({
                     className="overflow-hidden"
                   >
                     <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 space-y-4">
-                      {/* 昵称 */}
                       <div>
                         <label className="text-xs text-zinc-500 font-medium mb-1.5 block">昵称</label>
                         <input
@@ -283,8 +281,6 @@ export default function ProfileModal({
                           </button>
                         )}
                       </div>
-
-                      {/* 邮箱 */}
                       <div>
                         <label className="text-xs text-zinc-500 font-medium mb-1.5 block flex items-center gap-1">
                           <Mail size={11} /> 邮箱
@@ -320,7 +316,6 @@ export default function ProfileModal({
                   </motion.div>
                 )}
               </AnimatePresence>
-              {/* 修改密码 */}
               <button
                 onClick={() => setShowChangePassword(!showChangePassword)}
                 className="w-full flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 transition-colors"
@@ -381,8 +376,6 @@ export default function ProfileModal({
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {/* 外观设置 */}
               <button
                 onClick={() => setShowAppearance(!showAppearance)}
                 className="w-full flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 transition-colors"
@@ -406,7 +399,6 @@ export default function ProfileModal({
                     className="overflow-hidden"
                   >
                     <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 space-y-4">
-                      {/* 主题模式 */}
                       <div>
                         <label className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-2 block flex items-center gap-1">
                           <Palette size={12} /> 主题模式
@@ -431,8 +423,6 @@ export default function ProfileModal({
                           ))}
                         </div>
                       </div>
-
-                      {/* 字体大小 */}
                       <div>
                         <label className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-2 block flex items-center gap-1">
                           <Type size={12} /> 字体大小
@@ -457,8 +447,6 @@ export default function ProfileModal({
                           ))}
                         </div>
                       </div>
-
-                      {/* 提示音音量 */}
                       <div>
                         <label className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-2 block flex items-center gap-1">
                           <Volume2 size={12} /> 提示音音量
@@ -483,8 +471,6 @@ export default function ProfileModal({
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {/* 用户管理（仅超级管理员可见） */}
               {canManageUsers && (
                 <button
                   onClick={() => setShowUserManagement(true)}

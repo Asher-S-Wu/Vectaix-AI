@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, MessageSquarePlus } from "lucide-react";
-import ModeSwitcher from "./ModeSwitcher";
+import ModeSwitcher from "../chat/ModeSwitcher";
 
 export default function ChatHeader({ onToggleSidebar, onStartNewChat, model, onModeChange, modelReady }) {
   return (

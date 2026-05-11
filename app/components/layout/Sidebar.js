@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Check, Copy, LogOut, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
-import ConfirmModal from "./ConfirmModal";
-import { ModelGlyph } from "./ModelVisuals";
-import { isCouncilModel } from "@/lib/shared/models";
+import { LogOut, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import ConfirmModal from "../modals/ConfirmModal";
+import { ModelGlyph } from "../common/ModelVisuals";
 
 export default function Sidebar({
   isOpen,

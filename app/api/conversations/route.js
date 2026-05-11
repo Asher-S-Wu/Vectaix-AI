@@ -1,4 +1,3 @@
-import dbConnect from '@/lib/db';
 import Conversation from '@/models/Conversation';
 import { sanitizeImportedConversation } from '@/lib/server/conversations/sanitize';
 import { enrichStoredMessagesWithBlobIds } from '@/lib/server/conversations/blobReferences';

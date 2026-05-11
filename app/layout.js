@@ -2,8 +2,8 @@ import './globals.css';
 import 'katex/dist/katex.min.css';
 import 'highlight.js/styles/github-dark.css';
 import { headers } from 'next/headers';
-import { ToastProvider } from './components/ToastProvider';
-import FadeScrollbarGlobal from './components/FadeScrollbarGlobal';
+import { ToastProvider } from './components/common/ToastProvider';
+import FadeScrollbarGlobal from './components/layout/FadeScrollbarGlobal';
 import { UI_THEME_MODE_KEY } from '@/lib/shared/storageKeys';
 
 export const metadata = {

@@ -1,4 +1,3 @@
-// ChatApp - 主聊天应用组件
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createChatAppActions } from "@/lib/client/chat/chatAppActions";
@@ -6,34 +5,28 @@ import {
   decorateConversationMessages,
   mergeConversationMessages,
 } from "@/lib/client/chat/conversationMessages";
+import { useAuthSession } from "@/lib/client/hooks/useAuthSession";
+import { useChatModeController } from "@/lib/client/hooks/useChatModeController";
 import { useThemeMode } from "@/lib/client/hooks/useThemeMode";
+import { useChatScroll } from "@/lib/client/hooks/useChatScroll";
 import { useUserSettings } from "@/lib/client/hooks/useUserSettings";
 import { normalizeWebSearchSettings } from "@/lib/shared/webSearch";
 import {
-  getModelConfig,
   CHAT_RUNTIME_MODE_CHAT,
-  COUNCIL_MODEL_ID,
+  getModelConfig,
   DEFAULT_MODEL,
   isCouncilModel,
   isImageGenModel,
-  isPrimaryChatModelId,
   resolveUsableModelId,
 } from "@/lib/shared/models";
-import { useToast } from "./components/ToastProvider";
-import AuthModal from "./components/AuthModal";
-import ConfirmModal from "./components/ConfirmModal";
-import ChatLayout from "./components/ChatLayout";
+import { useToast } from "./components/common/ToastProvider";
+import AuthModal from "./components/modals/AuthModal";
+import ConfirmModal from "./components/modals/ConfirmModal";
+import ChatLayout from "./components/layout/ChatLayout";
 
 const FONT_SIZE_CLASSES = { small: "text-size-small", medium: "text-size-medium", large: "text-size-large" };
 export default function ChatApp() {
   const toast = useToast();
-  const [user, setUser] = useState(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState(null);
@@ -78,18 +71,10 @@ export default function ChatApp() {
   const [editingContent, setEditingContent] = useState("");
   const [editingImageAction, setEditingImageAction] = useState("keep");
   const [editingImage, setEditingImage] = useState(null);
-  const [showScrollButton, setShowScrollButton] = useState(false);
   const [composerPrefill, setComposerPrefill] = useState({ text: "", nonce: 0 });
   const [composerAttachmentRequest, setComposerAttachmentRequest] = useState(null);
   const [serverSettingsReady, setServerSettingsReady] = useState(false);
 
-  const chatEndRef = useRef(null);
-  const messageListRef = useRef(null);
-  const userInterruptedRef = useRef(false);
-  const wasStreamingRef = useRef(false);
-  const lastScrollTopRef = useRef(0);
-  const lastUserScrollAtRef = useRef(0);
-  const scrollRafRef = useRef(0);
   const chatAbortRef = useRef(null);
   const chatRequestLockRef = useRef(false);
   const syncSettingsTimeoutRef = useRef(null);
@@ -98,10 +83,16 @@ export default function ChatApp() {
   const lastTextModelRef = useRef(DEFAULT_MODEL);
   const hasRestoredConversationRef = useRef(false);
   const currentConversationIdRef = useRef(null);
-  const isStreamingRef = useRef(false);
   const isStreaming = messages.some((message) => message?.isStreaming === true);
-  isStreamingRef.current = isStreaming;
-  const SCROLL_BOTTOM_THRESHOLD = 80;
+  const {
+    chatEndRef,
+    messageListRef,
+    userInterruptedRef,
+    isStreamingRef,
+    showScrollButton,
+    handleMessageListScroll,
+    scrollToBottom,
+  } = useChatScroll({ messages, isStreaming });
   const lastSettingsErrorRef = useRef(null);
 
   useEffect(() => {
@@ -125,65 +116,46 @@ export default function ChatApp() {
     setLoading(false);
   };
 
-  const handleAuthExpired = () => {
-    stopOngoingChatWork();
+  const handleSessionAuthenticated = ({ settingsReady } = {}) => {
+    hasRestoredConversationRef.current = false;
+    setSettingsError(null);
+    setServerSettingsReady(settingsReady === true);
+  };
+
+  const handleSessionExpired = () => {
     hasRestoredConversationRef.current = false;
     setServerSettingsReady(false);
-    setUser(null);
     setConversations([]);
     setCurrentConversationId(null);
     setMessages([]);
     setSettingsError(null);
     setShowProfileModal(false);
-    setShowAuthModal(true);
-    setAuthMode("login");
-    setPassword("");
-    setConfirmPassword("");
   };
 
-  const distanceToBottom = (el) => {
-    if (!el) return 0;
-    const top = Number.isFinite(el.scrollTop) ? el.scrollTop : 0;
-    const height = Number.isFinite(el.clientHeight) ? el.clientHeight : 0;
-    const scrollHeight = Number.isFinite(el.scrollHeight) ? el.scrollHeight : 0;
-    return Math.max(0, scrollHeight - (top + height));
-  };
-
-  const isNearBottom = (el) => distanceToBottom(el) <= SCROLL_BOTTOM_THRESHOLD;
-
-  const scrollToBottom = () => {
-    const el = messageListRef.current;
-    if (!el) return;
-    const top = Math.max(0, el.scrollHeight - el.clientHeight);
-    el.scrollTop = top;
-  };
-
-  const scheduleScrollToBottom = () => {
-    if (scrollRafRef.current) return;
-    scrollRafRef.current = requestAnimationFrame(() => {
-      scrollRafRef.current = 0;
-      scrollToBottom();
-    });
-  };
-
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.user) {
-          setUser(data.user);
-          fetchConversations();
-          Promise.resolve(fetchSettings()).finally(() => {
-            setServerSettingsReady(true);
-          });
-        } else {
-          handleAuthExpired();
-        }
-      })
-      .catch(() => {
-        handleAuthExpired();
-      });
-  }, []);
+  const {
+    user,
+    setUser,
+    showAuthModal,
+    authMode,
+    setAuthMode,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    confirmPassword,
+    setConfirmPassword,
+    authLoading,
+    handleAuth,
+    handleLogout,
+    handleAuthExpired,
+  } = useAuthSession({
+    toast,
+    stopOngoingChatWork,
+    fetchConversations,
+    fetchSettings,
+    onAuthenticated: handleSessionAuthenticated,
+    onAuthExpired: handleSessionExpired,
+  });
 
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
@@ -211,10 +183,6 @@ export default function ChatApp() {
     return () => {
       chatAbortRef.current?.abort();
       chatAbortRef.current = null;
-      if (scrollRafRef.current) {
-        cancelAnimationFrame(scrollRafRef.current);
-        scrollRafRef.current = 0;
-      }
       if (syncSettingsTimeoutRef.current) {
         clearTimeout(syncSettingsTimeoutRef.current);
         syncSettingsTimeoutRef.current = null;
@@ -223,166 +191,6 @@ export default function ChatApp() {
       pendingConversationIdRef.current = null;
     };
   }, []);
-
-  useEffect(() => {
-    if (!wasStreamingRef.current && isStreaming) {
-      userInterruptedRef.current = false;
-    }
-    wasStreamingRef.current = isStreaming;
-  }, [isStreaming]);
-
-  useEffect(() => {
-    if (userInterruptedRef.current) return;
-    // 等待 DOM/Markdown 渲染完毕后执行滚动，提升移动端键盘弹出时的体验稳定性
-    scheduleScrollToBottom();
-    if (!isStreaming) return;
-    const t = setTimeout(() => {
-      if (userInterruptedRef.current) return;
-      scrollToBottom();
-    }, 60);
-    return () => clearTimeout(t);
-  }, [messages, isStreaming]);
-
-  const handleMessageListScroll = () => {
-    const el = messageListRef.current;
-    if (!el) return;
-
-    // 更新滚动到底部按钮的显示状态
-    setShowScrollButton(!isNearBottom(el));
-
-    if (isStreaming) {
-      const top = el.scrollTop;
-      const last = lastScrollTopRef.current;
-      lastScrollTopRef.current = top;
-      if (isNearBottom(el)) {
-        userInterruptedRef.current = false;
-        return;
-      }
-      // 只在"用户真实手势导致的上滑"时才中断自动滚动，避免移动端键盘/地址栏/回流引起的误判
-      const recentUserGesture = Date.now() - lastUserScrollAtRef.current < 800;
-      const moved = Math.abs(top - last) > 2;
-      if (recentUserGesture && moved) userInterruptedRef.current = true;
-    }
-  };
-
-  useEffect(() => {
-    const el = messageListRef.current;
-    if (!el) return;
-    let touchStartY = 0;
-    let touchStartScrollTop = 0;
-    const markUserGesture = () => {
-      lastUserScrollAtRef.current = Date.now();
-    };
-    // 记录触摸开始时的位置和滚动位置
-    const handleTouchStart = (e) => {
-      lastUserScrollAtRef.current = Date.now();
-      touchStartY = e.touches?.[0]?.clientY;
-      touchStartScrollTop = el.scrollTop;
-    };
-    // 移动端触摸滑动时：检测向上滑动意图（手指向下移动 = 内容向上滚动）
-    const handleTouchMove = (e) => {
-      lastUserScrollAtRef.current = Date.now();
-      if (!isStreamingRef.current) return;
-      const currentY = e.touches?.[0]?.clientY;
-      const deltaY = currentY - touchStartY;
-      // deltaY > 0 表示手指向下移动，即用户想向上滚动查看历史
-      // 同时检测 scrollTop 是否减少或用户意图明显（移动超过 10px）
-      if (deltaY > 10 || el.scrollTop < touchStartScrollTop - 5) {
-        userInterruptedRef.current = true;
-      }
-    };
-    // 电脑端滚轮向上滚动时，直接标记为用户中断
-    const handleWheel = (e) => {
-      lastUserScrollAtRef.current = Date.now();
-      // deltaY < 0 表示向上滚动
-      if (isStreamingRef.current && e.deltaY < 0) {
-        userInterruptedRef.current = true;
-      }
-    };
-    el.addEventListener("touchstart", handleTouchStart, { passive: true });
-    el.addEventListener("touchmove", handleTouchMove, { passive: true });
-    el.addEventListener("wheel", handleWheel, { passive: true });
-    el.addEventListener("mousedown", markUserGesture);
-    return () => {
-      el.removeEventListener("touchstart", handleTouchStart);
-      el.removeEventListener("touchmove", handleTouchMove);
-      el.removeEventListener("wheel", handleWheel);
-      el.removeEventListener("mousedown", markUserGesture);
-    };
-  }, []);
-
-  useEffect(() => {
-    const el = messageListRef.current;
-    if (!el) return;
-    if (typeof ResizeObserver === "undefined") return;
-
-    const ro = new ResizeObserver(() => {
-      if (!isStreamingRef.current) return;
-      if (userInterruptedRef.current) return;
-      scrollToBottom();
-    });
-
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    if (authLoading) return;
-    setAuthLoading(true);
-    const endpoint =
-      authMode === "login" ? "/api/auth/login" : "/api/auth/register";
-    const body =
-      authMode === "login"
-        ? { email, password }
-        : { email, password, confirmPassword };
-    try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.success || data.user) {
-        stopOngoingChatWork();
-        hasRestoredConversationRef.current = false;
-        setServerSettingsReady(false);
-        setUser(data.user);
-        setShowAuthModal(false);
-        setAuthMode("login");
-        setSettingsError(null);
-        setPassword("");
-        setConfirmPassword("");
-        toast.success(authMode === "login" ? "登录成功" : "注册成功");
-        fetchConversations();
-        Promise.resolve(fetchSettings()).finally(() => {
-          setServerSettingsReady(true);
-        });
-      } else {
-        toast.error(data.error);
-      }
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await fetch("/api/auth/me", { method: "DELETE" });
-    stopOngoingChatWork();
-    hasRestoredConversationRef.current = false;
-    setServerSettingsReady(false);
-    setUser(null);
-    setMessages([]);
-    setConversations([]);
-    setCurrentConversationId(null);
-    setSettingsError(null);
-    // 清除登录表单敏感信息
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
-    setShowAuthModal(true);
-    setShowProfileModal(false);
-  };
 
   const applyConversationSettings = (rawSettings) => {
     const settings = rawSettings && typeof rawSettings === "object"
@@ -405,7 +213,7 @@ export default function ChatApp() {
     });
   };
 
-  const fetchConversations = async () => {
+  async function fetchConversations() {
     try {
       const res = await fetch("/api/conversations");
       if (res.status === 401) {
@@ -431,7 +239,7 @@ export default function ChatApp() {
         setMessages([]);
       }
     } catch { }
-  };
+  }
 
   const handleConversationMissing = () => {
     stopOngoingChatWork();
@@ -506,6 +314,28 @@ export default function ChatApp() {
     } catch { }
   };
 
+  const {
+    startNewChat,
+    requestModeChange,
+    requestModelChange,
+  } = useChatModeController({
+    loading,
+    messages,
+    model,
+    setModel,
+    setChatMode,
+    currentConversationId,
+    setCurrentConversationId,
+    setMessages,
+    setSidebarOpen,
+    setConfirmModalConfig,
+    setShowConfirmModal,
+    stopOngoingChatWork,
+    persistConversationModel,
+    userInterruptedRef,
+    lastTextModelRef,
+  });
+
   const loadConversation = async (id, options = {}) => {
     const silent = options?.silent === true;
     if (currentConversationIdRef.current && currentConversationIdRef.current !== id && isStreamingRef.current) {
@@ -513,8 +343,8 @@ export default function ChatApp() {
     }
     if (!silent) {
       setLoading(true);
-      setMessages([]); // 先清空消息，显示加载动画
-      if (window.innerWidth < 768) setSidebarOpen(false); // 移动端立即折叠侧边栏
+      setMessages([]);
+      if (window.innerWidth < 768) setSidebarOpen(false);
     }
     try {
       const res = await fetch(`/api/conversations/${id}`, { cache: "no-store" });
@@ -572,10 +402,8 @@ export default function ChatApp() {
     }
   };
 
-  // 同步对话参数到数据库（防抖，累积多个设置变更）
   const syncConversationSettings = (settingsUpdate) => {
     if (!currentConversationId || isCouncilModel(model)) return;
-    // 如果切换了对话，清空之前的待同步设置（避免跨对话污染）
     if (pendingConversationIdRef.current && pendingConversationIdRef.current !== currentConversationId) {
       pendingSettingsRef.current = {};
       if (syncSettingsTimeoutRef.current) {
@@ -584,7 +412,6 @@ export default function ChatApp() {
       }
     }
     pendingConversationIdRef.current = currentConversationId;
-    // 累积设置变更，而不是只保留最后一个
     pendingSettingsRef.current = { ...pendingSettingsRef.current, ...settingsUpdate };
     if (syncSettingsTimeoutRef.current) clearTimeout(syncSettingsTimeoutRef.current);
     syncSettingsTimeoutRef.current = setTimeout(async () => {
@@ -613,123 +440,6 @@ export default function ChatApp() {
         setMessages([]);
       }
     } catch { }
-  };
-
-  const startNewChat = async () => {
-    userInterruptedRef.current = false;
-    stopOngoingChatWork();
-    setCurrentConversationId(null);
-    setMessages([]);
-    if (!isPrimaryChatModelId(model)) {
-      setModel(DEFAULT_MODEL);
-      lastTextModelRef.current = DEFAULT_MODEL;
-    }
-    if (window.innerWidth < 768) setSidebarOpen(false);
-  };
-
-  const getLastStandardModel = () => {
-    const candidate = lastTextModelRef.current;
-    if (isPrimaryChatModelId(candidate) && !isCouncilModel(candidate)) {
-      return candidate;
-    }
-    return DEFAULT_MODEL;
-  };
-
-  const requestModeChange = (nextMode) => {
-    if (loading || messages.some((m) => m.isStreaming)) return;
-
-    if (nextMode === COUNCIL_MODEL_ID) {
-      if (isCouncilModel(model)) return;
-
-      const applyCouncilMode = () => {
-        userInterruptedRef.current = false;
-        setCurrentConversationId(null);
-        setMessages([]);
-        setModel(COUNCIL_MODEL_ID);
-      };
-
-      if (messages.length > 0) {
-        setConfirmModalConfig({
-          title: "切换模式",
-          message: "切换到 Council 需要新建对话。Council 和普通模型不能在同一个会话里混用。\n\n是否新建对话并切换？",
-          onConfirm: applyCouncilMode,
-        });
-        setShowConfirmModal(true);
-        return;
-      }
-
-      applyCouncilMode();
-      return;
-    }
-
-    // nextMode 是 chat（从 Council 切回普通模式）
-    if (isCouncilModel(model)) {
-      const fallbackModel = getLastStandardModel();
-      const applyStandardMode = () => {
-        userInterruptedRef.current = false;
-        setCurrentConversationId(null);
-        setMessages([]);
-        setModel(fallbackModel);
-        lastTextModelRef.current = fallbackModel;
-        setChatMode(CHAT_RUNTIME_MODE_CHAT);
-      };
-
-      if (messages.length > 0) {
-        setConfirmModalConfig({
-          title: "切换模式",
-          message: "切换到 Chat 需要新建对话。Council 和普通模型不能在同一个会话里混用。\n\n是否新建对话并切换？",
-          onConfirm: applyStandardMode,
-        });
-        setShowConfirmModal(true);
-        return;
-      }
-
-      applyStandardMode();
-      return;
-    }
-  };
-
-  const requestModelChange = (nextModel) => {
-    if (loading || messages.some((m) => m.isStreaming)) return;
-
-    const currentIsCouncil = isCouncilModel(model);
-    const nextModelConfig = getModelConfig(nextModel);
-    const nextIsCouncil = isCouncilModel(nextModel);
-    const currentIsImageGen = isImageGenModel(model);
-    const nextIsImageGen = isImageGenModel(nextModel);
-
-    const needsNewConversation = (currentIsCouncil !== nextIsCouncil)
-      || (currentIsImageGen !== nextIsImageGen);
-
-    if (messages.length > 0 && needsNewConversation) {
-      let reason = "Council 和普通模型不能在同一个会话里混用。";
-      if (currentIsImageGen || nextIsImageGen) {
-        reason = "图片生成模型和文本模型不能在同一个会话里混用。";
-      }
-      setConfirmModalConfig({
-        title: "切换模型",
-        message: `切换到 ${nextModelConfig?.name || "所选模型"} 需要新建对话。\n${reason}\n\n是否新建对话并切换模型？`,
-        onConfirm: () => {
-          userInterruptedRef.current = false;
-          setCurrentConversationId(null);
-          setMessages([]);
-          setModel(nextModel);
-          if (!nextIsCouncil && !nextIsImageGen) {
-            lastTextModelRef.current = nextModel;
-          }
-        }
-      });
-      setShowConfirmModal(true);
-      return;
-    }
-
-    setModel(nextModel);
-    if (!nextIsCouncil && !nextIsImageGen) {
-      lastTextModelRef.current = nextModel;
-    }
-    if (currentConversationId && !currentIsCouncil && !nextIsCouncil && !currentIsImageGen && !nextIsImageGen) {
-      persistConversationModel(currentConversationId, nextModel);
-    }
   };
 
   const renameConversation = async (id, newTitle) => {

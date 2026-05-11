@@ -9,9 +9,9 @@ import {
   X,
 } from "lucide-react";
 import { upload } from "@vercel/blob/client";
-import { useToast } from "./ToastProvider";
+import { useToast } from "../common/ToastProvider";
 import ModelSelector from "./ModelSelector";
-import SettingsMenu from "./SettingsMenu";
+import SettingsMenu from "../settings/SettingsMenu";
 import {
   COUNCIL_MAX_ROUNDS,
   countCompletedCouncilRounds,
@@ -32,15 +32,7 @@ import {
   getImageGenSizeOptionsForResolution,
   isImageGenSizeSupportedAtResolution,
 } from "@/lib/shared/imageGenOptions";
-
-function readAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => resolve(event.target?.result || null);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+import { convertImageFileToPng, readAsDataUrl } from "./composerFileUtils";
 
 export default function Composer({
   loading,
@@ -215,34 +207,6 @@ export default function Composer({
     }
   }, [selectedAttachments, supportsAudio, supportsDocuments, supportsFilePicker, supportsImages, supportsVideo]);
 
-  const convertToPng = (file) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const baseName = file.name.replace(/\.[^.]+$/, "");
-              const newFile = new File([blob], `${baseName}.png`, { type: "image/png" });
-              resolve(newFile);
-            } else {
-              resolve(null);
-            }
-          },
-          "image/png",
-          1.0
-        );
-      };
-      img.onerror = () => resolve(null);
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
   const processFiles = async (files) => {
     if (!supportsFilePicker) return;
     if (!files.length) return;
@@ -287,7 +251,7 @@ export default function Composer({
       if (isImageAttachment(local)) {
         let processedFile = file;
         if (!IMAGE_MIME_TYPES.includes(file.type)) {
-          const converted = await convertToPng(file);
+          const converted = await convertImageFileToPng(file);
           if (!converted) {
             invalidFiles.push(file.name);
             continue;
@@ -422,7 +386,6 @@ export default function Composer({
 
   return (
     <div className="max-w-4xl mx-auto w-full relative group/composer">
-      {/* Attachments Preview - Floating style */}
       <AnimatePresence>
         {selectedAttachments.length > 0 && (
           <motion.div 
@@ -459,7 +422,6 @@ export default function Composer({
       </AnimatePresence>
 
       <div className="relative flex flex-col glass-effect rounded-[24px] border-zinc-200/60 dark:border-zinc-800/60 transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700">
-        {/* Top toolbar */}
         <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-zinc-100/50 dark:border-zinc-800/50 bg-zinc-50/30 dark:bg-zinc-900/30 rounded-t-[24px]">
           {!isCouncilSelected ? (
             <>
@@ -507,8 +469,6 @@ export default function Composer({
             </>
           ) : null}
         </div>
-
-        {/* Text area and main actions */}
         <div className="relative flex items-end gap-2 p-3 md:p-4 rounded-b-[24px]">
           {supportsFilePicker && (
             <div className="flex items-center mb-1">
