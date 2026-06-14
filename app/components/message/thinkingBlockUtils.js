@@ -1,4 +1,4 @@
-import { SEED_MODEL_ID } from "@/lib/shared/models";
+import { DEFAULT_MODEL } from "@/lib/shared/models";
 import { LoadingSweepText } from "./MessageListHelpers";
 
 export function normalizeTimeline(timeline) {
@@ -55,7 +55,7 @@ export function normalizeCouncilExpertStates(states) {
 export function normalizeCouncilSummaryState(state) {
   if (!state || typeof state !== "object") return null;
   return {
-    modelId: typeof state.modelId === "string" ? state.modelId : SEED_MODEL_ID,
+    modelId: typeof state.modelId === "string" ? state.modelId : DEFAULT_MODEL,
     label: typeof state.label === "string" ? state.label : "Seed",
     status: typeof state.status === "string" ? state.status : "pending",
     phase: typeof state.phase === "string" ? state.phase : "pending",

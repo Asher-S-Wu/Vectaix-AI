@@ -15,8 +15,6 @@ import {
   CHAT_RUNTIME_MODE_CHAT,
   getModelConfig,
   DEFAULT_MODEL,
-  isCouncilModel,
-  isImageGenModel,
   resolveUsableModelId,
 } from "@/lib/shared/models";
 import { useToast } from "./components/common/ToastProvider";
@@ -299,7 +297,7 @@ export default function ChatApp() {
   });
 
   const persistConversationModel = async (conversationIdToUpdate, nextModel) => {
-    if (!conversationIdToUpdate || !nextModel || isCouncilModel(nextModel)) return;
+    if (!conversationIdToUpdate || !nextModel) return;
     try {
       await fetch(`/api/conversations/${conversationIdToUpdate}`, {
         method: "PUT",
@@ -384,9 +382,7 @@ export default function ChatApp() {
 
         if (targetModel !== model) {
           setModel(targetModel);
-          if (!isCouncilModel(targetModel) && !isImageGenModel(targetModel)) {
-            lastTextModelRef.current = targetModel;
-          }
+          lastTextModelRef.current = targetModel;
         }
 
         applyConversationSettings(conversation.settings);
@@ -403,7 +399,7 @@ export default function ChatApp() {
   };
 
   const syncConversationSettings = (settingsUpdate) => {
-    if (!currentConversationId || isCouncilModel(model)) return;
+    if (!currentConversationId) return;
     if (pendingConversationIdRef.current && pendingConversationIdRef.current !== currentConversationId) {
       pendingSettingsRef.current = {};
       if (syncSettingsTimeoutRef.current) {
@@ -510,10 +506,6 @@ export default function ChatApp() {
       const sourceConversation = sourceData?.conversation;
       if (!sourceConversation) {
         throw new Error("未找到要复制的话题");
-      }
-
-      if (isCouncilModel(sourceConversation.model)) {
-        return;
       }
 
       const createRes = await fetch("/api/conversations", {

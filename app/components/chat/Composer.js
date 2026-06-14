@@ -13,11 +13,7 @@ import { useToast } from "../common/ToastProvider";
 import ModelSelector from "./ModelSelector";
 import SettingsMenu from "../settings/SettingsMenu";
 import {
-  COUNCIL_MAX_ROUNDS,
-  countCompletedCouncilRounds,
   getModelAttachmentSupport,
-  isCouncilModel,
-  isImageGenModel,
 } from "@/lib/shared/models";
 import {
   getAttachmentInputType,
@@ -27,11 +23,6 @@ import {
   MAX_CHAT_ATTACHMENTS,
 } from "@/lib/shared/attachments";
 import { createLocalAttachment, isImageAttachment } from "@/lib/shared/messageAttachments";
-import {
-  IMAGE_GEN_RESOLUTION_OPTIONS,
-  getImageGenSizeOptionsForResolution,
-  isImageGenSizeSupportedAtResolution,
-} from "@/lib/shared/imageGenOptions";
 import { convertImageFileToPng, readAsDataUrl } from "./composerFileUtils";
 
 export default function Composer({
@@ -63,14 +54,6 @@ export default function Composer({
   const textareaRef = useRef(null);
   const mountedRef = useRef(true);
   const handledAttachmentRequestNonceRef = useRef(null);
-  const isCouncilSelected = isCouncilModel(model);
-  const isImageGenSelected = isImageGenModel(model);
-  const [imageGenSize, setImageGenSize] = useState("1:1");
-  const [imageGenResolution, setImageGenResolution] = useState("1k");
-  const imageGenSizeOptions = useMemo(
-    () => getImageGenSizeOptionsForResolution(imageGenResolution),
-    [imageGenResolution]
-  );
   const {
     supportsImages,
     supportsDocuments,
@@ -84,9 +67,6 @@ export default function Composer({
     supportsVideo,
     supportsAudio,
   });
-  const completedCouncilRounds = isCouncilSelected ? countCompletedCouncilRounds(messages) : 0;
-  const hasReachedCouncilRoundLimit = isCouncilSelected && completedCouncilRounds >= COUNCIL_MAX_ROUNDS;
-
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
@@ -179,13 +159,6 @@ export default function Composer({
     ].slice(0, MAX_CHAT_ATTACHMENTS));
     toast.success("已添加到输入框附件");
   }, [attachmentRequest, selectedAttachments.length, supportsFilePicker, supportsImages, toast]);
-
-  useEffect(() => {
-    if (!isImageGenSelected) return;
-    if (isImageGenSizeSupportedAtResolution(imageGenSize, imageGenResolution)) return;
-    const nextSize = imageGenSizeOptions[0]?.value;
-    if (nextSize) setImageGenSize(nextSize);
-  }, [imageGenResolution, imageGenSize, imageGenSizeOptions, isImageGenSelected]);
 
   useEffect(() => {
     if (!supportsFilePicker) {
@@ -347,13 +320,6 @@ export default function Composer({
     setSelectedAttachments([]);
   };
 
-  const handleImageGenResolutionChange = (nextResolution) => {
-    setImageGenResolution(nextResolution);
-    if (isImageGenSizeSupportedAtResolution(imageGenSize, nextResolution)) return;
-    const nextSize = getImageGenSizeOptionsForResolution(nextResolution)[0]?.value;
-    if (nextSize) setImageGenSize(nextSize);
-  };
-
   const isUploading = selectedAttachments.some((item) => item.uploadStatus === "uploading");
 
   const handleKeyDown = (e) => {
@@ -371,15 +337,7 @@ export default function Composer({
     if ((!text && selectedAttachments.length === 0) || loading || isUploading) return;
     const validAttachments = selectedAttachments.filter((item) => item.uploadStatus === "ready");
     if (!text && validAttachments.length === 0) return;
-    if (hasReachedCouncilRoundLimit) {
-      toast.warning(`Council 最多支持 ${COUNCIL_MAX_ROUNDS} 轮对话，请新建对话继续。`);
-      return;
-    }
-    if (isImageGenSelected) {
-      onSend({ text, attachments: validAttachments, imageGenSize, imageGenResolution });
-    } else {
-      onSend({ text, attachments: validAttachments });
-    }
+    onSend({ text, attachments: validAttachments });
     setInput("");
     clearAllAttachments();
   };
@@ -423,51 +381,23 @@ export default function Composer({
 
       <div className="relative flex flex-col glass-effect rounded-[24px] border-zinc-200/60 dark:border-zinc-800/60 transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700">
         <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-zinc-100/50 dark:border-zinc-800/50 bg-zinc-50/30 dark:bg-zinc-900/30 rounded-t-[24px]">
-          {!isCouncilSelected ? (
-            <>
-              <ModelSelector
-                model={model}
-                onModelChange={onModelChange}
-                ready={modelReady}
-                includeCouncil={false}
-              />
-              {isImageGenSelected ? (
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <select
-                    value={imageGenSize}
-                    onChange={(e) => setImageGenSize(e.target.value)}
-                    className="px-1.5 sm:px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm bg-transparent text-zinc-600 dark:text-zinc-400 outline-none cursor-pointer"
-                  >
-                    {imageGenSizeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={imageGenResolution}
-                    onChange={(e) => handleImageGenResolutionChange(e.target.value)}
-                    className="px-1.5 sm:px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm bg-transparent text-zinc-600 dark:text-zinc-400 outline-none cursor-pointer"
-                  >
-                    {IMAGE_GEN_RESOLUTION_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <SettingsMenu
-                  model={model}
-                  ready={modelReady}
-                  webSearch={webSearch}
-                  setWebSearch={setWebSearch}
-                  chatSystemPrompt={chatSystemPrompt}
-                  onChatSystemPromptSave={onChatSystemPromptSave}
-                  systemPrompts={systemPrompts}
-                  addSystemPrompt={addSystemPrompt}
-                  updateSystemPrompt={updateSystemPrompt}
-                  deleteSystemPrompt={deleteSystemPrompt}
-                />
-              )}
-            </>
-          ) : null}
+          <ModelSelector
+            model={model}
+            onModelChange={onModelChange}
+            ready={modelReady}
+          />
+          <SettingsMenu
+            model={model}
+            ready={modelReady}
+            webSearch={webSearch}
+            setWebSearch={setWebSearch}
+            chatSystemPrompt={chatSystemPrompt}
+            onChatSystemPromptSave={onChatSystemPromptSave}
+            systemPrompts={systemPrompts}
+            addSystemPrompt={addSystemPrompt}
+            updateSystemPrompt={updateSystemPrompt}
+            deleteSystemPrompt={deleteSystemPrompt}
+          />
         </div>
         <div className="relative flex items-end gap-2 p-3 md:p-4 rounded-b-[24px]">
           {supportsFilePicker && (
@@ -482,7 +412,7 @@ export default function Composer({
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={hasReachedCouncilRoundLimit || selectedAttachments.length >= MAX_CHAT_ATTACHMENTS}
+                disabled={selectedAttachments.length >= MAX_CHAT_ATTACHMENTS}
                 className="p-2.5 rounded-xl text-zinc-400 hover:text-primary hover:bg-primary/5 transition-all disabled:opacity-30 active:scale-90"
                 type="button"
                 title="上传附件"
@@ -500,8 +430,8 @@ export default function Composer({
             onPaste={handlePaste}
             onFocus={() => setIsMainInputFocused(true)}
             onBlur={() => setIsMainInputFocused(false)}
-            readOnly={hasReachedCouncilRoundLimit}
-            placeholder={hasReachedCouncilRoundLimit ? `已达到 ${COUNCIL_MAX_ROUNDS} 轮上限...` : isImageGenSelected ? "描述您想生成的图片..." : "给 AI 发送消息..."}
+            readOnly={false}
+            placeholder="给 AI 发送消息..."
             className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base md:text-[15px] text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none py-2 min-h-[44px] transition-all scrollbar-none"
             rows={1}
           />
@@ -509,7 +439,7 @@ export default function Composer({
           <div className="flex items-center mb-0.5">
             <button
               onClick={isStreaming || isWaitingForAI ? onStop : handleSend}
-              disabled={!isStreaming && !isWaitingForAI && (hasReachedCouncilRoundLimit || isUploading || (!input.trim() && selectedAttachments.length === 0))}
+              disabled={!isStreaming && !isWaitingForAI && (isUploading || (!input.trim() && selectedAttachments.length === 0))}
               className={`flex items-center justify-center w-9 h-9 rounded-full transition-all active:scale-90 ${
                 isStreaming || isWaitingForAI 
                   ? "bg-red-500 hover:bg-red-600 text-white" 

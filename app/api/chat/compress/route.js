@@ -3,13 +3,12 @@ import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import { GEMINI_FLASH_MODEL } from '@/lib/shared/models';
-import { createGeminiClient, resolveGeminiApiModel } from '@/lib/server/chat/providerAdapters';
+import { requestZenMuxChatCompletion } from '@/lib/server/zenmux/openai';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const COMPRESS_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
-const COMPRESS_MODEL = resolveGeminiApiModel(GEMINI_FLASH_MODEL);
 
 const COMPRESS_SYSTEM_PROMPT = `你是一个对话历史压缩器。你的任务是将一段多轮对话压缩成一份简洁的摘要，保留所有关键信息。
 
@@ -23,12 +22,6 @@ const COMPRESS_SYSTEM_PROMPT = `你是一个对话历史压缩器。你的任务
 7. 摘要应该足够详细，使得一个新的AI助手仅凭这份摘要就能无缝继续对话
 8. 直接输出摘要内容，不要加任何前缀说明`;
 
-/**
- * 压缩对话历史为摘要
- * POST /api/chat/compress
- * body: { messages: [...], provider: "gemini"|"claude"|"openai" }
- * response: { summary: "..." }
- */
 export async function POST(req) {
     try {
         let body;
@@ -62,13 +55,11 @@ export async function POST(req) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // 构建对话文本用于压缩
         const conversationText = messages
             .filter(m => m?.role === 'user' || m?.role === 'model')
             .map(m => {
                 const role = m.role === 'user' ? '用户' : '助手';
                 const content = typeof m.content === 'string' ? m.content : '';
-                // 截断过长的单条消息，避免压缩请求本身超出上下文
                 const truncated = content.length > 8000 ? content.slice(0, 8000) + '...(已截断)' : content;
                 return `【${role}】${truncated}`;
             })
@@ -78,35 +69,19 @@ export async function POST(req) {
             return Response.json({ error: 'No valid messages to compress' }, { status: 400 });
         }
 
-        const ai = await createGeminiClient();
-
-        const result = await ai.models.generateContent({
-            model: COMPRESS_MODEL,
-            contents: [{
-                role: "user",
-                parts: [{ text: `请将以下对话历史压缩成一份摘要：\n\n${conversationText}` }]
-            }],
-            config: {
-                systemInstruction: { parts: [{ text: COMPRESS_SYSTEM_PROMPT }] },
-                maxOutputTokens: 65536,
-                temperature: 1,
-                thinkingConfig: {
-                    thinkingLevel: "high",
-                },
-            }
+        const summary = await requestZenMuxChatCompletion({
+            model: GEMINI_FLASH_MODEL,
+            system: COMPRESS_SYSTEM_PROMPT,
+            prompt: `请将以下对话历史压缩成一份摘要：\n\n${conversationText}`,
+            signal: req?.signal,
+            reasoningEffort: 'high',
         });
-
-        const summary = result?.candidates?.[0]?.content?.parts
-            ?.filter(p => !p.thought && p.text)
-            ?.map(p => p.text)
-            ?.join('') || '';
 
         if (!summary.trim()) {
             return Response.json({ error: '压缩失败，未生成摘要' }, { status: 500 });
         }
 
         return Response.json({ summary: summary.trim() });
-
     } catch (error) {
         console.error('[Compress] API error:', {
             errorType: error?.name || 'Error',
