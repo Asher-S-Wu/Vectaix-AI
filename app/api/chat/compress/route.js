@@ -74,7 +74,6 @@ export async function POST(req) {
             system: COMPRESS_SYSTEM_PROMPT,
             prompt: `请将以下对话历史压缩成一份摘要：\n\n${conversationText}`,
             signal: req?.signal,
-            reasoningEffort: 'high',
         });
 
         if (!summary.trim()) {

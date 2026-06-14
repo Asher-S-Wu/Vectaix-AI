@@ -322,7 +322,6 @@ export async function POST(req) {
               messages: chatMessages,
               system: systemPrompt,
               stream: true,
-              reasoningEffort: "high",
             }),
             { signal: req?.signal }
           );
