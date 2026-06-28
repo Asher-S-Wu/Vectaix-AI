@@ -1,15 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  FileText,
+  Copy,
+  Download,
+  GitCompare,
+  Lightbulb,
   LoaderCircle,
+  Maximize2,
   Scale,
+  Search,
 } from "lucide-react";
 import Markdown from "../common/Markdown";
 import { Citations } from "./MessageListHelpers";
@@ -17,12 +23,20 @@ import { ModelGlyph } from "../common/ModelVisuals";
 import { FUSION_EXPERTS, FUSION_SYNTHESIS_LABEL, FUSION_SYNTHESIS_MODEL } from "@/lib/shared/models";
 
 const ANALYSIS_SECTIONS = [
-  { key: "agreement", title: "共识点", emptyText: "暂未形成明确共识。" },
-  { key: "keyDifferences", title: "关键分歧", emptyText: "暂未发现关键分歧。" },
-  { key: "partialCoverage", title: "覆盖不全", emptyText: "暂未发现明显覆盖缺口。" },
-  { key: "uniqueInsights", title: "独特洞察", emptyText: "暂未提炼出独特洞察。" },
-  { key: "blindSpots", title: "盲点", emptyText: "暂未发现明显盲点。" },
+  { key: "agreement", title: "共识点", emptyText: "暂未形成明确共识。", icon: CheckCircle2 },
+  { key: "keyDifferences", title: "关键分歧", emptyText: "暂未发现关键分歧。", icon: GitCompare },
+  { key: "partialCoverage", title: "覆盖不全", emptyText: "暂未发现明显覆盖缺口。", icon: Search },
+  { key: "uniqueInsights", title: "独特洞察", emptyText: "暂未提炼出独特洞察。", icon: Lightbulb },
+  { key: "blindSpots", title: "盲点", emptyText: "暂未发现明显盲点。", icon: AlertTriangle },
 ];
+
+const FUSION_ANALYSIS_EXPORT_LABELS = {
+  agreement: "共识点",
+  keyDifferences: "关键分歧",
+  partialCoverage: "覆盖不全",
+  uniqueInsights: "独特洞察",
+  blindSpots: "盲点",
+};
 
 const EXPERT_ORDER = FUSION_EXPERTS.map((expert) => expert.label);
 const TERMINAL_EXPERT_STATUSES = new Set(["done", "skipped", "error"]);
@@ -65,6 +79,50 @@ function extractResultPreview(markdown) {
     .slice(0, 2);
 
   return { title, previewParagraphs };
+}
+
+function buildAnalysisExportText(analysis) {
+  if (!analysis || typeof analysis !== "object") return "";
+  const lines = ["# 对比分析"];
+
+  for (const [key, title] of Object.entries(FUSION_ANALYSIS_EXPORT_LABELS)) {
+    const items = Array.isArray(analysis[key]) ? analysis[key] : [];
+    if (items.length === 0) continue;
+    lines.push(`\n## ${title}`);
+    for (const item of items) {
+      const text = typeof item?.text === "string" ? item.text.trim() : "";
+      if (!text) continue;
+      const models = Array.isArray(item?.models) ? item.models.filter(Boolean) : [];
+      const prefix = models.length > 0 ? `【${models.join(" / ")}】` : "";
+      lines.push(`- ${prefix}${text}`);
+    }
+  }
+
+  return lines.length > 1 ? lines.join("\n").trim() : "";
+}
+
+function buildFusionExportText(content, analysis) {
+  const sections = [];
+  const analysisText = buildAnalysisExportText(analysis);
+  const resultText = typeof content === "string" ? content.trim() : "";
+
+  if (analysisText) sections.push(analysisText);
+  if (resultText) sections.push(resultText);
+
+  return sections.join("\n\n").replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function triggerTextDownload(text, filename) {
+  if (typeof window === "undefined" || !text) return;
+  const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
 }
 
 function buildExpertCards(fusionExperts, fusionExpertStates) {
@@ -207,6 +265,7 @@ function ExpertCard({ expert, open, onToggle }) {
 }
 
 function AnalysisGroup({ section, items, open, onToggle }) {
+  const Icon = section.icon || Scale;
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <button
@@ -215,7 +274,7 @@ function AnalysisGroup({ section, items, open, onToggle }) {
         className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
       >
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
-          <Scale className="h-4 w-4" />
+          <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-[17px] font-medium text-zinc-900 dark:text-zinc-100">{section.title}</div>
@@ -266,19 +325,80 @@ function AnalysisGroup({ section, items, open, onToggle }) {
   );
 }
 
-function ResultCard({ content }) {
+function FusedModelStack() {
+  return (
+    <span className="flex -space-x-1.5">
+      {FUSION_EXPERTS.map((expert) => (
+        <span
+          key={expert.key}
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-white dark:border-zinc-900 dark:bg-zinc-950"
+        >
+          <ModelGlyph model={expert.modelId} size={12} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function ResultCard({ content, analysis }) {
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef(null);
   const preview = useMemo(() => extractResultPreview(content), [content]);
+  const exportText = useMemo(() => buildFusionExportText(content, analysis), [content, analysis]);
+
+  useEffect(() => () => {
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+  }, []);
+
+  const handleCopy = async () => {
+    if (!exportText) return;
+    try {
+      await navigator.clipboard.writeText(exportText);
+      setCopied(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // 复制失败时静默处理，不打断用户
+    }
+  };
+
+  const handleDownload = () => {
+    triggerTextDownload(exportText, "fusion-response.md");
+  };
 
   return (
     <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center gap-3 border-b border-zinc-100 px-4 py-4 dark:border-zinc-800">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
-          <ModelGlyph model={FUSION_SYNTHESIS_MODEL} size={20} />
+      <div className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3.5 dark:border-zinc-800">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
+          <ModelGlyph model={FUSION_SYNTHESIS_MODEL} size={18} />
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-[18px] font-semibold text-zinc-900 dark:text-zinc-100">{FUSION_SYNTHESIS_LABEL}</div>
-          <div className="mt-1 text-sm text-zinc-400 dark:text-zinc-500">正式回复</div>
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <span className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">{FUSION_SYNTHESIS_LABEL}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 dark:border-zinc-700 dark:bg-zinc-950">
+            <FusedModelStack />
+            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Fused</span>
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={handleCopy}
+            disabled={!exportText}
+            title={copied ? "已复制" : "复制全文"}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:cursor-default disabled:opacity-40 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          >
+            {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={!exportText}
+            title="下载为 Markdown"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:cursor-default disabled:opacity-40 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          >
+            <Download className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -292,14 +412,17 @@ function ResultCard({ content }) {
             <Markdown enableHighlight={true} enableMath={true}>{content}</Markdown>
           </div>
         ) : (
-          <div className="mt-4 space-y-3 text-[15px] leading-8 text-zinc-700 dark:text-zinc-300">
-            {preview.previewParagraphs.length > 0 ? (
-              preview.previewParagraphs.map((paragraph, index) => (
-                <p key={`preview-${index}`}>{paragraph}</p>
-              ))
-            ) : (
-              <p>{stripMarkdownSyntax(content)}</p>
-            )}
+          <div className="relative mt-4 max-h-[180px] overflow-hidden">
+            <div className="space-y-3 text-[15px] leading-8 text-zinc-700 dark:text-zinc-300">
+              {preview.previewParagraphs.length > 0 ? (
+                preview.previewParagraphs.map((paragraph, index) => (
+                  <p key={`preview-${index}`}>{paragraph}</p>
+                ))
+              ) : (
+                <p>{stripMarkdownSyntax(content)}</p>
+              )}
+            </div>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-b from-transparent to-white dark:to-zinc-900" />
           </div>
         )}
       </div>
@@ -309,8 +432,8 @@ function ResultCard({ content }) {
         onClick={() => setExpanded((value) => !value)}
         className="flex w-full items-center justify-center gap-2 border-t border-zinc-100 px-4 py-3 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-950 dark:hover:text-zinc-200"
       >
-        <FileText className="h-4 w-4" />
         <span>{expanded ? "收起完整回复" : "展开完整回复"}</span>
+        <Maximize2 className="h-3.5 w-3.5" />
       </button>
     </div>
   );
@@ -356,7 +479,7 @@ export default function FusionMessage({
       <div className="w-full space-y-4">
         <StepHeader title="正式回复" />
         {resultReady ? (
-          <ResultCard content={content} />
+          <ResultCard content={content} analysis={fusionAnalysis} />
         ) : (
           <StepState
             status={resultError ? "error" : "loading"}
@@ -421,7 +544,7 @@ export default function FusionMessage({
         <div className="space-y-3">
           <StepHeader step="步骤 3/3" title="正式回复" />
           {resultReady ? (
-            <ResultCard content={content} />
+            <ResultCard content={content} analysis={fusionAnalysis} />
           ) : (
             <StepState
               status={resultError ? "error" : "loading"}
