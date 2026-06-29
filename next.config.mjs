@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["@google/genai", "@anthropic-ai/sdk", "@vercel/sandbox"],
+  serverExternalPackages: ["@vercel/sandbox"],
   // 禁用页面缓存，确保每次获取最新版本
   async headers() {
     return [

@@ -28,13 +28,14 @@
 <table>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.5-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.5"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.7-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.6-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.1%20Pro-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.8-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.5%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Doubao%20Seed%202.1-FF6A00?style=for-the-badge&logoColor=white" alt="Doubao"/><br/><sub><b>ByteDance</b></sub></td>
 </tr>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-DeepSeek%20V4%20Pro-4D6BFF?style=for-the-badge&logoColor=white" alt="DeepSeek"/><br/><sub><b>DeepSeek</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Doubao--Seed%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Doubao"/><br/><sub><b>ByteDance</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-OpenRouter%20Fusion-111827?style=for-the-badge&logoColor=white" alt="OpenRouter Fusion"/><br/><sub><b>OpenRouter</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT%20Image%202-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT Image 2"/><br/><sub><b>OpenAI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Seedance%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Seedance"/><br/><sub><b>ByteDance</b></sub></td>
 </tr>
 </table>
 
@@ -62,16 +63,22 @@ At its core is **Fusion Mode**, a novel multi-agent consensus framework that dis
 
 ### 🤖 Multi-Model Intelligence
 
-Access 6 frontier AI models from 5 leading providers through a unified interface. Switch models mid-conversation with full context preservation.
+Access 4 direct chat models plus Fusion Mode through a unified interface. Switch models mid-conversation with full context preservation.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **GPT-5.5** | OpenAI | 1M | Text, Image, File | ✅ | ✅ |
-| **Claude Opus 4.7** | Anthropic | 1M | Text, Image, File | ✅ | ✅ |
-| **Claude Opus 4.6** | Anthropic | 1M | Text, Image, File | ✅ | ✅ |
-| **Gemini 3.5 Flash** | Google | 1M | Text, Image, File, Video, Audio | ✅ | ✅ |
-| **DeepSeek V4 Pro** | DeepSeek | 1M | Text | — | ✅ |
-| **Doubao-Seed 2.0** | ByteDance | 256K | Text, Image, Video | ✅ | ✅ |
+| **Fusion** | OpenRouter | — | Text | — | — |
+| **GPT 5.5** | OpenAI | 256K | Text, Image, File | ✅ | ✅ |
+| **Claude Opus 4.8** | Anthropic | 200K | Text, Image, File | ✅ | ✅ |
+| **Gemini 3.5 Flash** | Google | 1M | Text, Image, File | ✅ | ✅ |
+| **Doubao Seed 2.1 Pro** | ByteDance | 128K | Text, Image, File | ✅ | ✅ |
+
+Dedicated media models:
+
+| Model | Provider | Capability |
+|:---:|:---:|:---|
+| **GPT Image 2** | OpenAI | Image generation and image editing |
+| **Seedance 2.0 Standard** | ByteDance | Text-to-video and image-to-video |
 
 <br/>
 
@@ -94,7 +101,7 @@ The crown jewel of Vectaix AI. Inspired by the deliberative processes of real-wo
                          └─────────────┼─────────────┘
                                        ▼
                               ┌─────────────────┐
-                              │ DeepSeek V4 Pro │
+                              │OpenRouter Fusion│
                               │  (Synthesis)    │
                               └────────┬─────────┘
                                        │
@@ -110,13 +117,13 @@ The crown jewel of Vectaix AI. Inspired by the deliberative processes of real-wo
 
 1. **Parallel Generation** — Your query is simultaneously sent to GPT 5.5, Claude Opus 4.8, and Gemini 3.5 Flash
 2. **Independent Reasoning** — Each expert reasons independently with its own strengths and knowledge
-3. **Structured Synthesis** — DeepSeek V4 Pro analyzes all responses, identifying:
+3. **Structured Synthesis** — OpenRouter Fusion analyzes all responses, identifying:
    - ✅ **Agreement** — Points where all experts converge
    - ⚖️ **Key Differences** — Where experts disagree and why
    - 💡 **Unique Insights** — Valuable perspectives from individual experts
    - 🔍 **Blind Spots** — Gaps that only cross-model analysis reveals
 
-> Fusion Mode currently does not support web search; it focuses on multi-model text/image reasoning.
+> Fusion Mode currently does not support web search; it focuses on text-only multi-model reasoning.
 
 **Key Results from Research:**
 
@@ -298,7 +305,7 @@ vectaix-ai/
 | **Backend** | Next.js API Routes · Node.js · SSE (Server-Sent Events) Streaming |
 | **Database** | MongoDB with Mongoose ODM |
 | **Storage** | Vercel Blob (file uploads & attachments) |
-| **AI Providers** | Google GenAI SDK · Anthropic SDK · OpenAI API · DeepSeek · ByteDance Seed |
+| **AI Providers** | ZenMux OpenAI-compatible routing · OpenRouter · Volcengine Ark |
 | **Code Execution** | Vercel Sandbox (isolated runtime) |
 | **Auth** | JWT (jose) · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
@@ -341,11 +348,9 @@ npm run dev
 |:---|:---:|:---|
 | `MONGODB_URI` | ✅ | MongoDB connection string |
 | `JWT_SECRET` | ✅ | Secret key for JWT token signing |
-| `GEMINI_API_KEY` | — | Google Gemini API key |
-| `ANTHROPIC_API_KEY` | — | Anthropic Claude API key |
-| `OPENAI_API_KEY` | — | OpenAI GPT API key |
-| `DEEPSEEK_API_KEY` | — | DeepSeek API key |
-| `SEED_API_KEY` | — | ByteDance Doubao-Seed API key |
+| `ZENMUX_API_KEY` | — | ZenMux API key for GPT, Claude, Gemini, and image generation |
+| `OPENROUTER_API_KEY` | — | OpenRouter API key for Fusion synthesis |
+| `ARK_API_KEY` | — | Volcengine Ark API key for Doubao Seed and Seedance video |
 | `BLOB_READ_WRITE_TOKEN` | — | Vercel Blob storage token |
 
 > [!TIP]
