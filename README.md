@@ -27,15 +27,16 @@
 
 <table>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.5-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.5"/><br/><sub><b>OpenAI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.6%20Sol-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.6 Sol"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.8-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.5%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Doubao%20Seed%202.1-FF6A00?style=for-the-badge&logoColor=white" alt="Doubao"/><br/><sub><b>ByteDance</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.5-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.5"/><br/><sub><b>xAI</b></sub></td>
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-OpenRouter%20Fusion-111827?style=for-the-badge&logoColor=white" alt="OpenRouter Fusion"/><br/><sub><b>OpenRouter</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT%20Image%202-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT Image 2"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Seedance%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Seedance"/><br/><sub><b>ByteDance</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-GLM--5.2-315EFB?style=for-the-badge&logoColor=white" alt="GLM-5.2"/><br/><sub><b>Z.AI</b></sub></td>
 </tr>
 </table>
 
@@ -140,8 +141,8 @@ The crown jewel of Vectaix AI. Inspired by the deliberative processes of real-wo
 
 Real-time access to the internet with intelligent multi-round browsing capabilities.
 
-- **Smart Search** — AI-driven query formulation for optimal search results
-- **Page Crawling** — Deep page content extraction and analysis
+- **Smart Search** — Discover fresh, relevant sources with Firecrawl Search
+- **Page Crawling** — Extract selected pages as clean Markdown with Firecrawl Scrape
 - **Multi-Page Browsing** — Crawl multiple pages in a single session
 - **Inline Citations** — Every claim backed by traceable source references
 
@@ -249,7 +250,7 @@ vectaix-ai/
 ├── app/
 │   ├── api/
 │   │   ├── fusion/           # Fusion Mode orchestration
-│   │   ├── chat/             # ZenMux chat & compression
+│   │   ├── chat/             # Multi-provider chat & compression
 │   │   ├── auth/             # Authentication endpoints
 │   │   ├── conversations/    # Conversation CRUD
 │   │   ├── media/            # Image/video generation
@@ -306,7 +307,7 @@ vectaix-ai/
 | **Backend** | Next.js API Routes · Node.js · SSE (Server-Sent Events) Streaming |
 | **Database** | MongoDB with Mongoose ODM |
 | **Storage** | Vercel Blob (file uploads & attachments) |
-| **AI Providers** | ZenMux OpenAI-compatible routing · OpenRouter · Volcengine Ark |
+| **AI Providers** | Inferera · Google Gemini API · OpenRouter |
 | **Code Execution** | Vercel Sandbox (isolated runtime) |
 | **Auth** | JWT (jose) · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
@@ -349,13 +350,14 @@ npm run dev
 |:---|:---:|:---|
 | `MONGODB_URI` | ✅ | MongoDB connection string |
 | `JWT_SECRET` | ✅ | Secret key for JWT token signing |
-| `ZENMUX_API_KEY` | — | ZenMux API key for GPT, Claude, Gemini, and image generation |
+| `AIHUBMIX_API_KEY` | — | Inferera key for GPT, Grok, Claude, GLM, image, and video APIs |
+| `GEMINI_API_KEY` | — | Google Gemini API key for Gemini chat and conversation compression |
 | `OPENROUTER_API_KEY` | — | OpenRouter API key for Fusion synthesis |
-| `ARK_API_KEY` | — | Volcengine Ark API key for Doubao Seed and Seedance video |
+| `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |
 | `BLOB_READ_WRITE_TOKEN` | — | Vercel Blob storage token |
 
 > [!TIP]
-> You only need API keys for the providers you want to use. The platform gracefully handles missing provider configurations.
+> Configure the key for every model or feature you enable. Missing keys return a clear configuration error.
 
 <br/>
 

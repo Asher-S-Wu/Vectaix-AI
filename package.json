@@ -9,10 +9,12 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@vercel/sandbox": "^0.0.18",
-    "@tavily/core": "^0.7.3",
+    "@anthropic-ai/sdk": "^0.111.0",
+    "@google/genai": "^2.11.0",
     "@vercel/blob": "^0.19.0",
+    "@vercel/sandbox": "^0.0.18",
     "bcryptjs": "^2.4.3",
+    "firecrawl": "^4.30.0",
     "framer-motion": "^11.0.0",
     "jose": "^5.2.0",
     "lucide-react": "^0.577.0",

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  Ban,
   CheckCircle2,
   Clapperboard,
   Clock3,
@@ -27,33 +26,26 @@ import {
   VIDEO_DURATION_OPTIONS,
   VIDEO_FRAME_ACCEPTED_MIME_TYPES,
   VIDEO_FRAME_MAX_BYTES,
-  VIDEO_ICON_URL,
   VIDEO_MODEL_NAME,
-  VIDEO_PRIORITY_MAX,
-  VIDEO_PRIORITY_MIN,
   VIDEO_PROMPT_MAX_LENGTH,
   VIDEO_RESOLUTION_OPTIONS,
 } from '@/lib/media/shared/models';
 
-const ACTIVE_STATUSES = new Set(['queued', 'running']);
-const DELETABLE_STATUSES = new Set(['succeeded', 'failed', 'cancelled', 'expired']);
+const ACTIVE_STATUSES = new Set(['queued', 'in_progress']);
+const DELETABLE_STATUSES = new Set(['queued', 'completed', 'failed']);
 
 const STATUS_LABELS = {
   queued: '排队中',
-  running: '生成中',
-  succeeded: '已完成',
+  in_progress: '生成中',
+  completed: '已完成',
   failed: '失败',
-  cancelled: '已取消',
-  expired: '已过期',
 };
 
 const STATUS_STYLES = {
   queued: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300',
-  running: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300',
-  succeeded: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300',
+  in_progress: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300',
+  completed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300',
   failed: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300',
-  cancelled: 'border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300',
-  expired: 'border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300',
 };
 
 function isAcceptedFrame(file) {
@@ -77,7 +69,7 @@ function formatDuration(value) {
 }
 
 function formatTokens(task) {
-  const total = Number(task?.usage?.total_tokens ?? task?.ark?.usage?.total_tokens);
+  const total = Number(task?.usage?.total_tokens ?? task?.upstream?.usage?.total_tokens);
   if (!Number.isFinite(total) || total <= 0) return '';
   return `${total.toLocaleString('zh-CN')} tokens`;
 }
@@ -98,7 +90,7 @@ function mergeTask(tasks, nextTask) {
 function TaskStatus({ status }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES.queued;
   const label = STATUS_LABELS[status] || status || '排队中';
-  const Icon = status === 'succeeded' ? CheckCircle2 : status === 'failed' || status === 'expired' ? AlertTriangle : status === 'cancelled' ? Ban : Clock3;
+  const Icon = status === 'completed' ? CheckCircle2 : status === 'failed' ? AlertTriangle : Clock3;
   return (
     <span className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium ${style}`}>
       <Icon className="h-3.5 w-3.5" />
@@ -113,11 +105,8 @@ function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
   const tokens = formatTokens(task);
   const errorText = getTaskError(task);
   const canDelete = DELETABLE_STATUSES.has(task.status);
-  const canCancel = task.status === 'queued';
   const isActive = ACTIVE_STATUSES.has(task.status);
-  const title = task.inputMode === 'image'
-    ? (params.hasLastFrame ? '首尾帧视频' : '图片转视频')
-    : '文字生成视频';
+  const title = task.inputMode === 'image' ? '参考图生成视频' : '文字生成视频';
 
   return (
     <article className="rounded-2xl border border-zinc-200/70 bg-white/80 p-4 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/70">
@@ -136,7 +125,6 @@ function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
             <span>{params.resolution || '720p'}</span>
             <span>{params.generateAudio ? '有声' : '无声'}</span>
             {params.watermark ? <span>带水印</span> : null}
-            {params.webSearch ? <span>联网搜索</span> : null}
             {tokens ? <span>{tokens}</span> : null}
             {createdAt ? <span>{createdAt}</span> : null}
           </div>
@@ -153,15 +141,15 @@ function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
           >
             <RefreshCw className={`h-4 w-4 ${isActive ? 'animate-spin' : ''}`} />
           </button>
-          {canCancel || canDelete ? (
+          {canDelete ? (
             <button
               type="button"
               onClick={() => onDelete(task)}
               disabled={acting}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 text-sm text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              {canCancel ? <Ban className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
-              {canCancel ? '取消' : '删除'}
+              <Trash2 className="h-4 w-4" />
+              删除
             </button>
           ) : (
             <button
@@ -197,18 +185,7 @@ function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
               <Download className="h-4 w-4" />
               下载视频
             </a>
-            {task.lastFrameUrl ? (
-              <a href={task.lastFrameUrl} download className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-                <Download className="h-4 w-4" />
-                下载尾帧
-              </a>
-            ) : null}
           </div>
-          {task.lastFrameUrl ? (
-            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
-              <img src={task.lastFrameUrl} alt="视频尾帧" className="mx-auto max-h-[360px] w-full object-contain" />
-            </div>
-          ) : null}
         </div>
       ) : null}
     </article>
@@ -223,15 +200,9 @@ export default function VideoGenerationPage() {
   const [resolution, setResolution] = useState('720p');
   const [generateAudio, setGenerateAudio] = useState(true);
   const [watermark, setWatermark] = useState(false);
-  const [returnLastFrame, setReturnLastFrame] = useState(false);
-  const [webSearch, setWebSearch] = useState(false);
-  const [priority, setPriority] = useState(0);
   const [image, setImage] = useState(null);
-  const [lastFrame, setLastFrame] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
-  const [lastFramePreviewUrl, setLastFramePreviewUrl] = useState('');
   const [imageInputKey, setImageInputKey] = useState(0);
-  const [lastFrameInputKey, setLastFrameInputKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [actingTaskId, setActingTaskId] = useState('');
@@ -246,19 +217,9 @@ export default function VideoGenerationPage() {
     [tasks]
   );
 
-  useEffect(() => {
-    if (!image) { setImagePreviewUrl(''); return undefined; }
-    const nextUrl = URL.createObjectURL(image);
-    setImagePreviewUrl(nextUrl);
-    return () => URL.revokeObjectURL(nextUrl);
-  }, [image]);
-
-  useEffect(() => {
-    if (!lastFrame) { setLastFramePreviewUrl(''); return undefined; }
-    const nextUrl = URL.createObjectURL(lastFrame);
-    setLastFramePreviewUrl(nextUrl);
-    return () => URL.revokeObjectURL(nextUrl);
-  }, [lastFrame]);
+  useEffect(() => () => {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+  }, [imagePreviewUrl]);
 
   const loadTasks = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setTasksLoading(true);
@@ -295,25 +256,25 @@ export default function VideoGenerationPage() {
   }, [activeTaskKey]);
 
   useEffect(() => {
-    loadTasks();
+    const timer = setTimeout(() => loadTasks(), 0);
+    return () => clearTimeout(timer);
   }, [loadTasks]);
 
   useEffect(() => {
     if (!activeTaskKey) return undefined;
-    refreshActiveTasks();
+    const initialTimer = setTimeout(() => refreshActiveTasks(), 0);
     const timer = setInterval(refreshActiveTasks, 15_000);
-    return () => clearInterval(timer);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(timer);
+    };
   }, [activeTaskKey, refreshActiveTasks]);
 
-  const handleFrameChange = (kind, file) => {
+  const handleFrameChange = (_kind, file) => {
     setError('');
-    if (kind === 'image') {
-      setImage(file);
-      if (!file) setImageInputKey((current) => current + 1);
-      return;
-    }
-    setLastFrame(file);
-    if (!file) setLastFrameInputKey((current) => current + 1);
+    setImage(file);
+    setImagePreviewUrl(file ? URL.createObjectURL(file) : '');
+    if (!file) setImageInputKey((current) => current + 1);
   };
 
   const validateFrame = (file, label) => {
@@ -357,22 +318,15 @@ export default function VideoGenerationPage() {
       return;
     }
     if (mode === 'image' && !image) {
-      setError('请上传首帧图片');
+      setError('请上传参考图片');
       return;
     }
     if (prompt.trim().length > VIDEO_PROMPT_MAX_LENGTH) {
       setError(`视频描述最多支持 ${VIDEO_PROMPT_MAX_LENGTH} 个字符`);
       return;
     }
-    const imageError = validateFrame(mode === 'image' ? image : null, '首帧图片');
+    const imageError = validateFrame(mode === 'image' ? image : null, '参考图片');
     if (imageError) { setError(imageError); return; }
-    const lastFrameError = validateFrame(mode === 'image' ? lastFrame : null, '尾帧图片');
-    if (lastFrameError) { setError(lastFrameError); return; }
-    if (!Number.isInteger(priority) || priority < VIDEO_PRIORITY_MIN || priority > VIDEO_PRIORITY_MAX) {
-      setError('优先级必须是 0 到 9 之间的整数');
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const task = await createVideoTask({
@@ -381,19 +335,13 @@ export default function VideoGenerationPage() {
         duration,
         resolution,
         image: mode === 'image' ? image : null,
-        lastFrame: mode === 'image' ? lastFrame : null,
         generateAudio,
         watermark,
-        returnLastFrame,
-        webSearch,
-        priority,
       });
       setTasks((current) => mergeTask(current, task));
       setPrompt('');
       setImage(null);
-      setLastFrame(null);
       setImageInputKey((current) => current + 1);
-      setLastFrameInputKey((current) => current + 1);
     } catch (submitError) {
       setError(getErrorMessage(submitError, '视频任务创建失败，请稍后再试'));
     } finally {
@@ -422,7 +370,7 @@ export default function VideoGenerationPage() {
     <div className="space-y-6">
       <div className="glass-effect rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60">
         <div className="mb-5 flex items-center gap-3">
-          <img src={VIDEO_ICON_URL} alt="" className="h-10 w-10 object-contain" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"><Clapperboard className="h-5 w-5" /></span>
           <div>
             <h2 className="text-lg font-semibold">视频生成</h2>
             <p className="text-sm text-zinc-500">使用 {VIDEO_MODEL_NAME}，创建视频任务并自动同步结果。</p>
@@ -442,9 +390,8 @@ export default function VideoGenerationPage() {
           </div>
 
           {mode === 'image' ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {renderFramePicker({ kind: 'image', label: '首帧图片', file: image, previewUrl: imagePreviewUrl, inputKey: imageInputKey })}
-              {renderFramePicker({ kind: 'lastFrame', label: '尾帧图片', file: lastFrame, previewUrl: lastFramePreviewUrl, inputKey: lastFrameInputKey })}
+            <div className="grid gap-4">
+              {renderFramePicker({ kind: 'image', label: '参考图片', file: image, previewUrl: imagePreviewUrl, inputKey: imageInputKey })}
             </div>
           ) : null}
 
@@ -454,7 +401,7 @@ export default function VideoGenerationPage() {
             <div className="text-right text-xs text-zinc-500">{prompt.length}/{VIDEO_PROMPT_MAX_LENGTH}</div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <label htmlFor="video-ratio" className="text-sm font-medium">画面比例</label>
               <select id="video-ratio" value={ratio} onChange={(event) => setRatio(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm dark:border-zinc-700 dark:bg-zinc-900">
@@ -473,13 +420,9 @@ export default function VideoGenerationPage() {
                 {VIDEO_RESOLUTION_OPTIONS.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
               </select>
             </div>
-            <div className="space-y-2">
-              <label htmlFor="video-priority" className="text-sm font-medium">优先级</label>
-              <input id="video-priority" type="number" min={VIDEO_PRIORITY_MIN} max={VIDEO_PRIORITY_MAX} value={priority} onChange={(event) => setPriority(Number(event.target.value))} className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-900" />
-            </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2">
             <label className="flex min-h-[64px] items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-700">
               <input type="checkbox" checked={generateAudio} onChange={(event) => setGenerateAudio(event.target.checked)} className="h-4 w-4" />
               生成音轨
@@ -487,14 +430,6 @@ export default function VideoGenerationPage() {
             <label className="flex min-h-[64px] items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-700">
               <input type="checkbox" checked={watermark} onChange={(event) => setWatermark(event.target.checked)} className="h-4 w-4" />
               添加水印
-            </label>
-            <label className="flex min-h-[64px] items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-700">
-              <input type="checkbox" checked={returnLastFrame} onChange={(event) => setReturnLastFrame(event.target.checked)} className="h-4 w-4" />
-              返回尾帧
-            </label>
-            <label className="flex min-h-[64px] items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-700">
-              <input type="checkbox" checked={webSearch} onChange={(event) => setWebSearch(event.target.checked)} className="h-4 w-4" />
-              联网搜索
             </label>
           </div>
 

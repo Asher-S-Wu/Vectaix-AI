@@ -9,17 +9,14 @@ import {
   VIDEO_FRAME_ACCEPTED_MIME_TYPES,
   VIDEO_FRAME_MAX_BYTES,
   VIDEO_MODEL,
-  VIDEO_PRIORITY_MAX,
-  VIDEO_PRIORITY_MIN,
   VIDEO_PROMPT_MAX_LENGTH,
   VIDEO_RESOLUTION_OPTIONS,
 } from "@/lib/media/shared/models";
 import VideoGenerationTask from "@/models/VideoGenerationTask";
 import {
-  buildSafetyIdentifier,
-  createArkVideoTask,
-} from "@/lib/media/server/ark/videos";
-import { serializeVideoTask } from "@/lib/media/server/ark/taskRecords";
+  createUpstreamVideoTask,
+} from "@/lib/media/server/inferera/videos";
+import { serializeVideoTask } from "@/lib/media/server/inferera/taskRecords";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,8 +33,8 @@ function jsonMessage(message, status = 400) {
 
 function getPublicErrorMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
-  if (message.includes("ARK_API_KEY")) {
-    return "缺少 ARK_API_KEY 环境变量";
+  if (message.includes("AIHUBMIX_API_KEY")) {
+    return "缺少 AIHUBMIX_API_KEY 环境变量";
   }
   return message || fallback;
 }
@@ -83,14 +80,10 @@ function parseVideoTaskForm(formData) {
   const resolution = readOptionalString(formData, "resolution") || "720p";
   const generateAudio = readBoolean(formData, "generateAudio", true);
   const watermark = readBoolean(formData, "watermark", false);
-  const returnLastFrame = readBoolean(formData, "returnLastFrame", false);
-  const webSearch = readBoolean(formData, "webSearch", false);
-  const priority = readInteger(formData, "priority", 0);
   const image = readOptionalImage(formData, "image");
-  const lastFrame = readOptionalImage(formData, "lastFrame");
 
   if (!prompt && !image) {
-    throw new Error("请输入视频描述或上传首帧图片");
+    throw new Error("请输入视频描述或上传参考图片");
   }
   if (prompt.length > VIDEO_PROMPT_MAX_LENGTH) {
     throw new Error(`视频描述最多支持 ${VIDEO_PROMPT_MAX_LENGTH} 个字符`);
@@ -104,17 +97,8 @@ function parseVideoTaskForm(formData) {
   if (!ALLOWED_RESOLUTIONS.has(resolution)) {
     throw new Error("不支持的分辨率");
   }
-  if (!Number.isInteger(priority) || priority < VIDEO_PRIORITY_MIN || priority > VIDEO_PRIORITY_MAX) {
-    throw new Error("优先级必须是 0 到 9 之间的整数");
-  }
-  if (lastFrame && !image) {
-    throw new Error("使用尾帧时需要同时上传首帧");
-  }
-
-  const imageError = validateFrameImage(image, "首帧图片");
+  const imageError = validateFrameImage(image, "参考图片");
   if (imageError) throw new Error(imageError);
-  const lastFrameError = validateFrameImage(lastFrame, "尾帧图片");
-  if (lastFrameError) throw new Error(lastFrameError);
 
   return {
     prompt,
@@ -123,11 +107,7 @@ function parseVideoTaskForm(formData) {
     resolution,
     generateAudio,
     watermark,
-    returnLastFrame,
-    webSearch,
-    priority,
     image,
-    lastFrame,
     inputMode: image ? "image" : "text",
   };
 }
@@ -138,7 +118,7 @@ export async function GET() {
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
 
-    const tasks = await VideoGenerationTask.find({ userId: user.userId })
+    const tasks = await VideoGenerationTask.find({ userId: user.userId, model: VIDEO_MODEL })
       .sort({ updatedAt: -1 })
       .limit(100)
       .lean();
@@ -168,22 +148,22 @@ export async function POST(request) {
 
     const formData = await request.formData();
     const input = parseVideoTaskForm(formData);
-    const safetyIdentifier = buildSafetyIdentifier(user.userId);
-    const arkTask = await createArkVideoTask({
+    const upstreamTask = await createUpstreamVideoTask({
       ...input,
-      safetyIdentifier,
       signal: request.signal,
     });
 
-    const arkTaskId = typeof arkTask?.id === "string" ? arkTask.id.trim() : "";
-    if (!arkTaskId) {
+    const upstreamTaskId = typeof upstreamTask?.id === "string" ? upstreamTask.id.trim() : "";
+    if (!upstreamTaskId) {
       return jsonMessage("视频生成任务提交失败", 500);
     }
 
     const task = await VideoGenerationTask.create({
       userId: user.userId,
-      arkTaskId,
-      status: "queued",
+      upstreamTaskId,
+      status: ["queued", "in_progress", "completed", "failed"].includes(upstreamTask?.status)
+        ? upstreamTask.status
+        : "queued",
       model: VIDEO_MODEL,
       prompt: input.prompt,
       inputMode: input.inputMode,
@@ -193,13 +173,9 @@ export async function POST(request) {
         resolution: input.resolution,
         generateAudio: input.generateAudio,
         watermark: input.watermark,
-        returnLastFrame: input.returnLastFrame,
-        webSearch: input.webSearch,
-        priority: input.priority,
-        hasFirstFrame: Boolean(input.image),
-        hasLastFrame: Boolean(input.lastFrame),
+        hasReferenceImage: Boolean(input.image),
       },
-      arkResponse: arkTask,
+      upstreamResponse: upstreamTask,
     });
 
     return Response.json({

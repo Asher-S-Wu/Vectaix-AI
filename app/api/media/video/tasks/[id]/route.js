@@ -4,17 +4,16 @@ import {
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
 import VideoGenerationTask from "@/models/VideoGenerationTask";
-import { deleteArkVideoTask } from "@/lib/media/server/ark/videos";
+import { deleteUpstreamVideoTask } from "@/lib/media/server/inferera/videos";
 import {
   serializeVideoTask,
   shouldSyncVideoTask,
   syncVideoTaskRecord,
-} from "@/lib/media/server/ark/taskRecords";
+} from "@/lib/media/server/inferera/taskRecords";
+import { VIDEO_MODEL } from "@/lib/media/shared/models";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const REMOTE_DELETE_STATUSES = new Set(["succeeded", "failed", "expired"]);
 
 function jsonMessage(message, status = 400) {
   return Response.json({ success: false, message }, { status });
@@ -22,8 +21,8 @@ function jsonMessage(message, status = 400) {
 
 function getPublicErrorMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
-  if (message.includes("ARK_API_KEY")) {
-    return "缺少 ARK_API_KEY 环境变量";
+  if (message.includes("AIHUBMIX_API_KEY")) {
+    return "缺少 AIHUBMIX_API_KEY 环境变量";
   }
   return message || fallback;
 }
@@ -35,7 +34,7 @@ async function getTaskId(context) {
 
 async function loadOwnedTask(id, userId) {
   if (!mongoose.isValidObjectId(id)) return null;
-  return VideoGenerationTask.findOne({ _id: id, userId });
+  return VideoGenerationTask.findOne({ _id: id, userId, model: VIDEO_MODEL });
 }
 
 export async function GET(request, context) {
@@ -80,35 +79,12 @@ export async function DELETE(request, context) {
       return jsonMessage("任务不存在", 404);
     }
 
-    if (task.status === "running") {
-      return jsonMessage("运行中的任务不能取消或删除", 409);
+    if (task.status === "in_progress") {
+      return jsonMessage("生成中的任务暂时不能删除", 409);
     }
-
-    if (task.status === "queued") {
-      await deleteArkVideoTask(task.arkTaskId, { signal: request.signal });
-      const updatedTask = await VideoGenerationTask.findOneAndUpdate(
-        { _id: task._id, userId: user.userId },
-        { $set: { status: "cancelled", error: null } },
-        { new: true }
-      ).lean();
-      return Response.json({
-        success: true,
-        task: serializeVideoTask(updatedTask),
-      });
-    }
-
-    if (REMOTE_DELETE_STATUSES.has(task.status)) {
-      await deleteArkVideoTask(task.arkTaskId, { signal: request.signal });
-      await VideoGenerationTask.deleteOne({ _id: task._id, userId: user.userId });
-      return Response.json({ success: true, deleted: true });
-    }
-
-    if (task.status === "cancelled") {
-      await VideoGenerationTask.deleteOne({ _id: task._id, userId: user.userId });
-      return Response.json({ success: true, deleted: true });
-    }
-
-    return jsonMessage("当前任务状态不支持该操作", 400);
+    await deleteUpstreamVideoTask(task.upstreamTaskId, { signal: request.signal });
+    await VideoGenerationTask.deleteOne({ _id: task._id, userId: user.userId, model: VIDEO_MODEL });
+    return Response.json({ success: true, deleted: true });
   } catch (error) {
     console.error("[Media] delete video task:", error);
     const message = getPublicErrorMessage(error, "处理视频任务失败");

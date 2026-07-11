@@ -7,7 +7,6 @@ import { editImage, generateImage } from '@/lib/media/client/media';
 import {
   IMAGE_EDIT_ACCEPTED_MIME_TYPES,
   IMAGE_EDIT_MAX_BYTES,
-  IMAGE_ICON_URL,
   IMAGE_MODEL_NAME,
   IMAGE_PROMPT_MAX_LENGTH,
   IMAGE_SIZE_OPTIONS,
@@ -25,15 +24,9 @@ export default function ImageGenerationPage() {
   const [sourcePreviewUrl, setSourcePreviewUrl] = useState('');
   const [sourceInputKey, setSourceInputKey] = useState(0);
 
-  useEffect(() => {
-    if (!sourceImage) {
-      setSourcePreviewUrl('');
-      return undefined;
-    }
-    const nextUrl = URL.createObjectURL(sourceImage);
-    setSourcePreviewUrl(nextUrl);
-    return () => URL.revokeObjectURL(nextUrl);
-  }, [sourceImage]);
+  useEffect(() => () => {
+    if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
+  }, [sourcePreviewUrl]);
 
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
@@ -45,6 +38,7 @@ export default function ImageGenerationPage() {
   const handleSourceImageChange = (file) => {
     setError('');
     setSourceImage(file);
+    setSourcePreviewUrl(file ? URL.createObjectURL(file) : '');
     if (!file) setSourceInputKey((current) => current + 1);
   };
 
@@ -96,7 +90,7 @@ export default function ImageGenerationPage() {
     <div className="space-y-6">
       <div className="glass-effect rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 p-5">
         <div className="mb-5 flex items-center gap-3">
-          <img src={IMAGE_ICON_URL} alt="" className="h-10 w-10 object-contain" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><ImagePlus className="h-5 w-5" /></span>
           <div>
             <h2 className="text-lg font-semibold">图片生成</h2>
             <p className="text-sm text-zinc-500">使用 {IMAGE_MODEL_NAME}，生成新图片或编辑已有图片。</p>

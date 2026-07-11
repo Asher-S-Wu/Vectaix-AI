@@ -3,7 +3,7 @@ import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import { GEMINI_FLASH_MODEL } from '@/lib/shared/models';
-import { requestZenMuxChatCompletion } from '@/lib/server/zenmux/openai';
+import { runDirectChat } from '@/lib/server/providers/directChat';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -69,11 +69,14 @@ export async function POST(req) {
             return Response.json({ error: 'No valid messages to compress' }, { status: 400 });
         }
 
-        const summary = await requestZenMuxChatCompletion({
+        let summary = '';
+        await runDirectChat({
             model: GEMINI_FLASH_MODEL,
             system: COMPRESS_SYSTEM_PROMPT,
-            prompt: `请将以下对话历史压缩成一份摘要：\n\n${conversationText}`,
+            messages: [{ role: 'user', content: `请将以下对话历史压缩成一份摘要：\n\n${conversationText}` }],
             signal: req?.signal,
+            onText: (delta) => { summary += delta; },
+            onThought: () => {},
         });
 
         if (!summary.trim()) {

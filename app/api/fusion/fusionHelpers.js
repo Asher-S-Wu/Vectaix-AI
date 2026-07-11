@@ -8,27 +8,19 @@ import {
   FUSION_SYNTHESIS_MODEL,
 } from "@/lib/shared/models";
 import {
-  OPENROUTER_WEB_SEARCH_TOOL,
   getChatCompletionAnnotations,
   getChatCompletionOutputText,
-  requestZenMuxChatCompletionResponse,
-} from "@/lib/server/zenmux/openai";
+  requestOpenRouterChatCompletionResponse,
+} from "@/lib/server/openrouter/openai";
 
 export { parseNativeFusionMarkdown } from "@/lib/shared/fusionNativeMarkdown";
 
-const FUSION_RESULT_MAX_OUTPUT_TOKENS = 32768;
-const TRIAGE_MAX_OUTPUT_TOKENS = 1200;
+const FUSION_RESULT_MAX_OUTPUT_TOKENS = 128000;
 const MAX_RAW_MARKDOWN_CHARS = 20000;
-const MAX_NATIVE_FUSION_RESPONSE_CHARS = 120000;
+const MAX_NATIVE_FUSION_RESPONSE_CHARS = 500000;
 const MAX_FINDING_TEXT_CHARS = 1000;
 const HISTORY_USER_SUMMARY_CHARS = 500;
 const HISTORY_MODEL_SUMMARY_CHARS = 1200;
-const FUSION_TRIAGE_GREETING_PATTERNS = [
-  /^(你好|您好|嗨|哈喽|hi|hello|hey|在吗|早上好|中午好|下午好|晚上好)[\s!,.，。！？~]*$/i,
-  /^(谢谢|谢了|多谢|辛苦了|明白了|收到|好的|好的呢|ok|okay)[\s!,.，。！？~]*$/i,
-];
-const FUSION_TRIAGE_COMPLEX_HINT_PATTERN =
-  /(代码|编程|程序|脚本|报错|bug|错误|调试|分析|比较|对比|区别|优缺点|推荐|方案|策划|步骤|计划|原因|为什么|如何|怎么做|实现|设计|架构|优化|总结|复盘|写一篇|写个|生成|创作|文案|提示词|工作流|营销|研究|评估|审核|审查|review|debug|code)/i;
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -171,40 +163,6 @@ export function buildFusionResultState(patch = {}) {
   };
 }
 
-function extractJsonBlock(text) {
-  if (typeof text !== "string") return "";
-  const trimmed = text.trim();
-  if (!trimmed) return "";
-  const match = trimmed.match(/\{[\s\S]*\}/);
-  return match?.[0] || "";
-}
-
-function isFusionGreetingPrompt(text) {
-  return FUSION_TRIAGE_GREETING_PATTERNS.some((pattern) => pattern.test(text));
-}
-
-function isVerySimpleFusionPrompt(text) {
-  if (!text) return false;
-  if (text.includes("\n")) return false;
-  if (text.length > 18) return false;
-  if (FUSION_TRIAGE_COMPLEX_HINT_PATTERN.test(text)) return false;
-
-  const sentenceParts = text
-    .split(/[，,。！？；;、]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  if (sentenceParts.length > 1) return false;
-
-  const latinTokens = text.match(/[A-Za-z0-9]+/g) || [];
-  if (latinTokens.length > 4) return false;
-
-  return true;
-}
-
-function shouldAllowFusionDirectAnswer(text) {
-  return isFusionGreetingPrompt(text) || isVerySimpleFusionPrompt(text);
-}
-
 async function loadImagePayloads(images) {
   if (!Array.isArray(images) || images.length === 0) return [];
   const result = [];
@@ -255,18 +213,19 @@ async function requestSynthesisText({
   instructions,
   payloadText,
   maxTokens,
-  reasoningEffort = "high",
+  reasoningEffort = "max",
   enableWebSearch = false,
+  forceFusion = false,
   signal,
 }) {
   throwIfAborted(signal);
-  const response = await requestZenMuxChatCompletionResponse({
+  const response = await requestOpenRouterChatCompletionResponse({
     model: FUSION_SYNTHESIS_MODEL,
     system: instructions,
     messages: [{ role: "user", content: payloadText }],
     maxTokens,
     reasoningEffort,
-    ...(enableWebSearch ? { tools: [OPENROUTER_WEB_SEARCH_TOOL] } : {}),
+    forceFusion,
     signal,
   });
   const text = getChatCompletionOutputText(response);
@@ -279,71 +238,15 @@ async function requestSynthesisText({
   };
 }
 
-export async function runFusionTriage({ prompt, hasImages, signal }) {
-  if (hasImages) return { needFusion: true };
-  const trimmed = typeof prompt === "string" ? prompt.trim() : "";
-  if (!trimmed) return { needFusion: true };
-  if (!shouldAllowFusionDirectAnswer(trimmed)) {
-    return { needFusion: true };
-  }
-
-  try {
-    const { text } = await requestSynthesisText({
-      instructions: `你是 Fusion 路由判断器。Fusion 会并行调用三位专家模型讨论。你的判断必须非常保守，只有在用户消息明显属于"打招呼 / 非常简单的一句话小问题"时，才允许跳过专家。
-
-只有以下两类，才可以不调用 Fusion（直接回答）：
-- 打招呼、问候、感谢、确认、寒暄，例如"你好""在吗""谢谢""好的"
-- 非常简单的一句话小问题，并且满足：很短、没有分析要求、没有创作要求、没有专业判断要求、没有多步骤要求
-
-下面这些一律必须调用 Fusion（返回 needFusion: true）：
-- 任何分析、比较、解释、总结、推荐、评估、研究
-- 任何编程、调试、代码、脚本、报错、审查
-- 任何写作、创作、文案、策划、方案、提示词
-- 任何带明显专业判断的问题
-- 只要你有一丝犹豫，就必须调用 Fusion
-
-你要默认"调用 Fusion"，而不是默认"跳过专家"。
-
-你必须返回 JSON，不要输出其他内容。
-如果不需要 Fusion，同时给出直接回答：
-{"needFusion":false,"directAnswer":"你的回答内容"}
-如果需要 Fusion：
-{"needFusion":true}`,
-      payloadText: trimmed,
-      maxTokens: TRIAGE_MAX_OUTPUT_TOKENS,
-      reasoningEffort: "minimal",
-      signal,
-    });
-
-    const jsonText = extractJsonBlock(text);
-    if (!jsonText) return { needFusion: true };
-
-    const parsed = JSON.parse(jsonText);
-    if (
-      parsed.needFusion === false
-      && shouldAllowFusionDirectAnswer(trimmed)
-      && typeof parsed.directAnswer === "string"
-      && parsed.directAnswer.trim()
-    ) {
-      return { needFusion: false, directAnswer: parsed.directAnswer.trim() };
-    }
-    return { needFusion: true };
-  } catch (error) {
-    if (signal?.aborted) {
-      throw buildAbortError(signal);
-    }
-    return { needFusion: true };
-  }
-}
-
 export async function runFusionAnswer({ historyMemo, prompt, signal }) {
   const instructions = await buildFusionSystemPrompt();
   const { text, citations } = await requestSynthesisText({
     instructions,
     payloadText: buildFusionTurnPrompt({ historyMemo, prompt }),
     maxTokens: FUSION_RESULT_MAX_OUTPUT_TOKENS,
-    reasoningEffort: "high",
+    reasoningEffort: "max",
     enableWebSearch: true,
+    forceFusion: true,
     signal,
   });
 

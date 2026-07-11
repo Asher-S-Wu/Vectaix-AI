@@ -1,5 +1,5 @@
 import { getAuthPayload } from "@/lib/auth";
-import { editAndStoreImage } from "@/lib/media/server/zenmux/images";
+import { editAndStoreImage } from "@/lib/media/server/inferera/images";
 import {
   IMAGE_EDIT_ACCEPTED_MIME_TYPES,
   IMAGE_EDIT_MAX_BYTES,

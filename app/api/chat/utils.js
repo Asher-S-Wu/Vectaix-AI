@@ -388,20 +388,16 @@ export async function injectCurrentTimeSystemReminder(systemText) {
             timeZone: 'Asia/Shanghai',
             year: 'numeric',
             month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
+            day: '2-digit'
         });
         const parts = formatter.formatToParts(new Date());
         const map = {};
         for (const p of parts) map[p.type] = p.value;
-        timeText = `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+        timeText = `${map.year}-${map.month}-${map.day}`;
     } catch {
         const d = new Date();
         const pad = (n) => String(n).padStart(2, '0');
-        timeText = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        timeText = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     }
 
     // 获取节假日 & 节气信息（带缓存，每天只请求一次外部 API）
@@ -411,7 +407,7 @@ export async function injectCurrentTimeSystemReminder(systemText) {
         holidayLine = buildHolidayText(holiday, festival);
     } catch { /* 获取失败不影响主流程 */ }
 
-    let reminderContent = `当前时间：${timeText}（时区：Asia/Shanghai）。你必须以此为准进行判断与回答，不要把现在当成 2024 年。`;
+    let reminderContent = `当前日期：${timeText}（时区：Asia/Shanghai）。你必须以此为准进行判断与回答，不要把现在当成 2024 年。`;
     if (holidayLine) {
         reminderContent += `\n${holidayLine}`;
     }

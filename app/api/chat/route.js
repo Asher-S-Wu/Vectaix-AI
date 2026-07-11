@@ -5,7 +5,7 @@ import { getAuthPayload } from "@/lib/auth";
 import { rateLimit, getClientIP } from "@/lib/rateLimit";
 import {
   getModelConfig,
-  isZenMuxChatModel,
+  isDirectChatModel,
 } from "@/lib/shared/models";
 import {
   isNonEmptyString,
@@ -27,39 +27,27 @@ import {
 import { prepareDocumentAttachmentMapByUrls } from "@/lib/server/files/service";
 import {
   buildDirectChatSystemPrompt,
-  buildForcedFinalAnswerInstructions,
 } from "@/lib/server/chat/systemPromptBuilder";
 import {
   parseSystemPrompt,
   parseWebSearchConfig,
   parseWebSearchEnabled,
 } from "@/lib/server/chat/requestConfig";
-import {
-  buildChatCompletionsRequest,
-  createChatOpenAIClient,
-  getChatCompletionChunkDelta,
-  getChatCompletionChunkThoughtDelta,
-  getChatCompletionCompletedUsage,
-  getChatCompletionMessage,
-  getChatCompletionToolCalls,
-  normalizeOpenAIError,
-} from "@/lib/server/zenmux/openai";
+import { normalizeProviderError, runDirectChat } from "@/lib/server/providers/directChat";
 import {
   createWebBrowsingRuntime,
   executeWebBrowsingNativeToolCall,
-  getChatCompletionWebTools,
+  getWebToolDefinitions,
   WEB_BROWSING_MAX_ROUNDS,
-  WEB_BROWSING_MAX_TOOL_CALLS_PER_ROUND,
 } from "@/lib/server/webBrowsing/nativeTools";
 import {
   createWebBrowsingRoundController,
-  getMaxWebBrowsingModelPasses,
 } from "@/lib/server/webBrowsing/roundControl";
 import {
   buildChatMessagesFromHistory,
   buildCurrentUserMessage,
   normalizeOpenAIMessageContentParts,
-} from "@/app/api/chat/zenmuxHelpers";
+} from "@/app/api/chat/providerMessageHelpers";
 import {
   CHAT_RATE_LIMIT,
   MAX_REQUEST_BYTES,
@@ -69,41 +57,6 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function buildZenMuxChatProviderState({ completionId, usage }) {
-  const state = {};
-  if (typeof completionId === "string" && completionId.trim()) state.completionId = completionId.trim();
-  if (usage && typeof usage === "object" && !Array.isArray(usage)) state.usage = usage;
-  return Object.keys(state).length > 0 ? { zenmuxChatCompletions: state } : undefined;
-}
-
-function normalizeMessageText(content) {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => {
-        if (typeof part === "string") return part;
-        if (typeof part?.text === "string") return part.text;
-        if (typeof part?.content === "string") return part.content;
-        return "";
-      })
-      .join("");
-  }
-  if (content && typeof content === "object") {
-    if (typeof content.text === "string") return content.text;
-    if (typeof content.content === "string") return content.content;
-  }
-  return "";
-}
-
-function getChatCompletionMessageThought(message) {
-  const reasoning = typeof message?.reasoning === "string" ? message.reasoning : "";
-  const reasoningContent = typeof message?.reasoning_content === "string" ? message.reasoning_content : "";
-  if (reasoning && reasoningContent && reasoning !== reasoningContent) {
-    return `${reasoning}${reasoningContent}`;
-  }
-  return reasoningContent || reasoning;
-}
 
 function pushUniqueCitations(target, items) {
   if (!Array.isArray(target) || !Array.isArray(items)) return false;
@@ -148,7 +101,7 @@ export async function POST(req) {
     if (!Array.isArray(history)) {
       return Response.json({ error: "history must be an array" }, { status: 400 });
     }
-    if (!isZenMuxChatModel(model)) {
+    if (!isDirectChatModel(model)) {
       return Response.json({ error: "unsupported model" }, { status: 400 });
     }
 
@@ -177,7 +130,7 @@ export async function POST(req) {
       }
       user = auth;
     } catch (dbError) {
-      console.error("[ZenMux] connect database:", dbError);
+      console.error("[Chat] connect database:", dbError);
       return Response.json({ error: "Database connection failed" }, { status: 500 });
     }
 
@@ -190,9 +143,6 @@ export async function POST(req) {
     let createdConversationForRequest = false;
     let previousMessages = Array.isArray(currentConversation?.messages) ? currentConversation.messages : [];
     let previousUpdatedAt = currentConversation?.updatedAt ? new Date(currentConversation.updatedAt) : new Date();
-
-    const zenMuxClient = createChatOpenAIClient(model);
-    const apiModel = model;
 
     const currentAttachments = Array.isArray(config?.attachments)
       ? config.attachments.filter((item) => getAttachmentInputType(item?.category) === "file" && isNonEmptyString(item?.url))
@@ -218,6 +168,18 @@ export async function POST(req) {
           .map((file) => file.url)
         : []
     );
+
+    const attachStoredProviderState = (msgs) => {
+      const storedById = new Map(
+        previousMessages
+          .filter((message) => typeof message?.id === "string" && message.id && message?.providerState)
+          .map((message) => [message.id, message.providerState])
+      );
+      return msgs.map((message) => {
+        const state = typeof message?.id === "string" ? storedById.get(message.id) : null;
+        return state ? { ...message, providerState: state } : message;
+      });
+    };
 
     if (isRegenerateMode) {
       let sanitized;
@@ -247,7 +209,7 @@ export async function POST(req) {
       });
       chatMessages = await buildChatMessagesFromHistory(inputMessages, { fileTextMap });
     } else {
-      const effectiveHistory = (limit > 0) ? history.slice(-limit) : history;
+      const effectiveHistory = attachStoredProviderState((limit > 0) ? history.slice(-limit) : history);
       const fileTextMap = await prepareDocumentAttachmentMapByUrls(collectAttachmentUrls(effectiveHistory), {
         userId: user.userId, conversationId: currentConversationId, signal: req?.signal,
       });
@@ -358,7 +320,7 @@ export async function POST(req) {
         let fullText = "";
         let fullThought = "";
         let finalUsage = null;
-        let finalCompletionId = "";
+        let finalProviderState = null;
         let finalMessagePersisted = false;
         const citations = [];
         const toolRecords = [];
@@ -401,144 +363,59 @@ export async function POST(req) {
             userSystemPrompt, systemPromptSuffix, enableWebSearch, searchContextSection: "",
           });
 
-          if (enableWebSearch) {
-            const runtime = createWebBrowsingRuntime({ webSearchOptions: webSearchConfig });
-            const roundController = createWebBrowsingRoundController({ maxRounds: WEB_BROWSING_MAX_ROUNDS });
-            const loopMessages = [...chatMessages];
-            const maxPasses = getMaxWebBrowsingModelPasses(WEB_BROWSING_MAX_ROUNDS);
-            let finished = false;
-
-            for (let pass = 0; pass < maxPasses; pass += 1) {
-              if (clientAborted) break;
-
-              const availableToolApiNames = roundController.getAvailableToolApiNames();
-              const tools = availableToolApiNames.length > 0
-                ? getChatCompletionWebTools(availableToolApiNames)
-                : undefined;
-              const activeSystemPrompt = availableToolApiNames.length > 0
-                ? systemPrompt
-                : buildForcedFinalAnswerInstructions(systemPrompt);
-              const response = await zenMuxClient.chat.completions.create(
-                buildChatCompletionsRequest({
-                  model: apiModel,
-                  messages: loopMessages,
-                  system: activeSystemPrompt,
-                  stream: false,
-                  tools,
-                }),
-                { signal: req?.signal }
-              );
-
-              if (typeof response?.id === "string" && response.id.trim()) {
-                finalCompletionId = response.id.trim();
+          const runtime = enableWebSearch
+            ? createWebBrowsingRuntime({ webSearchOptions: webSearchConfig })
+            : null;
+          const roundController = enableWebSearch
+            ? createWebBrowsingRoundController({ maxRounds: WEB_BROWSING_MAX_ROUNDS })
+            : null;
+          const tools = enableWebSearch
+            ? getWebToolDefinitions()
+            : undefined;
+          const result = await runDirectChat({
+            model,
+            messages: chatMessages,
+            system: systemPrompt,
+            cacheKey: `vectaix-${currentConversationId}`,
+            tools,
+            getTools: () => getWebToolDefinitions(roundController?.getAvailableToolApiNames() || []),
+            signal: req?.signal,
+            onText(delta) {
+              if (!delta || clientAborted) return;
+              fullText += delta;
+              sendEvent({ type: "text", content: delta });
+            },
+            onThought(delta) {
+              if (!delta || clientAborted) return;
+              fullThought += delta;
+              sendEvent({ type: "thought", content: delta });
+            },
+            async executeTool(call) {
+              const reservation = roundController.reserve(call?.name);
+              if (!reservation.allowed) {
+                throw new Error(`联网工具调用超出限制：${call?.name || "unknown"}`);
               }
-              const usage = getChatCompletionCompletedUsage(response);
-              if (usage) {
-                finalUsage = usage;
-              }
-
-              const message = getChatCompletionMessage(response) || {};
-              const thought = getChatCompletionMessageThought(message);
-              if (thought) {
-                fullThought = fullThought ? `${fullThought}\n\n${thought}` : thought;
-                sendEvent({ type: "thought", content: thought });
-              }
-
-              const toolCalls = Array.isArray(tools)
-                ? getChatCompletionToolCalls(response)
-                  .filter((item) => typeof item?.id === "string" && item.id && typeof item?.function?.name === "string" && item.function.name)
-                  .slice(0, WEB_BROWSING_MAX_TOOL_CALLS_PER_ROUND)
-                : [];
-
-              if (toolCalls.length === 0) {
-                fullText = normalizeMessageText(message?.content).trim();
-                if (fullText) {
-                  sendEvent({ type: "text", content: fullText });
-                }
-                finished = true;
-                break;
-              }
-
-              loopMessages.push({
-                role: "assistant",
-                content: normalizeMessageText(message?.content),
-                tool_calls: toolCalls,
+              const toolExecution = await executeWebBrowsingNativeToolCall({
+                apiName: call.name,
+                argumentsInput: call.arguments,
+                runtime,
+                sendEvent,
+                pushCitations,
+                round: reservation.round,
+                signal: req?.signal,
               });
-
-              for (const toolCall of toolCalls) {
-                const apiName = toolCall?.function?.name;
-                const reservation = roundController.reserve(apiName);
-                if (!reservation.allowed) {
-                  const messageText = `联网工具调用超出限制：${apiName || "unknown"}`;
-                  sendEvent({ type: "search_error", round: reservation.round || undefined, query: "", message: messageText });
-                  throw new Error(messageText);
-                }
-
-                const toolExecution = await executeWebBrowsingNativeToolCall({
-                  apiName,
-                  argumentsInput: toolCall?.function?.arguments,
-                  runtime,
-                  sendEvent,
-                  pushCitations,
-                  round: reservation.round,
-                  signal: req?.signal,
-                });
-                toolRecords.push(toolExecution.toolRecord);
-                searchContextTokens += estimateTokens(toolExecution.outputText);
-                loopMessages.push({
-                  role: "tool",
-                  tool_call_id: toolCall.id,
-                  content: toolExecution.outputText,
-                });
-                if (toolExecution.result?.success === false) {
-                  throw new Error(toolExecution.outputText || "联网搜索失败");
-                }
+              toolRecords.push(toolExecution.toolRecord);
+              searchContextTokens += estimateTokens(toolExecution.outputText);
+              if (toolExecution.result?.success === false) {
+                throw new Error(toolExecution.outputText || "联网搜索失败");
               }
-            }
-
-            if (!finished && !clientAborted) {
-              throw new Error("联网搜索轮次已用完，模型未返回最终回答");
-            }
-
-            if (searchContextTokens > 0) {
-              sendEvent({ type: "search_context_tokens", tokens: searchContextTokens });
-            }
-          } else {
-            const stream = await zenMuxClient.chat.completions.create(
-              buildChatCompletionsRequest({
-                model: apiModel,
-                messages: chatMessages,
-                system: systemPrompt,
-                stream: true,
-              }),
-              { signal: req?.signal }
-            );
-
-            for await (const chunk of stream) {
-              if (clientAborted) break;
-
-              if (typeof chunk?.id === "string" && chunk.id.trim()) {
-                finalCompletionId = chunk.id.trim();
-              }
-
-              const delta = getChatCompletionChunkDelta(chunk);
-              const textDelta = typeof delta?.content === "string" ? delta.content : "";
-              if (textDelta) {
-                fullText += textDelta;
-                sendEvent({ type: "text", content: textDelta });
-              }
-
-              const thoughtDelta = getChatCompletionChunkThoughtDelta(chunk);
-              if (thoughtDelta) {
-                fullThought += thoughtDelta;
-                sendEvent({ type: "thought", content: thoughtDelta });
-              }
-
-              const usage = getChatCompletionCompletedUsage(chunk);
-              if (usage) {
-                finalUsage = usage;
-              }
-            }
+              return toolExecution.outputText;
+            },
+          });
+          finalUsage = result.usage || null;
+          finalProviderState = result.providerState || null;
+          if (searchContextTokens > 0) {
+            sendEvent({ type: "search_context_tokens", tokens: searchContextTokens });
           }
 
           if (clientAborted) {
@@ -553,10 +430,9 @@ export async function POST(req) {
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
 
           if (user && currentConversationId) {
-            const providerState = buildZenMuxChatProviderState({
-              completionId: finalCompletionId,
-              usage: finalUsage,
-            });
+            const providerState = finalProviderState
+              ? { ...finalProviderState, usage: finalUsage }
+              : (finalUsage ? { usage: finalUsage } : undefined);
             const modelMessage = {
               id: resolvedModelMessageId,
               role: "model",
@@ -584,7 +460,7 @@ export async function POST(req) {
           }
           controller.close();
         } catch (err) {
-          const error = normalizeOpenAIError(err);
+          const error = normalizeProviderError(err);
           if (clientAborted) {
             try { await rollbackCurrentTurn(); } catch { /* ignore */ }
             try { controller.close(); } catch { /* ignore */ }
@@ -619,15 +495,15 @@ export async function POST(req) {
     }
     return new Response(responseStream, { headers });
   } catch (error) {
-    console.error("[ZenMux] handle chat request:", error);
+    console.error("[Chat] handle chat request:", error);
     const rawStatus = typeof error?.status === "number" ? error.status : 500;
     const isUpstreamAuthError = rawStatus === 401;
     const status = isUpstreamAuthError ? 500 : rawStatus;
     let errorMessage = error?.message;
     if (isUpstreamAuthError) {
       errorMessage = "模型服务认证失败，请检查接口配置";
-    } else if (error?.message?.includes("API_KEY") || error?.message?.includes("ZENMUX")) {
-      errorMessage = "API configuration error. Please check your API keys.";
+    } else if (error?.message?.includes("API_KEY")) {
+      errorMessage = error.message;
     }
     return Response.json({ error: errorMessage }, { status });
   }

@@ -14,7 +14,6 @@ import {
   buildFusionUserInput,
   parseNativeFusionMarkdown,
   runFusionAnswer,
-  runFusionTriage,
 } from "./fusionHelpers";
 import { createFusionStreamHelpers } from "./streamHelpers";
 import { enrichConversationPartsWithBlobIds } from "@/lib/server/conversations/blobReferences";
@@ -253,58 +252,6 @@ export async function POST(req) {
       });
 
       try {
-        const hasImages = Array.isArray(fusionInput.imagePayloads) && fusionInput.imagePayloads.length > 0;
-        let triageResult = { needFusion: true };
-
-        if (!hasImages) {
-          triageResult = await runFusionTriage({ prompt: promptText, hasImages, signal: fusionSignal });
-        }
-
-        if (!triageResult.needFusion && triageResult.directAnswer) {
-          resultState = buildFusionResultState({
-            status: "running",
-            phase: "answering",
-            message: "正在生成正式回复",
-          });
-          const answer = triageResult.directAnswer;
-          streamHelpers.sendFusionResultState(resultState);
-
-          if (clientAborted) {
-            throw new Error("FUSION_ABORTED");
-          }
-
-          const finalMessage = buildFusionFinalMessage({
-            modelMessageId: resolvedModelMessageId,
-            content: answer,
-            experts: [],
-          });
-
-          const persistedConversation = await Conversation.findOneAndUpdate(
-            buildConversationWriteCondition(currentConversationId, auth.userId, writePermitTime),
-            {
-              $set: { updatedAt: Date.now() },
-              $push: { messages: finalMessage },
-            },
-            { new: true }
-          ).select("updatedAt");
-          if (!persistedConversation) {
-            throw new Error(CONVERSATION_WRITE_CONFLICT_ERROR);
-          }
-          finalMessagePersisted = true;
-          writePermitTime = persistedConversation.updatedAt?.getTime?.() ?? Date.now();
-
-          streamHelpers.sendFusionResult(finalMessage.content);
-          resultState = buildFusionResultState({
-            status: "done",
-            phase: "done",
-            message: "已完成",
-          });
-          streamHelpers.sendFusionResultState(resultState);
-          streamHelpers.sendDone();
-          controller.close();
-          return;
-        }
-
         resultState = buildFusionResultState({
           status: "running",
           phase: "answering",

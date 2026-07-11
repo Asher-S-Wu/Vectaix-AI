@@ -61,6 +61,7 @@ export async function buildChatMessagesFromHistory(messages, options = {}) {
       result.push({
         role,
         content: msg.content,
+        ...(msg?.providerState ? { providerState: msg.providerState } : {}),
       });
       continue;
     }
@@ -75,7 +76,11 @@ export async function buildChatMessagesFromHistory(messages, options = {}) {
     }
     if (contentParts.length === 0) continue;
 
-    result.push({ role, content: normalizeOpenAIMessageContent(contentParts) });
+    result.push({
+      role,
+      content: normalizeOpenAIMessageContent(contentParts),
+      ...(msg?.providerState ? { providerState: msg.providerState } : {}),
+    });
   }
   return result;
 }

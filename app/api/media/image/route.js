@@ -1,5 +1,5 @@
 import { getAuthPayload } from "@/lib/auth";
-import { generateAndStoreImage } from "@/lib/media/server/zenmux/images";
+import { generateAndStoreImage } from "@/lib/media/server/inferera/images";
 import { IMAGE_PROMPT_MAX_LENGTH, IMAGE_SIZE_OPTIONS } from "@/lib/media/shared/models";
 
 const ALLOWED_SIZES = new Set(IMAGE_SIZE_OPTIONS.map((item) => item.id));
