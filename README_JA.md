@@ -286,7 +286,6 @@ vectaix-ai/
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-original.svg" width="48" height="48" alt="Tailwind"/><br/><sub><b>Tailwind CSS</b></sub></td>
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" width="48" height="48" alt="MongoDB"/><br/><sub><b>MongoDB</b></sub></td>
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" width="48" height="48" alt="Node.js"/><br/><sub><b>Node.js</b></sub></td>
-<td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" width="48" height="48" alt="Docker"/><br/><sub><b>Docker</b></sub></td>
 </tr>
 </table>
 
@@ -299,7 +298,7 @@ vectaix-ai/
 | **AIプロバイダー** | Inferera · Google Gemini API · OpenRouter |
 | **認証** | MongoDBサーバーセッション · bcryptjs |
 | **レンダリング** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
-| **デプロイ** | Zeabur（Docker、単一インスタンス） |
+| **デプロイ** | Zeabur ネイティブ Next.js サービス（単一インスタンス） |
 
 <br/>
 
@@ -317,7 +316,7 @@ vectaix-ai/
 
 ### Zeabur へのデプロイ
 
-1. GitリポジトリからZeaburサービスを作成します。ルートの `Dockerfile` が自動的に使用されます。
+1. Zeabur で「ソースコードをデプロイ」を選び、Gitリポジトリをインポートします。Next.js は自動認識され、npm のビルド／起動コマンドが実行されます。
 2. `vectaix-data` という永続ボリュームを作成し、`/data` にマウントします。
 3. HTTPポートを `3000`、ヘルスチェックを `/api/health` に設定します。
 4. 以下の環境変数を追加して再デプロイします。

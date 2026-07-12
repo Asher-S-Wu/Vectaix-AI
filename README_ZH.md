@@ -285,7 +285,6 @@ vectaix-ai/
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-original.svg" width="48" height="48" alt="Tailwind"/><br/><sub><b>Tailwind CSS</b></sub></td>
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" width="48" height="48" alt="MongoDB"/><br/><sub><b>MongoDB</b></sub></td>
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" width="48" height="48" alt="Node.js"/><br/><sub><b>Node.js</b></sub></td>
-<td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" width="48" height="48" alt="Docker"/><br/><sub><b>Docker</b></sub></td>
 </tr>
 </table>
 
@@ -298,7 +297,7 @@ vectaix-ai/
 | **AI 供应商** | Inferera · Google Gemini API · OpenRouter |
 | **认证** | MongoDB 服务端会话 · bcryptjs |
 | **渲染** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
-| **部署** | Zeabur（Docker，单实例） |
+| **部署** | Zeabur 原生 Next.js 服务（单实例） |
 
 <br/>
 
@@ -316,7 +315,7 @@ vectaix-ai/
 
 ### Zeabur 部署
 
-1. 在 Zeabur 中从 Git 仓库创建服务，平台会自动使用根目录的 `Dockerfile`。
+1. 在 Zeabur 中选择“部署源代码”并导入 Git 仓库，平台会自动识别 Next.js，并执行项目中的 npm 构建和启动命令。
 2. 创建持久化卷 `vectaix-data`，挂载到 `/data`。
 3. 将 HTTP 端口设置为 `3000`，健康检查路径设置为 `/api/health`。
 4. 添加下列环境变量后重新部署。

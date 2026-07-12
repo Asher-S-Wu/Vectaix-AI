@@ -287,7 +287,6 @@ vectaix-ai/
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-original.svg" width="48" height="48" alt="Tailwind"/><br/><sub><b>Tailwind CSS</b></sub></td>
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" width="48" height="48" alt="MongoDB"/><br/><sub><b>MongoDB</b></sub></td>
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" width="48" height="48" alt="Node.js"/><br/><sub><b>Node.js</b></sub></td>
-<td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" width="48" height="48" alt="Docker"/><br/><sub><b>Docker</b></sub></td>
 </tr>
 </table>
 
@@ -300,7 +299,7 @@ vectaix-ai/
 | **AI Providers** | Inferera · Google Gemini API · OpenRouter |
 | **Auth** | MongoDB server sessions · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
-| **Deployment** | Zeabur (Docker, single instance) |
+| **Deployment** | Zeabur native Next.js service (single instance) |
 
 <br/>
 
@@ -318,7 +317,7 @@ vectaix-ai/
 
 ### Deploy on Zeabur
 
-1. Create a Zeabur service from the Git repository; Zeabur will use the root `Dockerfile`.
+1. Create a service from the Git repository with **Deploy your source code**. Zeabur will automatically recognize the Next.js project and run its npm build/start scripts.
 2. Create a persistent volume named `vectaix-data` and mount it at `/data`.
 3. Set the HTTP port to `3000` and the health check path to `/api/health`.
 4. Add the environment variables below, then redeploy.
