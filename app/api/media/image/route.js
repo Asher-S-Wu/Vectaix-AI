@@ -1,4 +1,5 @@
 import { getAuthPayload } from "@/lib/auth";
+import dbConnect from "@/lib/db";
 import { generateAndStoreImage } from "@/lib/media/server/inferera/images";
 import { IMAGE_PROMPT_MAX_LENGTH, IMAGE_SIZE_OPTIONS } from "@/lib/media/shared/models";
 
@@ -10,6 +11,7 @@ export async function POST(request) {
     if (!auth) {
       return Response.json({ success: false, message: "未登录" }, { status: 401 });
     }
+    await dbConnect();
 
     const body = await request.json();
     const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
@@ -31,6 +33,7 @@ export async function POST(request) {
     }
 
     const imageUrl = await generateAndStoreImage({
+      userId: auth.userId,
       prompt,
       size,
       signal: request.signal,

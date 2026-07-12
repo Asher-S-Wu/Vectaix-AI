@@ -11,6 +11,7 @@ import {
   syncVideoTaskRecord,
 } from "@/lib/media/server/inferera/taskRecords";
 import { VIDEO_MODEL } from "@/lib/media/shared/models";
+import { deleteStoredFilesByOwner } from "@/lib/server/storage/service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,6 +84,11 @@ export async function DELETE(request, context) {
       return jsonMessage("生成中的任务暂时不能删除", 409);
     }
     await deleteUpstreamVideoTask(task.upstreamTaskId, { signal: request.signal });
+    await deleteStoredFilesByOwner({
+      userId: user.userId,
+      ownerType: "video-task",
+      ownerId: task._id,
+    });
     await VideoGenerationTask.deleteOne({ _id: task._id, userId: user.userId, model: VIDEO_MODEL });
     return Response.json({ success: true, deleted: true });
   } catch (error) {

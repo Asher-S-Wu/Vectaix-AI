@@ -30,9 +30,6 @@ lerna-debug.log*
 .env*.local
 .env.production
 
-# vercel
-.vercel
-
 # claude
 .claude
 

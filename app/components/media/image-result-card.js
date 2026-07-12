@@ -1,6 +1,7 @@
 'use client';
 
 import { ImageIcon } from 'lucide-react';
+import NextImage from 'next/image';
 
 export default function ImageResultCard({ imageUrl, title = '生成的图片' }) {
   if (!imageUrl) return null;
@@ -12,7 +13,7 @@ export default function ImageResultCard({ imageUrl, title = '生成的图片' })
         {title}
       </div>
       <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
-        <img src={imageUrl} alt={title} className="mx-auto max-h-[640px] w-full object-contain" />
+        <NextImage src={imageUrl} alt={title} width={1024} height={1024} unoptimized className="mx-auto max-h-[640px] w-full object-contain" />
       </div>
       <a href={imageUrl} download className="inline-flex text-sm font-medium text-primary hover:underline">
         下载图片

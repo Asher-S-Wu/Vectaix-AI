@@ -17,7 +17,7 @@ export function normalizeTimeline(timeline) {
       resultCount: Number.isFinite(step.resultCount) ? step.resultCount : null,
       synthetic: step.synthetic === true,
     }))
-    .filter((step) => step.kind === "thought" || step.kind === "search" || step.kind === "reader" || step.kind === "sandbox" || step.kind === "tool" || step.kind === "upload" || step.kind === "parse" || step.kind === "planner" || step.kind === "image_gen");
+    .filter((step) => step.kind === "thought" || step.kind === "search" || step.kind === "reader" || step.kind === "tool" || step.kind === "planner" || step.kind === "image_gen");
 
   return normalized.reduce((acc, step) => {
     const last = acc[acc.length - 1];

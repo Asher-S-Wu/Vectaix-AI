@@ -1,5 +1,5 @@
 import dbConnect from '@/lib/db';
-import { getAuthPayload, signAuthToken, setAuthCookie } from '@/lib/auth';
+import { getAuthPayload } from '@/lib/auth';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import { isValidEmail, normalizeEmail } from '@/lib/server/auth/validation';
@@ -56,9 +56,6 @@ export async function POST(req) {
 
     userDoc.email = normalizedEmail;
     await userDoc.save();
-
-    const token = await signAuthToken({ userId: userDoc._id, email: normalizedEmail });
-    await setAuthCookie(token);
 
     return Response.json({
       success: true,

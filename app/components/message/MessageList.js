@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import NextImage from "next/image";
 import {
   Copy,
   Download,
@@ -30,7 +31,6 @@ import {
   Citations,
   LoadingSweepText,
   ToolRunCards,
-  ArtifactCards,
 } from "./MessageListHelpers";
 import {
   CHAT_MODELS,
@@ -77,17 +77,12 @@ export default function MessageList({
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, index: null, role: null });
   const [openExportMenuIndex, setOpenExportMenuIndex] = useState(null);
-  const prevMessagesRef = useRef([]);
   const isFusionConversation = isFusionModel(model);
   const canEditUserMessage = !isFusionConversation;
   const canEditImages = modelSupportsAvailableInput(model, "image");
   const toast = useToast();
   const hasWaitingFirstChunk = messages.some((message) => message?.isWaitingFirstChunk);
   const hasStreamingContent = messages.some((message) => (message?.isStreaming && !message?.isWaitingFirstChunk) || message?.isSearching);
-
-  useEffect(() => {
-    prevMessagesRef.current = messages;
-  }, [messages]);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -107,13 +102,9 @@ export default function MessageList({
   }, []);
 
   useEffect(() => {
-    setOpenExportMenuIndex(null);
+    const timer = setTimeout(() => setOpenExportMenuIndex(null), 0);
+    return () => clearTimeout(timer);
   }, [messages]);
-
-  const isNewMessage = (msg, index) => {
-    const prevMsgs = prevMessagesRef.current;
-    return !prevMsgs[index] || prevMsgs[index].id !== msg.id;
-  };
 
   const openLightbox = (src) => {
     if (!src) return;
@@ -180,14 +171,14 @@ export default function MessageList({
     return "";
   };
 
-  const resizeEditTextarea = () => {
+  const resizeEditTextarea = useCallback(() => {
     const el = editTextareaRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.max(el.scrollHeight, 24)}px`;
-  };
+  }, []);
 
-  const scrollEditIntoView = () => {
+  const scrollEditIntoView = useCallback(() => {
     const el = editTextareaRef.current;
     const container = listRef?.current;
     if (!el || !container) return;
@@ -195,7 +186,7 @@ export default function MessageList({
     const cRect = container.getBoundingClientRect();
     const delta = elRect.top - (cRect.top + cRect.height / 2);
     container.scrollTo({ top: container.scrollTop + delta, behavior: "auto" });
-  };
+  }, [listRef]);
 
   useEffect(() => {
     if (editingMsgIndex === null || editingMsgIndex === undefined) return;
@@ -207,11 +198,11 @@ export default function MessageList({
     requestAnimationFrame(scrollEditIntoView);
     const t = setTimeout(scrollEditIntoView, 80);
     return () => clearTimeout(t);
-  }, [editingMsgIndex]);
+  }, [editingMsgIndex, resizeEditTextarea, scrollEditIntoView]);
 
   useEffect(() => {
     if (editingMsgIndex !== null && editingMsgIndex !== undefined) resizeEditTextarea();
-  }, [editingContent, editingMsgIndex]);
+  }, [editingContent, editingMsgIndex, resizeEditTextarea]);
 
   const handleBubbleCopy = (e) => {
     const el = e.currentTarget;
@@ -316,7 +307,7 @@ export default function MessageList({
             ? msg.thinkingTimeline
             : fallbackThinkingTimeline;
           const hasThinkingTimeline = Array.isArray(resolvedThinkingTimeline)
-            && resolvedThinkingTimeline.some((step) => step?.kind === "search" || step?.kind === "reader" || step?.kind === "sandbox" || step?.kind === "thought" || step?.kind === "upload" || step?.kind === "parse" || step?.kind === "tool" || step?.kind === "planner" || step?.kind === "writer" || step?.kind === "image_gen");
+            && resolvedThinkingTimeline.some((step) => step?.kind === "search" || step?.kind === "reader" || step?.kind === "thought" || step?.kind === "tool" || step?.kind === "planner" || step?.kind === "writer" || step?.kind === "image_gen");
           const hasFusionAnalysis = msg.fusionAnalysis && typeof msg.fusionAnalysis === "object";
           const hasFusionResultState = msg.fusionResultState && typeof msg.fusionResultState === "object";
           const shouldRenderFusionMessage = isFusionConversation && msg.role === "model" && (
@@ -327,23 +318,22 @@ export default function MessageList({
             || msg.isStreaming
           );
           const hasToolRuns = Array.isArray(msg.tools) && msg.tools.length > 0;
-          const hasArtifacts = Array.isArray(msg.artifacts) && msg.artifacts.length > 0;
           const shouldRenderToolCards = msg.role === "model" && hasToolRuns && !hasThinkingTimeline && msg.tools.some((t) => t?.id);
-          const shouldRenderBubble = !shouldRenderFusionMessage && (hasParts || hasVisibleContent || shouldRenderToolCards || (msg.role === "model" && hasArtifacts));
+          const shouldRenderBubble = !shouldRenderFusionMessage && (hasParts || hasVisibleContent || shouldRenderToolCards);
           const canRegenerateMessage = !isFusionConversation && msg.role === "model" && messages[i - 1]?.role === "user";
 
-          if (msg.role === "model" && !msg.thought && !hasVisibleContent && !hasParts && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasFusionAnalysis && !hasFusionResultState && !hasToolRuns && !hasArtifacts && msg.isWaitingFirstChunk) {
+          if (msg.role === "model" && !msg.thought && !hasVisibleContent && !hasParts && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasFusionAnalysis && !hasFusionResultState && !hasToolRuns && msg.isWaitingFirstChunk) {
             return null;
           }
 
           return (
             <motion.div
               key={msg.id}
-              initial={isNewMessage(msg, i) ? { opacity: 0, y: 20 } : false}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className={`flex flex-col gap-3 ${msg.role === "user" ? "items-end" : "items-start"} max-w-4xl mx-auto w-full group`}
             >
-              {msg.role === "model" && !shouldRenderFusionMessage && (msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasFusionAnalysis || hasFusionResultState || hasToolRuns || hasArtifacts) && (
+              {msg.role === "model" && !shouldRenderFusionMessage && (msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasFusionAnalysis || hasFusionResultState || hasToolRuns) && (
                 <div className="flex items-center gap-2 pl-1">
                   <AIAvatar model={model} size={24} animate={msg.isStreaming} />
                   <span className="text-[11px] text-zinc-400 font-bold tracking-wider">
@@ -359,7 +349,7 @@ export default function MessageList({
                       {userNickname || "您"}
                     </span>
                     {userAvatar ? (
-                      <img src={userAvatar} alt="" className="w-5 h-5 rounded-md object-cover ring-1 ring-zinc-200/50" />
+                      <NextImage src={userAvatar} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-md object-cover ring-1 ring-zinc-200/50" />
                     ) : (
                       <div className="w-5 h-5 rounded-md bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-500">
                         {userNickname?.[0] || "您"}
@@ -405,7 +395,7 @@ export default function MessageList({
                           <div className="mb-3 flex items-center gap-2">
                             {getEditingImagePreview(msg) ? (
                               <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900">
-                                <img src={getEditingImagePreview(msg)} alt="" className="h-full w-full object-cover" />
+                                <NextImage src={getEditingImagePreview(msg)} alt="" fill sizes="64px" unoptimized className="object-cover" />
                               </div>
                             ) : null}
                             <button
@@ -496,7 +486,6 @@ export default function MessageList({
                           </Markdown>
                         ) : null}
                         {shouldRenderToolCards && <ToolRunCards tools={msg.tools} />}
-                        {msg.role === "model" && hasArtifacts && <ArtifactCards artifacts={msg.artifacts} />}
                         {msg.role === "model" && !msg.isStreaming && msg.citations && <Citations citations={msg.citations} />}
                       </div>
                     )}

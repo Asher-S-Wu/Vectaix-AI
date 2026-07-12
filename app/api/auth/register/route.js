@@ -2,7 +2,7 @@ import dbConnect from '@/lib/db';
 import { getUserAccessFlags } from '@/lib/admin';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-import { signAuthToken, setAuthCookie } from '@/lib/auth';
+import { startAuthSession } from '@/lib/auth';
 import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import { isValidEmail, normalizeEmail, validatePassword } from '@/lib/server/auth/validation';
 
@@ -72,8 +72,7 @@ export async function POST(req) {
             password: hashedPassword,
         });
 
-        const token = await signAuthToken({ userId: user._id, email: user.email });
-        await setAuthCookie(token);
+        await startAuthSession(user._id);
 
         return Response.json({
             success: true,

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, Settings2, MessageSquareQuote, X } from "lucide-react";
 import { getModelConfig } from "@/lib/shared/models";
 import { DEFAULT_WEB_SEARCH_SETTINGS } from "@/lib/shared/webSearch";
 import SystemPromptModal from "./SystemPromptModal";
+import { useClientReady } from "@/lib/client/hooks/useClientReady";
 
 export default function SettingsMenu({
   model,
@@ -21,16 +22,12 @@ export default function SettingsMenu({
 }) {
   const [showSettings, setShowSettings] = useState(false);
   const [showPromptModal, setShowPromptModal] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useClientReady();
   const modelConfig = getModelConfig(model);
   const supportsWebSearch = modelConfig?.supportsWebSearch === true;
   const webSearchSettings = webSearch && typeof webSearch === "object"
     ? { ...DEFAULT_WEB_SEARCH_SETTINGS, ...webSearch }
     : DEFAULT_WEB_SEARCH_SETTINGS;
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const updateWebSearch = (patch) => {
     setWebSearch((prev) => ({

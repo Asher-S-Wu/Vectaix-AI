@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import NextImage from "next/image";
 import {
   ArrowUp,
   FileText,
@@ -8,7 +9,7 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { upload } from "@vercel/blob/client";
+import { deleteTemporaryFile, uploadPrivateFile } from "@/lib/client/uploadFile";
 import { useToast } from "../common/ToastProvider";
 import ModelSelector from "./ModelSelector";
 import SettingsMenu from "../settings/SettingsMenu";
@@ -51,15 +52,14 @@ export default function Composer({
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const mountedRef = useRef(true);
+  const discardedAttachmentIdsRef = useRef(new Set());
   const {
     supportsImages,
-    supportsDocuments,
     supportsVideo,
     supportsAudio,
     supportsFilePicker,
   } = getModelAttachmentSupport(model);
   const attachmentAccept = getAttachmentAcceptForModel({
-    supportsDocuments,
     supportsImages,
     supportsVideo,
     supportsAudio,
@@ -103,20 +103,28 @@ export default function Composer({
 
   useEffect(() => {
     if (!prefill || typeof prefill.text !== "string") return;
-    setInput(prefill.text);
-    const el = textareaRef.current;
-    if (el) {
-      el.focus();
-      el.style.height = "auto";
-      const sh = el.scrollHeight;
-      el.style.height = `${Math.min(sh, 160)}px`;
-      el.style.overflowY = sh > 160 ? "auto" : "hidden";
-    }
-  }, [prefill?.nonce]);
+    const timer = setTimeout(() => {
+      setInput(prefill.text);
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.style.height = "auto";
+        const sh = el.scrollHeight;
+        el.style.height = `${Math.min(sh, 160)}px`;
+        el.style.overflowY = sh > 160 ? "auto" : "hidden";
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [prefill]);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
     if (!supportsFilePicker) {
       if (selectedAttachments.length > 0) {
+        for (const item of selectedAttachments) {
+          discardedAttachmentIdsRef.current.add(item.id);
+          deleteTemporaryFile(item.fileId);
+        }
         setSelectedAttachments([]);
       }
       return;
@@ -126,13 +134,21 @@ export default function Composer({
       if (inputType === "image") return supportsImages;
       if (inputType === "video") return supportsVideo;
       if (inputType === "audio") return supportsAudio;
-      if (inputType === "file") return supportsDocuments;
       return false;
     });
     if (next.length !== selectedAttachments.length) {
+      const keptIds = new Set(next.map((item) => item.id));
+      for (const item of selectedAttachments) {
+        if (!keptIds.has(item.id)) {
+          discardedAttachmentIdsRef.current.add(item.id);
+          if (item.fileId) deleteTemporaryFile(item.fileId);
+        }
+      }
       setSelectedAttachments(next);
     }
-  }, [selectedAttachments, supportsAudio, supportsDocuments, supportsFilePicker, supportsImages, supportsVideo]);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [selectedAttachments, supportsAudio, supportsFilePicker, supportsImages, supportsVideo]);
 
   const processFiles = async (files) => {
     if (!supportsFilePicker) return;
@@ -167,7 +183,6 @@ export default function Composer({
         (inputType === "image" && supportsImages)
         || (inputType === "video" && supportsVideo)
         || (inputType === "audio" && supportsAudio)
-        || (inputType === "file" && supportsDocuments)
       );
 
       if (!isSupported) {
@@ -189,10 +204,11 @@ export default function Composer({
         nextAttachments.push({
           ...createLocalAttachment({ file: processedFile, preview }),
           uploadStatus: "uploading",
-          blobUrl: null,
+          fileId: null,
+          fileUrl: null,
         });
       } else {
-        const att = { ...local, uploadStatus: "uploading", blobUrl: null };
+        const att = { ...local, uploadStatus: "uploading", fileId: null, fileUrl: null };
         nextAttachments.push(att);
       }
     }
@@ -239,20 +255,16 @@ export default function Composer({
 
   const uploadAttachmentInBackground = async (att) => {
     try {
-      const blob = await upload(att.file.name, att.file, {
-        access: "public",
-        handleUploadUrl: "/api/upload",
-        clientPayload: JSON.stringify({
-          kind: "chat",
-          model,
-          originalName: att.file.name,
-          declaredMimeType: att.file.type || att.mimeType,
-        }),
-      });
-      if (!mountedRef.current) return;
+      const uploaded = await uploadPrivateFile(att.file, { kind: "chat", model });
+      if (!mountedRef.current || discardedAttachmentIdsRef.current.has(att.id)) {
+        await deleteTemporaryFile(uploaded.fileId);
+        return;
+      }
       setSelectedAttachments((prev) =>
         prev.map((item) =>
-          item.id === att.id ? { ...item, uploadStatus: "ready", blobUrl: blob.url } : item
+          item.id === att.id
+            ? { ...item, uploadStatus: "ready", fileId: uploaded.fileId, fileUrl: uploaded.url }
+            : item
         )
       );
     } catch (err) {
@@ -267,11 +279,12 @@ export default function Composer({
   };
 
   const removeAttachment = (attachmentId) => {
-    setSelectedAttachments((prev) => prev.filter((item) => item.id !== attachmentId));
-  };
-
-  const clearAllAttachments = () => {
-    setSelectedAttachments([]);
+    setSelectedAttachments((prev) => {
+      const target = prev.find((item) => item.id === attachmentId);
+      discardedAttachmentIdsRef.current.add(attachmentId);
+      if (target?.fileId) deleteTemporaryFile(target.fileId);
+      return prev.filter((item) => item.id !== attachmentId);
+    });
   };
 
   const isUploading = selectedAttachments.some((item) => item.uploadStatus === "uploading");
@@ -293,7 +306,7 @@ export default function Composer({
     if (!text && validAttachments.length === 0) return;
     onSend({ text, attachments: validAttachments });
     setInput("");
-    clearAllAttachments();
+    setSelectedAttachments([]);
   };
 
   return (
@@ -312,8 +325,8 @@ export default function Composer({
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200/60 shadow-sm animate-in fade-in slide-in-from-bottom-1"
               >
                 {isImageAttachment(item) ? (
-                  <div className="w-6 h-6 rounded-lg overflow-hidden border border-zinc-100 dark:border-zinc-700">
-                    {item.preview ? <img src={item.preview} alt="" className="w-full h-full object-cover" /> : null}
+                  <div className="relative w-6 h-6 rounded-lg overflow-hidden border border-zinc-100 dark:border-zinc-700">
+                    {item.preview ? <NextImage src={item.preview} alt="" fill sizes="24px" unoptimized className="object-cover" /> : null}
                   </div>
                 ) : (
                   <FileText size={14} className="text-primary" />

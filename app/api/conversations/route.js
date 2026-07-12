@@ -1,6 +1,6 @@
 import Conversation from '@/models/Conversation';
 import { sanitizeImportedConversation } from '@/lib/server/conversations/sanitize';
-import { enrichStoredMessagesWithBlobIds } from '@/lib/server/conversations/blobReferences';
+import { bindStoredFiles, collectStoredFileIds } from '@/lib/server/storage/service';
 import { MAX_REQUEST_BYTES } from '@/lib/server/chat/routeConstants';
 import {
     assertRequestSize,
@@ -47,16 +47,22 @@ export async function POST(req) {
         const body = parsed.body;
 
         const conversationInput = sanitizeImportedConversation(body, 0, user.userId);
-        if (Array.isArray(conversationInput.messages) && conversationInput.messages.length > 0) {
-            conversationInput.messages = await enrichStoredMessagesWithBlobIds(conversationInput.messages, {
-                userId: user.userId,
-            });
-        }
         const created = await Conversation.create({
             ...conversationInput,
             pinned: Boolean(conversationInput.pinned),
             updatedAt: new Date(),
         });
+        try {
+            await bindStoredFiles({
+                userId: user.userId,
+                fileIds: collectStoredFileIds(conversationInput.messages),
+                ownerType: 'conversation',
+                ownerId: created._id,
+            });
+        } catch (error) {
+            await Conversation.deleteOne({ _id: created._id, userId: user.userId });
+            throw error;
+        }
 
         return Response.json({ conversation: created.toObject() });
     } catch (error) {

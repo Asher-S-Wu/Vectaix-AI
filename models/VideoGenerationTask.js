@@ -11,8 +11,7 @@ const VideoGenerationTaskSchema = new mongoose.Schema({
   error: { type: mongoose.Schema.Types.Mixed, default: null },
   usage: { type: mongoose.Schema.Types.Mixed, default: null },
   upstreamResponse: { type: mongoose.Schema.Types.Mixed, default: null },
-  videoUrl: { type: String, default: null },
-  videoBlobUrl: { type: String, default: null },
+  videoFileId: { type: String, default: null },
   upstreamCreatedAt: { type: Date, default: null },
   upstreamUpdatedAt: { type: Date, default: null },
 }, { timestamps: true });

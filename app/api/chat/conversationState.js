@@ -1,6 +1,7 @@
 import Conversation from "@/models/Conversation";
 import { getModelProvider } from "@/lib/shared/models";
 import { isValidConversationId } from "@/lib/server/conversations/service";
+import { deleteStoredFilesByIds } from "@/lib/server/storage/service";
 
 export const CONVERSATION_WRITE_CONFLICT_ERROR = "当前对话已被其他请求更新，请重试";
 
@@ -48,6 +49,7 @@ export async function rollbackConversationTurn({
   previousUpdatedAt,
   userMessageId,
   writePermitTime,
+  newlyBoundFileIds = [],
 }) {
   if (!conversationId || !userId) return false;
 
@@ -55,6 +57,14 @@ export async function rollbackConversationTurn({
 
   if (createdConversationForRequest) {
     const result = await Conversation.deleteOne(writeCondition);
+    if (result?.deletedCount > 0) {
+      await deleteStoredFilesByIds({
+        userId,
+        fileIds: newlyBoundFileIds,
+        ownerType: "conversation",
+        ownerId: conversationId,
+      });
+    }
     return result?.deletedCount > 0;
   }
 
@@ -65,6 +75,14 @@ export async function rollbackConversationTurn({
         updatedAt: previousUpdatedAt ? new Date(previousUpdatedAt) : new Date(),
       },
     });
+    if (restored) {
+      await deleteStoredFilesByIds({
+        userId,
+        fileIds: newlyBoundFileIds,
+        ownerType: "conversation",
+        ownerId: conversationId,
+      });
+    }
     return Boolean(restored);
   }
 
@@ -78,5 +96,13 @@ export async function rollbackConversationTurn({
       updatedAt: previousUpdatedAt ? new Date(previousUpdatedAt) : new Date(),
     },
   });
+  if (updated) {
+    await deleteStoredFilesByIds({
+      userId,
+      fileIds: newlyBoundFileIds,
+      ownerType: "conversation",
+      ownerId: conversationId,
+    });
+  }
   return Boolean(updated);
 }

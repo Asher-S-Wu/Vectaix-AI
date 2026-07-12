@@ -48,12 +48,14 @@ export default function UserManagementModal({ open, onClose }) {
   }, [toast]);
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    const timer = setTimeout(() => {
       setSearch("");
       setPage(1);
       setResetResult(null);
       fetchUsers(1, "");
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [open, fetchUsers]);
 
   const onSearchChange = (val) => {

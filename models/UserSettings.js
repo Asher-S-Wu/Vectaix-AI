@@ -12,7 +12,7 @@ const UserSettingsSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
-    avatar: {
+    avatarFileId: {
         type: String,
         default: null
     },

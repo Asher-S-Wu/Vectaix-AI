@@ -3,12 +3,13 @@ import { isAdminEmail, requireAdmin } from '@/lib/admin';
 import User from '@/models/User';
 import Conversation from '@/models/Conversation';
 import UserSettings from '@/models/UserSettings';
-import BlobFile from '@/models/BlobFile';
+import VideoGenerationTask from '@/models/VideoGenerationTask';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
-import { del } from '@vercel/blob';
 import { forbiddenResponse } from '@/lib/server/api/routeHelpers';
+import { deleteAllStoredFilesForUser } from '@/lib/server/storage/service';
+import { deleteAllAuthSessionsForUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,7 @@ export async function PATCH(req, context) {
     const newPassword = crypto.randomBytes(9).toString('base64url').slice(0, 12);
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
+    await deleteAllAuthSessionsForUser(user._id);
 
     return Response.json({ success: true, newPassword });
 }
@@ -94,25 +96,15 @@ export async function DELETE(req, context) {
 
     const userId = user._id;
 
-    // 删除 Blob 文件（从 Vercel Blob 存储中清理）
-    try {
-        const blobs = await BlobFile.find({ userId }).select('url').lean();
-        const urls = blobs.map(b => b.url).filter(Boolean);
-        if (urls.length > 0) {
-            await del(urls);
-        }
-    } catch (e) {
-        console.error('[AdminUsers] Blob cleanup failed:', {
-            errorType: e?.name || 'Error',
-            code: e?.code || '',
-        });
-    }
+    // 必须先清理挂载硬盘；失败时保留用户与数据库记录，避免产生失联文件。
+    await deleteAllStoredFilesForUser(userId);
 
     // 级联删除所有关联数据
     await Promise.all([
+        deleteAllAuthSessionsForUser(userId),
         Conversation.deleteMany({ userId }),
         UserSettings.deleteMany({ userId }),
-        BlobFile.deleteMany({ userId }),
+        VideoGenerationTask.deleteMany({ userId }),
         User.deleteOne({ _id: userId }),
     ]);
 

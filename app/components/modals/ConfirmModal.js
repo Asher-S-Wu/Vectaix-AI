@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 
 export default function ConfirmModal({
     open,
@@ -16,22 +16,24 @@ export default function ConfirmModal({
 }) {
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const handleConfirm = () => {
+    const handleConfirm = useCallback(() => {
         if (isProcessing) return;
         setIsProcessing(true);
         onConfirm();
-    };
+    }, [isProcessing, onConfirm]);
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
         if (isProcessing) return;
         setIsProcessing(true);
         onClose();
-    };
+    }, [isProcessing, onClose]);
 
     useEffect(() => {
-        if (open) {
+        if (!open) return;
+        const timer = setTimeout(() => {
             setIsProcessing(false);
-        }
+        }, 0);
+        return () => clearTimeout(timer);
     }, [open]);
 
     // 键盘事件处理：Enter 确认，Escape 取消

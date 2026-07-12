@@ -15,7 +15,7 @@
   --primary: #2563eb;
   --radius: 16px;
   --radius-sm: 8px;
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
 
   /* Glassmorphism */
   --glass-bg: rgba(255, 255, 255, 0.72);

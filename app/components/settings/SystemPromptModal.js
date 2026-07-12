@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Plus, Trash2, Edit3, MessageSquareQuote, Check } from "lucide-react";
 import { useToast } from "../common/ToastProvider";
+import { useClientReady } from "@/lib/client/hooks/useClientReady";
 
 export default function SystemPromptModal({
   open,
@@ -19,11 +20,7 @@ export default function SystemPromptModal({
   const toast = useToast();
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useClientReady();
   
   // Inline edit state for preset
   const [editingId, setEditingId] = useState(null);
@@ -31,10 +28,12 @@ export default function SystemPromptModal({
   const [editContent, setEditContent] = useState("");
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    const timer = setTimeout(() => {
       setDraft(chatSystemPrompt || "");
       setEditingId(null);
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [open, chatSystemPrompt]);
 
   const handleSave = async () => {

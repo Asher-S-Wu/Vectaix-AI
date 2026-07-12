@@ -16,7 +16,7 @@
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://vercel.com/)
+[![Zeabur](https://img.shields.io/badge/Zeabur-6300FF?style=flat-square)](https://zeabur.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
 
 <br/>
@@ -64,15 +64,16 @@ At its core is **Fusion Mode**, a novel multi-agent consensus framework that dis
 
 ### 🤖 Multi-Model Intelligence
 
-Access 4 direct chat models plus Fusion Mode through a unified interface. Switch models mid-conversation with full context preservation.
+Access 5 direct chat models plus Fusion Mode through a unified interface. Switch models mid-conversation with full context preservation.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **Fusion** | OpenRouter | — | Text | — | — |
-| **GPT 5.5** | OpenAI | 256K | Text, Image, File | ✅ | ✅ |
-| **Claude Opus 4.8** | Anthropic | 200K | Text, Image, File | ✅ | ✅ |
-| **Gemini 3.5 Flash** | Google | 1M | Text, Image, File | ✅ | ✅ |
-| **Doubao Seed 2.1 Pro** | ByteDance | 128K | Text, Image, File | ✅ | ✅ |
+| **GPT-5.6 Sol** | OpenAI | 1.05M | Text, Image | ✅ | ✅ |
+| **Claude Opus 4.8** | Anthropic | 1M | Text, Image | ✅ | ✅ |
+| **Gemini 3.5 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
+| **Grok 4.5** | xAI | 500K | Text, Image | ✅ | ✅ |
+| **GLM-5.2** | Z.AI | 1M | Text, Image | ✅ | ✅ |
 
 Dedicated media models:
 
@@ -117,7 +118,7 @@ The crown jewel of Vectaix AI. Inspired by the deliberative processes of real-wo
 
 **How it works:**
 
-1. **Parallel Generation** — Your query is simultaneously sent to GPT 5.5, Claude Opus 4.8, and Gemini 3.5 Flash
+1. **Parallel Generation** — Your query is simultaneously sent to GPT-5.6 Sol, Claude Opus 4.8, and Gemini 3.5 Flash
 2. **Independent Reasoning** — Each expert reasons independently with its own strengths and knowledge
 3. **Structured Synthesis** — OpenRouter Fusion analyzes all responses, identifying:
    - ✅ **Agreement** — Points where all experts converge
@@ -148,27 +149,15 @@ Real-time access to the internet with intelligent multi-round browsing capabilit
 
 <br/>
 
-### 📎 Rich File Understanding
+### 📎 Private Multimodal Files
 
-Upload and analyze diverse file types directly in your conversation.
+Upload private media files stored on the Zeabur mounted disk.
 
 | File Type | Supported Formats | Capability |
 |:---|:---|:---|
 | 🖼️ **Images** | PNG, JPG, GIF, WebP | Visual analysis, OCR, description |
-| 📄 **Documents** | PDF | Text extraction, analysis, Q&A |
-| 📝 **Word** | DOCX, DOC | Full document parsing |
-| 📊 **Spreadsheets** | XLSX, XLS | Data analysis, table understanding |
-
-<br/>
-
-### 🖥️ Code Sandbox
-
-Execute code in a secure, isolated environment powered by **Vercel Sandbox**.
-
-- **Secure Execution** — Sandboxed runtime with network policies
-- **Real-time Output** — Stream stdout/stderr as code runs
-- **File Operations** — Read/write files within the sandbox
-- **Multi-language** — Python and more
+| 🎵 **Audio** | MP3, WAV, M4A, AAC, OGG | Gemini audio understanding |
+| 🎬 **Video** | MP4, MOV, WebM, M4V | Gemini video understanding |
 
 <br/>
 
@@ -208,7 +197,7 @@ Execute code in a secure, isolated environment powered by **Vercel Sandbox**.
 <td width="50%">
 
 **🔐 Authentication & Security**
-- JWT-based session management
+- MongoDB-backed server session management
 - Bcrypt password hashing
 - Rate limiting on all endpoints
 - Admin user management panel
@@ -254,7 +243,7 @@ vectaix-ai/
 │   │   ├── auth/             # Authentication endpoints
 │   │   ├── conversations/    # Conversation CRUD
 │   │   ├── media/            # Image/video generation
-│   │   ├── upload/           # Blob file upload
+│   │   ├── upload/           # Private disk file upload
 │   │   └── admin/            # Admin management
 │   ├── components/           # React UI components
 │   │   ├── chat/             # Chat input & model selector
@@ -270,7 +259,7 @@ vectaix-ai/
 │   ├── server/               # Server-side logic
 │   │   ├── chat/             # Provider adapters, config, prompts
 │   │   ├── webBrowsing/      # Web search & crawl engine
-│   │   ├── sandbox/          # Vercel Sandbox integration
+│   │   ├── storage/          # Mounted-disk storage service
 │   │   └── conversations/    # Conversation storage logic
 │   └── shared/               # Shared constants & types
 │       ├── models.js         # Model definitions & capabilities
@@ -278,7 +267,8 @@ vectaix-ai/
 │       └── webSearch.js      # Search configuration
 ├── models/                   # Mongoose schemas
 │   ├── User.js
-│   └── Conversation.js
+│   ├── Conversation.js
+│   └── StoredFile.js
 └── public/                   # Static assets
 ```
 
@@ -297,7 +287,7 @@ vectaix-ai/
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-original.svg" width="48" height="48" alt="Tailwind"/><br/><sub><b>Tailwind CSS</b></sub></td>
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" width="48" height="48" alt="MongoDB"/><br/><sub><b>MongoDB</b></sub></td>
 <td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" width="48" height="48" alt="Node.js"/><br/><sub><b>Node.js</b></sub></td>
-<td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vercel/vercel-original.svg" width="48" height="48" alt="Vercel"/><br/><sub><b>Vercel</b></sub></td>
+<td align="center" width="96"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" width="48" height="48" alt="Docker"/><br/><sub><b>Docker</b></sub></td>
 </tr>
 </table>
 
@@ -306,13 +296,11 @@ vectaix-ai/
 | **Frontend** | Next.js 16 · React 19 · Tailwind CSS · Framer Motion · Ant Design · Lucide Icons |
 | **Backend** | Next.js API Routes · Node.js · SSE (Server-Sent Events) Streaming |
 | **Database** | MongoDB with Mongoose ODM |
-| **Storage** | Vercel Blob (file uploads & attachments) |
+| **Storage** | Zeabur mounted disk (private media files) |
 | **AI Providers** | Inferera · Google Gemini API · OpenRouter |
-| **Code Execution** | Vercel Sandbox (isolated runtime) |
-| **Auth** | JWT (jose) · bcryptjs |
+| **Auth** | MongoDB server sessions · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
-| **File Parsing** | pdf-parse · mammoth (DOCX) · word-extractor (DOC) · xlsx |
-| **Deployment** | Vercel (Pro) |
+| **Deployment** | Zeabur (Docker, single instance) |
 
 <br/>
 
@@ -324,37 +312,28 @@ vectaix-ai/
 
 ### Prerequisites
 
-- **Node.js** 18+
-- **MongoDB** instance (local or Atlas)
+- **Zeabur** project connected to the Git repository
+- **MongoDB** instance
 - API keys for at least one AI provider
 
-### Installation
+### Deploy on Zeabur
 
-```bash
-# Clone the repository
-git clone https://github.com/Noah-Wu66/Vectaix-AI.git
-
-# Navigate to the project
-cd Vectaix-AI
-
-# Install dependencies
-npm install
-
-# Start the development server
-npm run dev
-```
+1. Create a Zeabur service from the Git repository; Zeabur will use the root `Dockerfile`.
+2. Create a persistent volume named `vectaix-data` and mount it at `/data`.
+3. Set the HTTP port to `3000` and the health check path to `/api/health`.
+4. Add the environment variables below, then redeploy.
 
 ### Environment Variables
 
 | Variable | Required | Description |
 |:---|:---:|:---|
-| `MONGODB_URI` | ✅ | MongoDB connection string |
-| `JWT_SECRET` | ✅ | Secret key for JWT token signing |
+| `MONGO_URI` | ✅ | MongoDB connection string |
+| `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
+| `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
 | `AIHUBMIX_API_KEY` | — | Inferera key for GPT, Grok, Claude, GLM, image, and video APIs |
 | `GEMINI_API_KEY` | — | Google Gemini API key for Gemini chat and conversation compression |
 | `OPENROUTER_API_KEY` | — | OpenRouter API key for Fusion synthesis |
 | `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |
-| `BLOB_READ_WRITE_TOKEN` | — | Vercel Blob storage token |
 
 > [!TIP]
 > Configure the key for every model or feature you enable. Missing keys return a clear configuration error.

@@ -1,7 +1,7 @@
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-import { getAuthPayload } from '@/lib/auth';
+import { getAuthPayload, replaceAuthSessionsForUser } from '@/lib/auth';
 import { validatePassword } from '@/lib/server/auth/validation';
 
 export async function POST(req) {
@@ -47,6 +47,7 @@ export async function POST(req) {
     const hashedNew = await bcrypt.hash(newPassword, 10);
     userDoc.password = hashedNew;
     await userDoc.save();
+    await replaceAuthSessionsForUser(userDoc._id);
 
     return Response.json({ success: true });
 

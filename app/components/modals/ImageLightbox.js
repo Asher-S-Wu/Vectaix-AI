@@ -3,9 +3,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 
-function isHttpUrl(src) {
+function isDownloadableUrl(src) {
   if (typeof src !== "string") return false;
+  if (src.startsWith("/api/files/")) return true;
   try {
     const u = new URL(src);
     return u.protocol === "http:" || u.protocol === "https:";
@@ -25,7 +27,7 @@ function extractFilename(src) {
 }
 
 export default function ImageLightbox({ open, onClose, src }) {
-  const canDownload = isHttpUrl(src);
+  const canDownload = isDownloadableUrl(src);
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = useCallback(async () => {
@@ -48,30 +50,29 @@ export default function ImageLightbox({ open, onClose, src }) {
       setDownloading(false);
     }
   }, [src, downloading]);
-  const [naturalSize, setNaturalSize] = useState(null);
+  const [loadedImage, setLoadedImage] = useState(null);
 
   useEffect(() => {
     if (!open || !src) return;
-    setNaturalSize(null);
-    const img = new Image();
-    img.onload = () => setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+    const img = new window.Image();
+    img.onload = () => setLoadedImage({ src, w: img.naturalWidth, h: img.naturalHeight });
     img.src = src;
   }, [open, src]);
 
   const displayStyle = useMemo(() => {
-    if (!naturalSize) return {};
+    if (!loadedImage || loadedImage.src !== src) return {};
     const VW = window.innerWidth * 0.9;
     const VH = window.innerHeight * 0.8;
     const PAD = 24;
     const maxW = VW - PAD;
     const maxH = VH - PAD;
-    const ratio = naturalSize.w / naturalSize.h;
-    let w = naturalSize.w;
-    let h = naturalSize.h;
+    const ratio = loadedImage.w / loadedImage.h;
+    let w = loadedImage.w;
+    let h = loadedImage.h;
     if (w > maxW) { w = maxW; h = w / ratio; }
     if (h > maxH) { h = maxH; w = h * ratio; }
     return { width: Math.round(w), height: Math.round(h) };
-  }, [naturalSize]);
+  }, [loadedImage, src]);
 
   useEffect(() => {
     if (!open) return;
@@ -126,9 +127,12 @@ export default function ImageLightbox({ open, onClose, src }) {
             </div>
 
             {src && (
-              <img
+              <Image
                 src={src}
                 alt=""
+                width={loadedImage?.src === src ? loadedImage.w : 1200}
+                height={loadedImage?.src === src ? loadedImage.h : 800}
+                unoptimized
                 className="block w-full h-full object-contain rounded-xl"
                 draggable={false}
               />
@@ -139,4 +143,3 @@ export default function ImageLightbox({ open, onClose, src }) {
     </AnimatePresence>
   );
 }
-

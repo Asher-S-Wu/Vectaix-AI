@@ -16,7 +16,6 @@ import {
   runFusionAnswer,
 } from "./fusionHelpers";
 import { createFusionStreamHelpers } from "./streamHelpers";
-import { enrichConversationPartsWithBlobIds } from "@/lib/server/conversations/blobReferences";
 import {
   CONVERSATION_WRITE_CONFLICT_ERROR,
   buildConversationWriteCondition,
@@ -30,6 +29,10 @@ import {
   requireChatUser,
 } from "@/lib/server/chat/routeHelpers";
 import { assertRequestSize, parseJsonRequest } from "@/lib/server/api/routeHelpers";
+import {
+  parseWebSearchConfig,
+  parseWebSearchEnabled,
+} from "@/lib/server/chat/requestConfig";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +78,15 @@ export async function POST(req) {
   } = body || {};
   const requestImages = Array.isArray(config?.images) ? config.images : [];
   const requestAttachments = Array.isArray(config?.attachments) ? config.attachments : [];
+  let webSearchConfig;
+  let enableWebSearch;
+
+  try {
+    webSearchConfig = parseWebSearchConfig(config?.webSearch);
+    enableWebSearch = parseWebSearchEnabled(config?.webSearch);
+  } catch (error) {
+    return Response.json({ error: error?.message || "webSearch invalid" }, { status: 400 });
+  }
 
   if (model !== FUSION_MODEL_ID) {
     return Response.json({ error: "Fusion 模式请求无效" }, { status: 400 });
@@ -138,7 +150,7 @@ export async function POST(req) {
       title: buildTitle(promptText),
       model: FUSION_MODEL_ID,
       messages: [],
-      settings: {},
+      settings: { webSearch: webSearchConfig },
     });
     currentConversation = createdConversation.toObject();
     createdConversationForRequest = true;
@@ -177,16 +189,12 @@ export async function POST(req) {
 
   const historyMemo = buildFusionHistoryMemo(previousMessages);
 
-  const enrichedUserParts = await enrichConversationPartsWithBlobIds(fusionInput.userParts, {
-    userId: auth.userId,
-  });
-
   const storedUserMessage = {
     id: resolvedUserMessageId,
     role: "user",
     content: promptText,
     type: "parts",
-    parts: enrichedUserParts,
+    parts: fusionInput.userParts,
   };
 
   const userMsgTime = Date.now();
@@ -262,6 +270,7 @@ export async function POST(req) {
         const { text: rawFusionAnswer, citations: finalCitations } = await runFusionAnswer({
           historyMemo,
           prompt: promptText,
+          enableWebSearch,
           signal: fusionSignal,
         });
         const parsedFusionAnswer = parseNativeFusionMarkdown(rawFusionAnswer);

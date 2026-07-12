@@ -5,6 +5,7 @@ import { getAuthPayload } from "@/lib/auth";
 import { rateLimit, getClientIP } from "@/lib/rateLimit";
 import {
   getModelConfig,
+  getModelAttachmentSupport,
   isDirectChatModel,
 } from "@/lib/shared/models";
 import {
@@ -13,7 +14,6 @@ import {
   generateMessageId,
   estimateTokens,
 } from "@/app/api/chat/utils";
-import { getAttachmentInputType } from "@/lib/shared/attachments";
 import {
   CONVERSATION_WRITE_CONFLICT_ERROR,
   buildConversationWriteCondition,
@@ -21,10 +21,11 @@ import {
   rollbackConversationTurn,
 } from "@/app/api/chat/conversationState";
 import {
-  enrichConversationPartsWithBlobIds,
-  enrichStoredMessagesWithBlobIds,
-} from "@/lib/server/conversations/blobReferences";
-import { prepareDocumentAttachmentMapByUrls } from "@/lib/server/files/service";
+  bindStoredFiles,
+  collectStoredFileIds,
+  deleteStoredFilesByIds,
+  serializeStoredFile,
+} from "@/lib/server/storage/service";
 import {
   buildDirectChatSystemPrompt,
 } from "@/lib/server/chat/systemPromptBuilder";
@@ -145,7 +146,7 @@ export async function POST(req) {
     let previousUpdatedAt = currentConversation?.updatedAt ? new Date(currentConversation.updatedAt) : new Date();
 
     const currentAttachments = Array.isArray(config?.attachments)
-      ? config.attachments.filter((item) => getAttachmentInputType(item?.category) === "file" && isNonEmptyString(item?.url))
+      ? config.attachments.filter((item) => ["audio", "video"].includes(item?.category) && isNonEmptyString(item?.fileId))
       : [];
 
     const limit = Number.parseInt(historyLimit, 10);
@@ -159,15 +160,8 @@ export async function POST(req) {
 
     let chatMessages = [];
     let storedMessagesForRegenerate = null;
-
-    const collectAttachmentUrls = (msgs) => msgs.flatMap((msg) =>
-      Array.isArray(msg?.parts)
-        ? msg.parts
-          .map((part) => part?.fileData)
-          .filter((file) => getAttachmentInputType(file?.category) === "file" && isNonEmptyString(file?.url))
-          .map((file) => file.url)
-        : []
-    );
+    let newlyBoundFileIds = [];
+    let removedFileIdsAfterRegenerate = [];
 
     const attachStoredProviderState = (msgs) => {
       const storedById = new Map(
@@ -188,8 +182,19 @@ export async function POST(req) {
       } catch (e) {
         return Response.json({ error: e?.message || "messages invalid" }, { status: 400 });
       }
-      sanitized = await enrichStoredMessagesWithBlobIds(sanitized, { userId: user.userId });
+      const reboundFiles = await bindStoredFiles({
+        userId: user.userId,
+        fileIds: collectStoredFileIds(sanitized),
+        ownerType: "conversation",
+        ownerId: currentConversationId,
+      });
+      newlyBoundFileIds = reboundFiles
+        .filter((file) => file.ownerType === "temporary")
+        .map((file) => file.fileId);
       const regenerateTime = new Date();
+      const nextFileIds = new Set(collectStoredFileIds(sanitized));
+      removedFileIdsAfterRegenerate = collectStoredFileIds(previousMessages)
+        .filter((fileId) => !nextFileIds.has(fileId));
       const conv = await Conversation.findOneAndUpdate(
         { _id: currentConversationId, userId: user.userId },
         { $set: { messages: sanitized, updatedAt: regenerateTime } },
@@ -204,16 +209,10 @@ export async function POST(req) {
       const currentTurn = Array.isArray(msgs) && msgs[msgs.length - 1]?.role === "user" ? [msgs[msgs.length - 1]] : [];
       const effectiveHistory = (limit > 0) ? historyBeforeCurrentPrompt.slice(-limit) : historyBeforeCurrentPrompt;
       const inputMessages = [...effectiveHistory, ...currentTurn];
-      const fileTextMap = await prepareDocumentAttachmentMapByUrls(collectAttachmentUrls(inputMessages), {
-        userId: user.userId, conversationId: currentConversationId, signal: req?.signal,
-      });
-      chatMessages = await buildChatMessagesFromHistory(inputMessages, { fileTextMap });
+      chatMessages = await buildChatMessagesFromHistory(inputMessages, { userId: user.userId });
     } else {
       const effectiveHistory = attachStoredProviderState((limit > 0) ? history.slice(-limit) : history);
-      const fileTextMap = await prepareDocumentAttachmentMapByUrls(collectAttachmentUrls(effectiveHistory), {
-        userId: user.userId, conversationId: currentConversationId, signal: req?.signal,
-      });
-      chatMessages = await buildChatMessagesFromHistory(effectiveHistory, { fileTextMap });
+      chatMessages = await buildChatMessagesFromHistory(effectiveHistory, { userId: user.userId });
     }
 
     const userSystemPrompt = parseSystemPrompt(config?.systemPrompt);
@@ -250,23 +249,54 @@ export async function POST(req) {
     let dbImageEntries = [];
     let attachmentEntries = [];
     if (!isRegenerateMode) {
-      let fileTextMap = new Map();
-      if (currentAttachments.length > 0) {
-        fileTextMap = await prepareDocumentAttachmentMapByUrls(
-          currentAttachments.map((item) => item.url),
-          { userId: user.userId, conversationId: currentConversationId, signal: req?.signal }
+      const requestedImages = Array.isArray(config?.images)
+        ? config.images.filter((item) => isNonEmptyString(item?.fileId))
+        : [];
+      const requestedIds = [
+        ...requestedImages.map((item) => item.fileId),
+        ...currentAttachments.map((item) => item.fileId),
+      ];
+      const boundFiles = await bindStoredFiles({
+        userId: user.userId,
+        fileIds: requestedIds,
+        ownerType: "conversation",
+        ownerId: currentConversationId,
+      });
+      newlyBoundFileIds = boundFiles
+        .filter((file) => file.ownerType === "temporary")
+        .map((file) => file.fileId);
+      const attachmentSupport = getModelAttachmentSupport(model);
+      for (const file of boundFiles) {
+        const supported = (
+          (file.category === "image" && attachmentSupport.supportsImages)
+          || (file.category === "audio" && attachmentSupport.supportsAudio)
+          || (file.category === "video" && attachmentSupport.supportsVideo)
         );
-        attachmentEntries = currentAttachments.filter((item) => fileTextMap.has(item.url));
+        if (!supported) {
+          await deleteStoredFilesByIds({
+            userId: user.userId,
+            fileIds: newlyBoundFileIds,
+            ownerType: "conversation",
+            ownerId: currentConversationId,
+          });
+          const unsupportedError = new Error("当前模型不支持这类文件");
+          unsupportedError.status = 400;
+          throw unsupportedError;
+        }
       }
-      if (Array.isArray(config?.images)) {
-        dbImageEntries = config.images.filter((img) => img?.url).map((img) => ({ url: img.url, mimeType: img.mimeType || "image/jpeg" }));
-      }
+      const fileMap = new Map(boundFiles.map((file) => [file.fileId, serializeStoredFile(file)]));
+      dbImageEntries = requestedImages
+        .map((item) => fileMap.get(item.fileId))
+        .filter((file) => file?.category === "image");
+      attachmentEntries = currentAttachments
+        .map((item) => fileMap.get(item.fileId))
+        .filter((file) => file && ["audio", "video"].includes(file.category));
 
       const currentContent = await buildCurrentUserMessage({
         prompt,
-        images: config?.images,
+        images: dbImageEntries,
         attachments: attachmentEntries,
-        fileTextMap,
+        userId: user.userId,
       });
       if (currentContent.length === 0) {
         return Response.json({ error: "请至少输入内容或上传附件" }, { status: 400 });
@@ -280,20 +310,19 @@ export async function POST(req) {
         const storedUserParts = [];
         if (isNonEmptyString(prompt)) storedUserParts.push({ text: prompt });
         for (const entry of dbImageEntries) {
-          storedUserParts.push({ inlineData: { mimeType: entry.mimeType, url: entry.url } });
+          storedUserParts.push({ inlineData: { fileId: entry.fileId, mimeType: entry.mimeType, url: entry.url } });
         }
         for (const attachment of attachmentEntries) {
           storedUserParts.push({
             fileData: {
-              url: attachment.url, name: attachment.name, mimeType: attachment.mimeType,
+              fileId: attachment.fileId, url: attachment.url, name: attachment.name, mimeType: attachment.mimeType,
               size: attachment.size, extension: attachment.extension, category: attachment.category,
             },
           });
         }
-        const enrichedStoredUserParts = await enrichConversationPartsWithBlobIds(storedUserParts, { userId: user.userId });
         const userMsgTime = new Date();
         const userMessage = {
-          id: resolvedUserMessageId, role: "user", content: prompt, type: "parts", parts: enrichedStoredUserParts,
+          id: resolvedUserMessageId, role: "user", content: prompt, type: "parts", parts: storedUserParts,
         };
         const updatedConv = await Conversation.findOneAndUpdate(
           { _id: currentConversationId, userId: user.userId },
@@ -337,6 +366,7 @@ export async function POST(req) {
             previousUpdatedAt,
             userMessageId: resolvedUserMessageId,
             writePermitTime,
+            newlyBoundFileIds,
           });
         };
 
@@ -457,6 +487,14 @@ export async function POST(req) {
             }
             finalMessagePersisted = true;
             writePermitTime = persistedConversation.updatedAt?.getTime?.() ?? Date.now();
+            if (removedFileIdsAfterRegenerate.length > 0) {
+              await deleteStoredFilesByIds({
+                userId: user.userId,
+                fileIds: removedFileIdsAfterRegenerate,
+                ownerType: "conversation",
+                ownerId: currentConversationId,
+              });
+            }
           }
           controller.close();
         } catch (err) {

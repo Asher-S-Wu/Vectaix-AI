@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ChevronUp, FileScan, FileUp, Lightbulb, Loader2, Paintbrush, Scale, Search, Terminal, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, FileScan, Lightbulb, Loader2, Paintbrush, Scale, Search, Terminal, Zap } from "lucide-react";
 import Markdown from "../common/Markdown";
 import { LoadingSweepText, ToolRunPreview, hasToolRunPreview } from "./MessageListHelpers";
 import {
@@ -27,8 +27,7 @@ export default function ThinkingBlock({
   const [expandedTimelineId, setExpandedTimelineId] = useState(null);
   const containerRef = useRef(null);
   const autoCollapsedRef = useRef(false);
-  const manualExpandedStepIdRef = useRef(null);
-  const manualOpenMainRef = useRef(false);
+  const [manualExpandedStepId, setManualExpandedStepId] = useState(null);
   const safeThought = typeof thought === "string" ? thought : "";
   const safeBodyText = typeof bodyText === "string" ? bodyText : "";
   const safeSearchError = typeof searchError === "string" ? searchError : "";
@@ -54,36 +53,31 @@ export default function ThinkingBlock({
   useEffect(() => {
     if (!hasTimeline) return;
     if (autoCollapsedRef.current) return;
+    const timer = setTimeout(() => {
+      const timelineForExpand = normalizeTimeline(timeline);
+      const lastStep = timelineForExpand[timelineForExpand.length - 1] || null;
+      if (lastStep && lastStep.kind !== "thought") {
+        if (manualExpandedStepId) return;
+        setExpandedTimelineId(null);
+        return;
+      }
 
-    const timelineForExpand = normalizeTimeline(timeline);
-    const lastStep = timelineForExpand[timelineForExpand.length - 1] || null;
-    if (lastStep && lastStep.kind !== "thought") {
-      if (manualExpandedStepIdRef.current) return;
-      setExpandedTimelineId((prev) => {
-        if (prev === null) return prev;
-        return null;
-      });
-      return;
-    }
-
-    const lastThoughtStep = [...timelineForExpand]
-      .reverse()
-      .find((step) => step.kind === "thought");
-
-    if (!lastThoughtStep?.id) return;
-    if (manualExpandedStepIdRef.current) return;
-    setExpandedTimelineId((prev) => {
-      if (prev === lastThoughtStep.id) return prev;
-      return lastThoughtStep.id;
-    });
-  }, [hasTimeline, timeline]);
+      const lastThoughtStep = [...timelineForExpand]
+        .reverse()
+        .find((step) => step.kind === "thought");
+      if (!lastThoughtStep?.id || manualExpandedStepId) return;
+      setExpandedTimelineId(lastThoughtStep.id);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [hasTimeline, timeline, manualExpandedStepId]);
 
   // 简单模式：思考流式输出时自动展开内层思考气泡
   useEffect(() => {
     if (hasTimeline) return;
     if (autoCollapsedRef.current) return;
     if (isStreaming || safeThought) {
-      setExpandedTimelineId("__simple__");
+      const timer = setTimeout(() => setExpandedTimelineId("__simple__"), 0);
+      return () => clearTimeout(timer);
     }
   }, [hasTimeline, isStreaming, safeThought]);
 
@@ -92,10 +86,12 @@ export default function ThinkingBlock({
     const currentLength = safeBodyText.length;
     if (currentLength > 0 && !autoCollapsedRef.current) {
       autoCollapsedRef.current = true;
-      manualExpandedStepIdRef.current = null;
-      manualOpenMainRef.current = false;
-      setCollapsed(true);
-      setExpandedTimelineId(null);
+      const timer = setTimeout(() => {
+        setManualExpandedStepId(null);
+        setCollapsed(true);
+        setExpandedTimelineId(null);
+      }, 0);
+      return () => clearTimeout(timer);
     }
     if (currentLength === 0) {
       autoCollapsedRef.current = false;
@@ -111,11 +107,9 @@ export default function ThinkingBlock({
   const activeThoughtLabel = "思考中";
   const completedThoughtLabel = "已思考";
   const toggleExpandedStep = (stepId) => {
-    setExpandedTimelineId((prev) => {
-      const nextId = prev === stepId ? null : stepId;
-      manualExpandedStepIdRef.current = nextId;
-      return nextId;
-    });
+    const nextId = expandedTimelineId === stepId ? null : stepId;
+    setManualExpandedStepId(nextId);
+    setExpandedTimelineId(nextId);
   };
 
   // ── 渲染时间线内的单个步骤（第二层折叠项）──
@@ -144,9 +138,6 @@ export default function ThinkingBlock({
       }
       if (step.kind === "planner") return isRunning ? "正在制定计划" : (isError ? "制定计划失败" : "执行计划已确定");
       if (step.kind === "writer") return isRunning ? "正在整理结果" : (isError ? "整理结果失败" : "最终结果已生成");
-      if (step.kind === "sandbox") return isRunning ? "正在准备运行环境" : (isError ? "运行环境准备失败" : "运行环境已准备完成");
-      if (step.kind === "upload") return isRunning ? "正在上传文件" : (isError ? "文件上传失败" : "文件已上传");
-      if (step.kind === "parse") return isRunning ? "正在解析文件" : (isError ? "文件解析失败" : "文件已解析");
       return "处理中";
     };
 
@@ -156,12 +147,10 @@ export default function ThinkingBlock({
       if (step.kind === "reader") return Boolean(getDisplayHostname(step.url) || Number.isFinite(step.resultCount) || (isError && step.message));
       if (step.kind === "planner") return false;
       if (step.kind === "writer") return Boolean(step.content || step.message);
-      if (step.kind === "sandbox") return Boolean(step.content || (isError && (step.message || step.title)));
-      if (step.kind === "upload" || step.kind === "parse") return false;
       return false;
     })();
     const isThoughtStreaming = step.status === "streaming";
-    const isManualExpanded = manualExpandedStepIdRef.current === step.id;
+    const isManualExpanded = manualExpandedStepId === step.id;
     const showThoughtDots = isThoughtStreaming && (!hasDetail || (isExpanded && !isManualExpanded));
 
     const thoughtIcon = <Lightbulb className="thinking-icon-step" />;
@@ -172,17 +161,11 @@ export default function ThinkingBlock({
       ? <Search className="thinking-icon-step" />
       : step.kind === "reader"
           ? <FileScan className="thinking-icon-step" />
-      : step.kind === "sandbox"
-        ? <Terminal className="thinking-icon-step" />
-        : step.kind === "planner"
+      : step.kind === "planner"
           ? <Scale className="thinking-icon-step" />
           : step.kind === "writer"
             ? <Zap className="thinking-icon-step" />
-        : step.kind === "upload"
-          ? <FileUp className="thinking-icon-step" />
-          : step.kind === "parse"
-            ? <FileScan className="thinking-icon-step" />
-              : step.kind === "tool"
+        : step.kind === "tool"
                 ? <Terminal className="thinking-icon-step" />
                 : thoughtIcon;
 
@@ -345,44 +328,6 @@ export default function ThinkingBlock({
       );
     }
 
-    if (step.kind === "sandbox") {
-      const detail = isError ? (step.message || step.title || "") : "";
-      const titleText = getTitle();
-      const isOpen = hasLinkedToolPreview && isExpanded;
-      return (
-        <div key={step.id || `sandbox-${idx}`} className="w-full max-w-full md:max-w-[760px]">
-          {hasLinkedToolPreview ? (
-            <button type="button" onClick={() => toggleExpandedStep(step.id)} className={capsuleClass}>
-              {icon}
-              <StepStatusText text={detail || titleText} active={isRunning} />
-              <div className="ml-auto flex items-center gap-1">
-                {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </div>
-            </button>
-          ) : (
-            <div className={capsuleClass}>
-              {icon}
-              <StepStatusText text={detail || titleText} active={isRunning} />
-            </div>
-          )}
-          <AnimatePresence>
-            {isOpen && linkedTool ? (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="mt-2 ml-4 w-full max-w-[720px]">
-                  <ToolRunPreview tool={linkedTool} />
-                </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
-      );
-    }
-
     if (step.kind === "planner") {
       const titleText = getTitle();
       return (
@@ -451,19 +396,6 @@ export default function ThinkingBlock({
       );
     }
 
-    if (step.kind === "upload" || step.kind === "parse") {
-      const detail = step.message || step.title || "";
-      const titleText = getTitle();
-      return (
-        <div key={step.id || `${step.kind}-${idx}`} className="w-full max-w-full md:max-w-[760px]">
-          <div className={capsuleClass}>
-            {icon}
-            <StepStatusText text={detail || titleText} active={isRunning} />
-          </div>
-        </div>
-      );
-    }
-
     if (step.kind === "image_gen") {
       const progressMatch = typeof step.content === "string" && step.content.match(/(\d+)%/);
       const progressText = progressMatch ? ` (${progressMatch[1]}%)` : "";
@@ -481,7 +413,7 @@ export default function ThinkingBlock({
     }
 
     if (step.kind === "tool") {
-      const label = step.content || step.message || step.title || "沙箱执行";
+      const label = step.content || step.message || step.title || "工具执行";
       const isOpen = hasLinkedToolPreview && isExpanded;
       return (
         <div key={step.id || `tool-${idx}`} className="w-full max-w-full md:max-w-[760px]">
@@ -529,11 +461,6 @@ export default function ThinkingBlock({
           {/* 第一层：外层折叠按钮 */}
           <button
             onClick={() => {
-              if (collapsed) {
-                manualOpenMainRef.current = true;
-              } else {
-                manualOpenMainRef.current = false;
-              }
               setCollapsed(!collapsed);
             }}
             className="thinking-btn flex items-center font-medium mb-1.5 transition-colors text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800"

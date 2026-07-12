@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["@vercel/sandbox"],
+  output: "standalone",
   // 禁用页面缓存，确保每次获取最新版本
   async headers() {
     return [

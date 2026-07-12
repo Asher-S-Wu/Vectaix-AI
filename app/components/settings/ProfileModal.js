@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import NextImage from "next/image";
 import {
   ChevronDown,
   Lock,
@@ -16,7 +17,7 @@ import {
   Mail,
 } from "lucide-react";
 
-import { upload } from "@vercel/blob/client";
+import { deleteTemporaryFile, uploadPrivateFile } from "@/lib/client/uploadFile";
 import { apiJson } from "@/lib/client/apiClient";
 import { useToast } from "../common/ToastProvider";
 import UserManagementModal from "./UserManagementModal";
@@ -84,15 +85,20 @@ export default function ProfileModal({
     }
 
     setAvatarLoading(true);
+    let uploadedFileId = null;
     try {
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload",
-        clientPayload: JSON.stringify({ kind: "avatar" }),
-      });
-      await onAvatarChange?.(blob.url);
+      const uploaded = await uploadPrivateFile(file, { kind: "avatar" });
+      uploadedFileId = uploaded.fileId;
+      const saved = await onAvatarChange?.(uploaded.fileId);
+      if (!saved) {
+        await deleteTemporaryFile(uploaded.fileId);
+        uploadedFileId = null;
+        throw new Error("头像保存失败");
+      }
+      uploadedFileId = null;
       toast.success("头像更新成功");
     } catch (err) {
+      if (uploadedFileId) await deleteTemporaryFile(uploadedFileId);
       toast.error(err?.message);
     } finally {
       setAvatarLoading(false);
@@ -102,9 +108,12 @@ export default function ProfileModal({
 
   useEffect(() => {
     if (!open) return;
-    setNicknameDraft(savedNickname);
-    setEmailDraft(user?.email || "");
-    setEmailPassword("");
+    const timer = setTimeout(() => {
+      setNicknameDraft(savedNickname);
+      setEmailDraft(user?.email || "");
+      setEmailPassword("");
+    }, 0);
+    return () => clearTimeout(timer);
   }, [open, savedNickname, user?.email]);
 
   const saveNickname = async () => {
@@ -217,7 +226,7 @@ export default function ProfileModal({
                 title="点击更换头像"
               >
                 {avatar ? (
-                  <img src={avatar} alt="" className="w-full h-full object-cover" />
+                  <NextImage src={avatar} alt="" fill sizes="64px" unoptimized className="object-cover" />
                 ) : (
                   <div className="w-full h-full bg-zinc-500 flex items-center justify-center text-xl font-semibold text-white">
                     {emailInitial}

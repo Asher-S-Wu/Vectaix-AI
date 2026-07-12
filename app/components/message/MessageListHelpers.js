@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Download, ExternalLink, FileText, Search, Terminal, X } from "lucide-react";
 import { ModelAvatar } from "../common/ModelVisuals";
 import { formatAttachmentMeta } from "@/lib/shared/messageAttachments";
-import { toBlobDownloadUrl } from "@/lib/shared/blobUrls";
+import { toFileDownloadUrl } from "@/lib/shared/fileUrls";
 import {
   getWebBrowsingToolTitle,
   isWebBrowsingIdentifier,
@@ -20,11 +21,12 @@ function WebFavicon({ url, size = 12, className = "" }) {
   const domain = getDomainFromUrl(url);
   if (!domain || failed) return <Search size={size} className={className} />;
   return (
-    <img
+    <Image
       src={`https://www.google.com/s2/favicons?domain=${domain}&sz=${size * 2}`}
       alt=""
       width={size}
       height={size}
+      unoptimized
       className={`${className} rounded-sm`}
       loading="lazy"
       decoding="async"
@@ -166,25 +168,15 @@ export function isSelectionFullyInsideElement(el) {
 }
 
 export function Thumb({ src, previewSrc = "", className = "", onClick }) {
-  const [displaySrc, setDisplaySrc] = useState(previewSrc || src || "");
+  const [loadedSrc, setLoadedSrc] = useState("");
 
   useEffect(() => {
-    if (!src) {
-      setDisplaySrc("");
-      return;
-    }
-
-    if (!previewSrc || previewSrc === src) {
-      setDisplaySrc(src);
-      return;
-    }
+    if (!src || !previewSrc || previewSrc === src) return;
 
     let cancelled = false;
-    setDisplaySrc(previewSrc);
-
-    const image = new Image();
+    const image = new window.Image();
     image.onload = () => {
-      if (!cancelled) setDisplaySrc(src);
+      if (!cancelled) setLoadedSrc(src);
     };
     image.src = src;
 
@@ -194,7 +186,7 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
   }, [src, previewSrc]);
 
   if (!src) return null;
-  const activeSrc = displaySrc || previewSrc || src;
+  const activeSrc = previewSrc && previewSrc !== src && loadedSrc !== src ? previewSrc : src;
 
   return (
     <button
@@ -203,9 +195,12 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
       className={`block text-left ${className}`}
       title="点击查看"
     >
-      <img
+      <Image
         src={activeSrc}
         alt=""
+        width={280}
+        height={240}
+        unoptimized
         className="block max-w-[280px] sm:max-w-[240px] max-h-[240px] sm:max-h-[180px] w-auto h-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
         loading="eager"
         decoding="async"
@@ -216,9 +211,9 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
 
 export function AttachmentCard({ file, compact = false }) {
   if (!file?.name) return null;
-  const canDownload = typeof file.url === "string" && /^https?:\/\//i.test(file.url);
+  const canDownload = typeof file.url === "string" && file.url.startsWith("/api/files/");
   const downloadUrl = canDownload
-    ? toBlobDownloadUrl(file.url)
+    ? toFileDownloadUrl(file.url)
     : null;
 
   return (
@@ -229,8 +224,11 @@ export function AttachmentCard({ file, compact = false }) {
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium text-zinc-700 dark:text-zinc-300">{file.name}</div>
         <div className="truncate text-xs text-zinc-400">{formatAttachmentMeta(file)}</div>
-        {typeof file.formatSummary === "string" && file.formatSummary.trim() ? (
-          <div className="truncate text-xs text-zinc-400/90">{file.formatSummary}</div>
+        {file.category === "audio" && file.url ? (
+          <audio controls preload="metadata" src={file.url} className="mt-2 h-8 w-full max-w-[320px]" />
+        ) : null}
+        {file.category === "video" && file.url ? (
+          <video controls preload="metadata" src={file.url} className="mt-2 max-h-48 w-full max-w-[320px] rounded-lg bg-black" />
         ) : null}
       </div>
       {downloadUrl ? (
@@ -247,9 +245,8 @@ export function AttachmentCard({ file, compact = false }) {
 }
 
 export function Citations({ citations }) {
-  if (!citations || !Array.isArray(citations) || citations.length === 0) return null;
-
   const [open, setOpen] = useState(false);
+  if (!citations || !Array.isArray(citations) || citations.length === 0) return null;
 
   const uniqueCitations = [];
   const seenUrls = new Set();
@@ -339,11 +336,6 @@ export function Citations({ citations }) {
   );
 }
 
-function buildArtifactDownloadUrl(artifact) {
-  if (typeof artifact?.url !== "string" || !/^https?:\/\//i.test(artifact.url)) return null;
-  return toBlobDownloadUrl(artifact.url);
-}
-
 export function hasToolRunPreview(tool) {
   if (!tool || typeof tool !== "object") return false;
   const toolIdentifier = normalizeWebBrowsingIdentifier(tool.identifier);
@@ -429,47 +421,6 @@ export function ToolRunCards({ tools }) {
               </div>
             </div>
             <ToolRunPreview tool={tool} />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-export function ArtifactCards({ artifacts }) {
-  if (!Array.isArray(artifacts) || artifacts.length === 0) return null;
-
-  return (
-    <div className="mt-3 flex flex-col gap-2">
-      {artifacts.map((artifact, index) => {
-        const downloadUrl = buildArtifactDownloadUrl(artifact);
-        const title = typeof artifact?.title === "string" && artifact.title ? artifact.title : `产物 ${index + 1}`;
-        const meta = [
-          typeof artifact?.extension === "string" && artifact.extension ? artifact.extension.toUpperCase() : "",
-          Number.isFinite(artifact?.size) && artifact.size > 0 ? formatAttachmentMeta({ size: artifact.size }) : "",
-        ].filter(Boolean).join(" · ");
-
-        return (
-          <div
-            key={`${artifact?.url || title}-${index}`}
-            className="flex items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/80 dark:bg-zinc-900/50 px-3 py-3"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500 shrink-0">
-              <FileText size={18} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-zinc-700 dark:text-zinc-200">{title}</div>
-              <div className="truncate text-xs text-zinc-400">{meta || "沙盒导出产物"}</div>
-            </div>
-            {downloadUrl ? (
-              <a
-                href={downloadUrl}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
-                title="下载产物"
-              >
-                <Download size={15} />
-              </a>
-            ) : null}
           </div>
         );
       })}

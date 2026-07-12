@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import NextImage from "next/image";
 import { LogOut, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import ConfirmModal from "../modals/ConfirmModal";
 import { ModelGlyph } from "../common/ModelVisuals";
@@ -216,9 +217,12 @@ export default function Sidebar({
                 className="flex items-center gap-3 flex-1 hover:bg-white dark:hover:bg-zinc-800 p-2 rounded-xl transition-all active:scale-[0.98]"
               >
                 {avatar ? (
-                  <img
+                  <NextImage
                     src={avatar}
                     alt=""
+                    width={40}
+                    height={40}
+                    unoptimized
                     className="w-10 h-10 rounded-xl object-cover ring-2 ring-zinc-200 dark:ring-zinc-700"
                   />
                 ) : (

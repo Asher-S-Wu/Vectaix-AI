@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { createChatAppActions } from "@/lib/client/chat/chatAppActions";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useChatAppActions } from "@/lib/client/chat/chatAppActions";
 import {
   decorateConversationMessages,
   mergeConversationMessages,
@@ -163,18 +163,6 @@ export default function ChatApp() {
   }, [currentConversationId]);
 
   useEffect(() => {
-    if (!user || !serverSettingsReady || hasRestoredConversationRef.current || conversations.length === 0) return;
-    hasRestoredConversationRef.current = true;
-    if (typeof window === "undefined") return;
-    const savedConversationId = window.localStorage.getItem("vectaix-current-conversation");
-    if (!savedConversationId) return;
-    const exists = conversations.some((conversation) => conversation?._id === savedConversationId);
-    if (exists) {
-      loadConversation(savedConversationId, { silent: true });
-    }
-  }, [conversations, serverSettingsReady, user]);
-
-  useEffect(() => {
     return () => {
       chatAbortRef.current?.abort();
       chatAbortRef.current = null;
@@ -247,11 +235,11 @@ export default function ChatApp() {
     const shouldPrefill = typeof payload === "object" ? payload?.shouldPrefill !== false : true;
     toast.warning("消息包含敏感内容，请修改后重新尝试");
     if (shouldPrefill && typeof promptText === "string" && promptText.trim()) {
-      setComposerPrefill({ text: promptText, nonce: Date.now() });
+      setComposerPrefill((previous) => ({ text: promptText, nonce: (previous?.nonce || 0) + 1 }));
     }
   };
 
-  const actions = createChatAppActions({
+  const actions = useChatAppActions({
     toast,
     messages,
     setMessages,
@@ -384,6 +372,21 @@ export default function ChatApp() {
       }
     }
   };
+
+  const restoreConversation = useEffectEvent((id) => {
+    loadConversation(id, { silent: true });
+  });
+
+  useEffect(() => {
+    if (!user || !serverSettingsReady || hasRestoredConversationRef.current || conversations.length === 0) return;
+    hasRestoredConversationRef.current = true;
+    const savedConversationId = window.localStorage.getItem("vectaix-current-conversation");
+    if (!savedConversationId) return;
+    const exists = conversations.some((conversation) => conversation?._id === savedConversationId);
+    if (!exists) return;
+    const timer = setTimeout(() => restoreConversation(savedConversationId), 0);
+    return () => clearTimeout(timer);
+  }, [conversations, serverSettingsReady, user]);
 
   const syncConversationSettings = (settingsUpdate) => {
     if (!currentConversationId) return;

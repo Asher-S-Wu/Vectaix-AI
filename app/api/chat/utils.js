@@ -1,4 +1,4 @@
-import { normalizeBlobFileId } from '@/lib/shared/blobFileIds';
+import { normalizeFileId } from '@/lib/shared/fileIds';
 
 /**
  * 共用工具函数 - Gemini 和 Claude API 都会使用
@@ -100,82 +100,17 @@ function buildHolidayText(holiday, festival) {
     return lines.length > 0 ? lines.join('；') : '';
 }
 
-const ALLOWED_IMAGE_DOMAINS = [
-    "blob.vercel-storage.com",
-    "public.blob.vercel-storage.com",
-];
-
 const MAX_STORED_MESSAGES = 500;
 const MAX_STORED_MESSAGE_CHARS = 20000;
 const MAX_STORED_PART_TEXT_CHARS = 10000;
 const MAX_STORED_PARTS_PER_MESSAGE = 20;
 const MAX_STORED_MESSAGE_ID_CHARS = 128;
 const MAX_STORED_TOTAL_TEXT_CHARS = 1_000_000;
-const MAX_STORED_IMAGE_URL_CHARS = 2048;
 
 function createValidationError(message) {
     const err = new Error(message);
     err.status = 400;
     return err;
-}
-
-function isAllowedImageDomain(url) {
-    try {
-        const parsed = new URL(url);
-        const hostname = parsed.hostname.toLowerCase();
-        return ALLOWED_IMAGE_DOMAINS.some(
-            (domain) => hostname === domain || hostname.endsWith("." + domain)
-        );
-    } catch {
-        return false;
-    }
-}
-
-function isAllowedStoredImageUrl(url) {
-    if (typeof url !== "string" || !url.trim()) return false;
-    if (url.length > MAX_STORED_IMAGE_URL_CHARS) return false;
-    try {
-        const parsed = new URL(url);
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-            return false;
-        }
-    } catch {
-        return false;
-    }
-    return isAllowedImageDomain(url);
-}
-
-export async function fetchImageAsBase64(url) {
-    return fetchBlobAsBase64(url, { resourceLabel: "image" });
-}
-
-async function fetchBlobAsBase64(url, { resourceLabel = "file" } = {}) {
-    if (typeof url !== "string" || !url.trim()) {
-        throw new Error(`Invalid ${resourceLabel} url`);
-    }
-
-    let parsed;
-    try {
-        parsed = new URL(url);
-    } catch {
-        throw new Error(`Invalid ${resourceLabel} url`);
-    }
-
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        throw new Error(`Invalid ${resourceLabel} url protocol`);
-    }
-
-    if (!isAllowedImageDomain(url)) {
-        throw new Error(`${resourceLabel} domain not allowed`);
-    }
-
-    const imgRes = await fetch(url, { cache: "no-store" });
-    if (!imgRes.ok) throw new Error(`Failed to fetch ${resourceLabel} from blob`);
-
-    const arrayBuffer = await imgRes.arrayBuffer();
-    const base64Data = Buffer.from(arrayBuffer).toString("base64");
-    const mimeType = imgRes.headers.get("content-type");
-    return { base64Data, mimeType };
 }
 
 export function isNonEmptyString(value) {
@@ -198,26 +133,28 @@ export function getStoredPartsFromMessage(msg, { includeThoughtSignature = false
                 if (isNonEmptyString(part.text)) out.text = part.text;
                 if (part.thought === true) out.thought = true;
                 if (part?.inlineData && typeof part.inlineData === 'object') {
+                    const fileId = normalizeFileId(part.inlineData.fileId);
                     const url = part.inlineData.url;
                     const mimeType = part.inlineData.mimeType;
-                    if (isNonEmptyString(url)) {
+                    if (fileId && isNonEmptyString(url)) {
                         out.inlineData = {
+                            fileId,
                             url,
                             mimeType: isNonEmptyString(mimeType) ? mimeType : 'image/jpeg',
                         };
-                        const blobFileId = normalizeBlobFileId(part.inlineData.blobFileId);
-                        if (blobFileId) out.inlineData.blobFileId = blobFileId;
                     }
                 }
                 if (part?.fileData && typeof part.fileData === 'object') {
+                    const fileId = normalizeFileId(part.fileData.fileId);
                     const url = part.fileData.url;
                     const name = part.fileData.name;
                     const mimeType = part.fileData.mimeType;
                     const extension = part.fileData.extension;
                     const category = part.fileData.category;
                     const size = Number(part.fileData.size);
-                    if (isNonEmptyString(url) && isNonEmptyString(name) && isNonEmptyString(mimeType) && isNonEmptyString(extension) && isNonEmptyString(category) && Number.isFinite(size) && size >= 0) {
+                    if (fileId && isNonEmptyString(url) && isNonEmptyString(name) && isNonEmptyString(mimeType) && isNonEmptyString(extension) && isNonEmptyString(category) && Number.isFinite(size) && size >= 0) {
                         out.fileData = {
+                            fileId,
                             url,
                             name,
                             mimeType,
@@ -225,8 +162,6 @@ export function getStoredPartsFromMessage(msg, { includeThoughtSignature = false
                             extension,
                             category,
                         };
-                        const blobFileId = normalizeBlobFileId(part.fileData.blobFileId);
-                        if (blobFileId) out.fileData.blobFileId = blobFileId;
                     }
                 }
                 if (includeThoughtSignature && isNonEmptyString(part.thoughtSignature)) out.thoughtSignature = part.thoughtSignature;
@@ -239,26 +174,6 @@ export function getStoredPartsFromMessage(msg, { includeThoughtSignature = false
     const fallbackParts = [];
     if (isNonEmptyString(msg.content)) {
         fallbackParts.push({ text: msg.content });
-    }
-
-    if (msg.role === 'user') {
-        const pushImagePart = (url, mimeType) => {
-            if (!isNonEmptyString(url)) return;
-            fallbackParts.push({
-                inlineData: {
-                    url,
-                    mimeType: isNonEmptyString(mimeType) ? mimeType : 'image/jpeg',
-                },
-            });
-        };
-
-        if (Array.isArray(msg.images) && msg.images.length > 0) {
-            for (const url of msg.images) {
-                pushImagePart(url, msg.mimeType);
-            }
-        } else {
-            pushImagePart(msg.image, msg.mimeType);
-        }
     }
 
     return fallbackParts.length > 0 ? fallbackParts : null;
@@ -278,7 +193,6 @@ function sanitizeStoredMessage(msg) {
     if (isNonEmptyString(msg.thought)) out.thought = msg.thought;
     if (Array.isArray(msg.citations) && msg.citations.length > 0) out.citations = msg.citations;
     if (Array.isArray(msg.tools) && msg.tools.length > 0) out.tools = msg.tools;
-    if (Array.isArray(msg.artifacts) && msg.artifacts.length > 0) out.artifacts = msg.artifacts;
     if (Array.isArray(msg.thinkingTimeline) && msg.thinkingTimeline.length > 0) out.thinkingTimeline = msg.thinkingTimeline;
     if (Number.isFinite(msg.searchContextTokens) && msg.searchContextTokens > 0) out.searchContextTokens = Math.max(0, Math.floor(msg.searchContextTokens));
     if (msg.providerState && typeof msg.providerState === 'object') out.providerState = msg.providerState;
@@ -334,15 +248,12 @@ export function sanitizeStoredMessagesStrict(messages) {
             }
 
             if (part?.inlineData?.url) {
-                if (!isAllowedStoredImageUrl(part.inlineData.url)) {
+                if (!normalizeFileId(part.inlineData.fileId)) {
                     throw createValidationError(`messages[${i}].parts[${pi}].image invalid`);
-                }
-                if (part.inlineData.blobFileId !== undefined && !normalizeBlobFileId(part.inlineData.blobFileId)) {
-                    throw createValidationError(`messages[${i}].parts[${pi}].image blobFileId invalid`);
                 }
             }
             if (part?.fileData?.url) {
-                if (!isAllowedStoredImageUrl(part.fileData.url)) {
+                if (!normalizeFileId(part.fileData.fileId)) {
                     throw createValidationError(`messages[${i}].parts[${pi}].file invalid`);
                 }
                 if (!isNonEmptyString(part.fileData.name) || part.fileData.name.length > 200) {
@@ -359,9 +270,6 @@ export function sanitizeStoredMessagesStrict(messages) {
                 }
                 if (!Number.isFinite(Number(part.fileData.size)) || Number(part.fileData.size) < 0) {
                     throw createValidationError(`messages[${i}].parts[${pi}].file size invalid`);
-                }
-                if (part.fileData.blobFileId !== undefined && !normalizeBlobFileId(part.fileData.blobFileId)) {
-                    throw createValidationError(`messages[${i}].parts[${pi}].file blobFileId invalid`);
                 }
             }
         }

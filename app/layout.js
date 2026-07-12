@@ -2,9 +2,17 @@ import './globals.css';
 import 'katex/dist/katex.min.css';
 import 'highlight.js/styles/github-dark.css';
 import { headers } from 'next/headers';
+import { Inter } from 'next/font/google';
 import { ToastProvider } from './components/common/ToastProvider';
 import FadeScrollbarGlobal from './components/layout/FadeScrollbarGlobal';
 import { UI_THEME_MODE_KEY } from '@/lib/shared/storageKeys';
+
+const inter = Inter({
+    subsets: ['latin'],
+    weight: ['400', '500', '600', '700'],
+    display: 'swap',
+    variable: '--font-inter',
+});
 
 export const metadata = {
     title: 'Vectaix AI',
@@ -51,11 +59,8 @@ export default async function RootLayout({ children }) {
         <html lang="en" suppressHydrationWarning>
             <head>
                 <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
             </head>
-            <body>
+            <body className={inter.variable}>
                 <FadeScrollbarGlobal />
                 <ToastProvider>
                     <div className="main-layout h-full">

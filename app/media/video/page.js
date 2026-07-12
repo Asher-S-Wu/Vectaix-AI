@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import NextImage from 'next/image';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -290,7 +291,7 @@ export default function VideoGenerationPage() {
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
         <div className="relative min-h-[130px]">
           <label htmlFor={`video-${kind}`} className="flex min-h-[130px] cursor-pointer flex-col items-center justify-center px-4 py-5 text-center text-sm text-zinc-500">
-            {previewUrl ? <img src={previewUrl} alt={label} className="h-[156px] w-full object-contain" /> : (
+            {previewUrl ? <NextImage src={previewUrl} alt={label} width={512} height={156} unoptimized className="h-[156px] w-full object-contain" /> : (
               <>
                 <Upload className="mb-2 h-6 w-6" />
                 <span className="font-medium">{file ? file.name : '上传 PNG、JPG 或 WEBP'}</span>

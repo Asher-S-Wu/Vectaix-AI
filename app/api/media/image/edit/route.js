@@ -1,4 +1,5 @@
 import { getAuthPayload } from "@/lib/auth";
+import dbConnect from "@/lib/db";
 import { editAndStoreImage } from "@/lib/media/server/inferera/images";
 import {
   IMAGE_EDIT_ACCEPTED_MIME_TYPES,
@@ -16,6 +17,7 @@ export async function POST(request) {
     if (!auth) {
       return Response.json({ success: false, message: "未登录" }, { status: 401 });
     }
+    await dbConnect();
 
     const formData = await request.formData();
     const prompt = String(formData.get("prompt") || "").trim();
@@ -50,6 +52,7 @@ export async function POST(request) {
     }
 
     const imageUrl = await editAndStoreImage({
+      userId: auth.userId,
       prompt,
       image,
       size,

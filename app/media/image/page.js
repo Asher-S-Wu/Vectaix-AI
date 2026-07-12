@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import NextImage from 'next/image';
 import { ImagePlus, Sparkles, Upload, X } from 'lucide-react';
 import ImageResultCard from '@/app/components/media/image-result-card';
 import { editImage, generateImage } from '@/lib/media/client/media';
@@ -122,7 +123,7 @@ export default function ImageGenerationPage() {
                 <div className="relative overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
                   {sourcePreviewUrl ? (
                     <>
-                      <img src={sourcePreviewUrl} alt="参考图片" className="h-[132px] w-full object-contain" />
+                      <NextImage src={sourcePreviewUrl} alt="参考图片" width={512} height={132} unoptimized className="h-[132px] w-full object-contain" />
                       <button type="button" onClick={() => handleSourceImageChange(null)} className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white" aria-label="移除图片">
                         <X className="h-4 w-4" />
                       </button>

@@ -1,62 +1,48 @@
 import {
-  isNonEmptyString,
   getStoredPartsFromMessage,
+  isNonEmptyString,
 } from "@/app/api/chat/utils";
-import { buildAttachmentTextBlock } from "@/lib/server/files/service";
-import { getAttachmentInputType } from "@/lib/shared/attachments";
+import {
+  buildPrivateImageDataUrl,
+  loadOwnedMedia,
+} from "@/lib/server/storage/providerMedia";
 
-async function storedPartToOpenAIContentPart(part, role, options = {}) {
+async function storedPartToProviderContent(part, role, { userId } = {}) {
   if (!part || typeof part !== "object") return null;
+  if (isNonEmptyString(part.text)) return { type: "text", text: part.text };
+  if (role === "assistant") return null;
 
-  const isAssistant = role === "assistant";
-
-  if (isNonEmptyString(part.text)) {
-    return { type: "text", text: part.text };
-  }
-
-  if (isAssistant) {
-    return null;
-  }
-
-  const imageUrl = part?.inlineData?.url;
-  if (isNonEmptyString(imageUrl)) {
+  if (part?.inlineData?.fileId) {
+    const image = await buildPrivateImageDataUrl({ userId, fileId: part.inlineData.fileId });
     return {
       type: "image_url",
-      image_url: { url: imageUrl },
+      image_url: { url: image.dataUrl },
     };
   }
 
-  const fileUrl = part?.fileData?.url;
-  if (isNonEmptyString(fileUrl)) {
-    const inputType = getAttachmentInputType(part?.fileData?.category);
-    if (inputType === "file") {
-      const fileTextMap = options?.fileTextMap instanceof Map ? options.fileTextMap : new Map();
-      const prepared = fileTextMap.get(fileUrl);
-      const extractedText = prepared?.structuredText || prepared?.extractedText || "";
-      if (isNonEmptyString(extractedText)) {
-        return {
-          type: "text",
-          text: buildAttachmentTextBlock(prepared.file || part.fileData, extractedText),
-        };
-      }
-    }
+  if (part?.fileData?.fileId) {
+    const file = await loadOwnedMedia({
+      userId,
+      fileId: part.fileData.fileId,
+      categories: ["audio", "video"],
+    });
+    return {
+      type: "private_media",
+      media: { category: file.category, file },
+    };
   }
-
   return null;
 }
 
-function normalizeOpenAIMessageContent(contentParts) {
-  if (!Array.isArray(contentParts) || contentParts.length === 0) return "";
-  return contentParts;
+function normalizeProviderContent(contentParts) {
+  return Array.isArray(contentParts) && contentParts.length > 0 ? contentParts : "";
 }
 
 export async function buildChatMessagesFromHistory(messages, options = {}) {
   const result = [];
   for (const msg of messages) {
     if (msg?.role !== "user" && msg?.role !== "model") continue;
-
     const role = msg.role === "model" ? "assistant" : "user";
-
     if (role === "assistant" && isNonEmptyString(msg?.content)) {
       result.push({
         role,
@@ -65,58 +51,44 @@ export async function buildChatMessagesFromHistory(messages, options = {}) {
       });
       continue;
     }
-
     const storedParts = getStoredPartsFromMessage(msg);
-    if (!storedParts || storedParts.length === 0) continue;
-
+    if (!storedParts?.length) continue;
     const contentParts = [];
-    for (const storedPart of storedParts) {
-      const part = await storedPartToOpenAIContentPart(storedPart, role, options);
-      if (part) contentParts.push(part);
+    for (const part of storedParts) {
+      const resolved = await storedPartToProviderContent(part, role, options);
+      if (resolved) contentParts.push(resolved);
     }
-    if (contentParts.length === 0) continue;
-
-    result.push({
-      role,
-      content: normalizeOpenAIMessageContent(contentParts),
-      ...(msg?.providerState ? { providerState: msg.providerState } : {}),
-    });
+    if (contentParts.length > 0) {
+      result.push({
+        role,
+        content: normalizeProviderContent(contentParts),
+        ...(msg?.providerState ? { providerState: msg.providerState } : {}),
+      });
+    }
   }
   return result;
 }
 
-export async function buildCurrentUserMessage({ prompt, images, attachments, fileTextMap }) {
+export async function buildCurrentUserMessage({ prompt, images, attachments, userId }) {
   const content = [];
-  if (isNonEmptyString(prompt)) {
-    content.push({ type: "text", text: prompt });
+  if (isNonEmptyString(prompt)) content.push({ type: "text", text: prompt });
+  for (const image of Array.isArray(images) ? images : []) {
+    if (!image?.fileId) continue;
+    const resolved = await buildPrivateImageDataUrl({ userId, fileId: image.fileId });
+    content.push({ type: "image_url", image_url: { url: resolved.dataUrl } });
   }
-
-  if (Array.isArray(images)) {
-    for (const img of images) {
-      if (!img?.url) continue;
-      content.push({
-        type: "image_url",
-        image_url: { url: img.url },
-      });
-    }
+  for (const attachment of Array.isArray(attachments) ? attachments : []) {
+    if (!attachment?.fileId) continue;
+    const file = await loadOwnedMedia({
+      userId,
+      fileId: attachment.fileId,
+      categories: ["audio", "video"],
+    });
+    content.push({ type: "private_media", media: { category: file.category, file } });
   }
-
-  if (Array.isArray(attachments)) {
-    const map = fileTextMap instanceof Map ? fileTextMap : new Map();
-    for (const attachment of attachments) {
-      const prepared = map.get(attachment.url);
-      const extractedText = prepared?.structuredText || prepared?.extractedText || "";
-      if (!isNonEmptyString(extractedText)) continue;
-      content.push({
-        type: "text",
-        text: buildAttachmentTextBlock(prepared.file || attachment, extractedText),
-      });
-    }
-  }
-
   return content;
 }
 
 export function normalizeOpenAIMessageContentParts(contentParts) {
-  return normalizeOpenAIMessageContent(contentParts);
+  return normalizeProviderContent(contentParts);
 }
