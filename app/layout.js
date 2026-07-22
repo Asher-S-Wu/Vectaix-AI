@@ -56,11 +56,11 @@ export default async function RootLayout({ children }) {
 `;
 
     return (
-        <html lang="zh-CN" suppressHydrationWarning>
+        <html lang="zh-CN" className={inter.variable} suppressHydrationWarning>
             <head>
                 <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
             </head>
-            <body className={inter.variable}>
+            <body>
                 <FadeScrollbarGlobal />
                 <ToastProvider>
                     <div className="main-layout h-full">
