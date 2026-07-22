@@ -71,7 +71,7 @@ export default function ChatLayout({
           onClick={onCloseSidebar}
           type="button"
           aria-label="收起对话列表"
-          className="fixed inset-0 z-[45] cursor-default bg-transparent md:hidden"
+          className="fixed inset-0 z-[45] cursor-default bg-black/20 backdrop-blur-[2px] md:hidden"
         />
       ) : null}
       <div className="flex-1 flex flex-col w-full h-full relative overflow-hidden">
@@ -79,6 +79,7 @@ export default function ChatLayout({
           onToggleSidebar={onToggleSidebar}
           onStartNewChat={onStartNewChat}
           modelReady={isSettingsReady}
+          sidebarOpen={sidebarOpen}
         />
         <main className="flex-1 flex flex-col min-h-0 relative">
           <MessageList
@@ -103,6 +104,7 @@ export default function ChatLayout({
             onDeleteUserMessage={onDeleteUserMessage}
             onRegenerateModelMessage={onRegenerateModelMessage}
             onStartEdit={onStartEdit}
+            onSendStarterPrompt={(text) => composerProps?.onSend?.({ text, attachments: [] })}
             userAvatar={userAvatar}
             userNickname={nickname}
           />
@@ -114,7 +116,7 @@ export default function ChatLayout({
                 exit={{ opacity: 0, scale: 0.8, y: 10 }}
                 transition={{ type: "spring", damping: 20, stiffness: 300 }}
                 onClick={onScrollToBottom}
-                className="absolute bottom-28 md:bottom-24 left-1/2 -translate-x-1/2 z-30 w-10 h-10 rounded-full glass-effect shadow-lg flex items-center justify-center text-zinc-500 hover:text-primary transition-all active:scale-95"
+                className="absolute bottom-28 md:bottom-24 left-1/2 -translate-x-1/2 z-30 w-10 h-10 rounded-full glass-effect shadow-pop flex items-center justify-center text-zinc-500 hover:text-primary transition-all active:scale-95"
                 type="button"
                 aria-label="滚动到底部"
               >

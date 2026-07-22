@@ -73,7 +73,7 @@ export default function Markdown({
 
   return (
     <div
-      className={`prose prose-sm max-w-none prose-zinc prose-pre:bg-zinc-900 prose-pre:text-zinc-100 prose-code:before:content-none prose-code:after:content-none ${className}`}
+      className={`prose max-w-none ${className}`}
     >
       <ReactMarkdown
         remarkPlugins={remarkPlugins}
@@ -144,12 +144,12 @@ function CodeCopyButton({ text }) {
       {copied ? (
         <>
           <Check size={12} />
-          <span>COPIED</span>
+          <span>已复制</span>
         </>
       ) : (
         <>
           <Copy size={12} />
-          <span>COPY</span>
+          <span>复制</span>
         </>
       )}
     </button>

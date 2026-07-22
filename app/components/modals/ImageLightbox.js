@@ -51,6 +51,7 @@ export default function ImageLightbox({ open, onClose, src }) {
     }
   }, [src, downloading]);
   const [loadedImage, setLoadedImage] = useState(null);
+  const [viewportSize, setViewportSize] = useState(null);
 
   useEffect(() => {
     if (!open || !src) return;
@@ -59,10 +60,22 @@ export default function ImageLightbox({ open, onClose, src }) {
     img.src = src;
   }, [open, src]);
 
+  useEffect(() => {
+    if (!open) return;
+    const update = () => setViewportSize({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, [open]);
+
   const displayStyle = useMemo(() => {
-    if (!loadedImage || loadedImage.src !== src) return {};
-    const VW = window.innerWidth * 0.9;
-    const VH = window.innerHeight * 0.8;
+    if (!loadedImage || loadedImage.src !== src || !viewportSize) return {};
+    const VW = viewportSize.w * 0.9;
+    const VH = viewportSize.h * 0.8;
     const PAD = 24;
     const maxW = VW - PAD;
     const maxH = VH - PAD;
@@ -72,7 +85,7 @@ export default function ImageLightbox({ open, onClose, src }) {
     if (w > maxW) { w = maxW; h = w / ratio; }
     if (h > maxH) { h = maxH; w = h * ratio; }
     return { width: Math.round(w), height: Math.round(h) };
-  }, [loadedImage, src]);
+  }, [loadedImage, src, viewportSize]);
 
   useEffect(() => {
     if (!open) return;
@@ -101,7 +114,7 @@ export default function ImageLightbox({ open, onClose, src }) {
             exit={{ scale: 0.98, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
             style={displayStyle}
-            className="relative flex items-center justify-center bg-black/30 rounded-2xl border border-white/10 shadow-2xl backdrop-blur overflow-hidden"
+            className="relative flex items-center justify-center bg-black/30 rounded-2xl border border-white/10 shadow-pop backdrop-blur overflow-hidden"
           >
             <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
               {canDownload && (
@@ -129,7 +142,7 @@ export default function ImageLightbox({ open, onClose, src }) {
             {src && (
               <Image
                 src={src}
-                alt=""
+                alt="查看大图"
                 width={loadedImage?.src === src ? loadedImage.w : 1200}
                 height={loadedImage?.src === src ? loadedImage.h : 800}
                 unoptimized

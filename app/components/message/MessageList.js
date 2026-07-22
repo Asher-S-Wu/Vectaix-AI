@@ -43,6 +43,8 @@ import {
   normalizeFallbackToolTimeline,
 } from "./messageListUtils";
 
+const EXPORT_FORMAT_LABELS = { markdown: "Markdown", pdf: "PDF", docx: "Word 文档" };
+
 
 export default function MessageList({
   messages,
@@ -214,10 +216,9 @@ export default function MessageList({
   };
 
   const handleExportMessage = async (format, msg) => {
-    const labelMap = { markdown: "Markdown", pdf: "PDF", docx: "Docx" };
     try {
       await exportMessageContent(format, buildCopyText(msg));
-      toast.success(`已导出 ${labelMap[format] || "文件"}`);
+      toast.success(`已导出 ${EXPORT_FORMAT_LABELS[format] || "文件"}`);
     } catch (error) {
       toast.error(error?.message || "导出失败");
     } finally {
@@ -466,7 +467,6 @@ export default function MessageList({
                                       key={idx}
                                       enableHighlight={!msg.isStreaming}
                                       enableMath={true}
-                                      className={isUser ? "prose-invert" : ""}
                                     >
                                       {part.text}
                                     </Markdown>
@@ -480,7 +480,6 @@ export default function MessageList({
                           <Markdown
                             enableHighlight={!msg.isStreaming}
                             enableMath={true}
-                            className={msg.role === "user" ? "prose-invert" : ""}
                           >
                             {msg.content}
                           </Markdown>
@@ -491,17 +490,17 @@ export default function MessageList({
                     )}
 
                     {!msg.isStreaming && (
-                      <div className={`flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                      <div className={`msg-actions flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                         {msg.role === "model" && (hasParts || hasVisibleContent) && (
                           <div className="relative" ref={openExportMenuIndex === i ? exportMenuRef : null}>
-                            <button onClick={() => setOpenExportMenuIndex(prev => prev === i ? null : i)} className="p-1.5 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg">
-                              <Download size={14} />
+                            <button onClick={() => setOpenExportMenuIndex(prev => prev === i ? null : i)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg" title="导出">
+                              <Download size={16} />
                             </button>
                             <AnimatePresence>
                               {openExportMenuIndex === i && (
-                                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className="absolute right-0 top-full z-20 mt-1 min-w-[150px] rounded-xl glass-effect border-zinc-200/50 p-1.5 shadow-lg">
+                                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className="absolute right-0 top-full z-20 mt-1 min-w-[150px] rounded-xl glass-effect border-zinc-200/50 p-1.5 shadow-pop">
                                   {["markdown", "pdf", "docx"].map(format => (
-                                    <button key={format} onClick={() => handleExportMessage(format, msg)} className="w-full text-left px-3 py-2 text-sm hover:bg-primary/5 rounded-lg uppercase">{format}</button>
+                                    <button key={format} onClick={() => handleExportMessage(format, msg)} className="w-full text-left px-3 py-2 text-sm hover:bg-primary/5 rounded-lg">{EXPORT_FORMAT_LABELS[format] || format}</button>
                                   ))}
                                 </motion.div>
                               )}
@@ -511,22 +510,22 @@ export default function MessageList({
                         {canRegenerateMessage ? (
                           <button
                             onClick={() => onRegenerateModelMessage?.(i)}
-                            className="p-1.5 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg"
+                            className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg"
                             title="重新生成"
                           >
-                            <RefreshCw size={14} />
+                            <RefreshCw size={16} />
                           </button>
                         ) : null}
                         <button
                           onClick={() => onCopy(buildCopyText(msg))}
-                          className="p-1.5 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg"
+                          className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg"
                           title="复制内容"
                         >
-                          <Copy size={14} />
+                          <Copy size={16} />
                         </button>
-                        <button onClick={() => handleDeleteClick(i, msg.role)} className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
+                        <button onClick={() => handleDeleteClick(i, msg.role)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="删除"><Trash2 size={16} /></button>
                         {msg.role === "user" && canEditUserMessage && (
-                          <button onClick={() => onStartEdit(i, msg)} className="p-1.5 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg"><Edit3 size={14} /></button>
+                          <button onClick={() => onStartEdit(i, msg)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg" title="编辑"><Edit3 size={16} /></button>
                         )}
                       </div>
                     )}

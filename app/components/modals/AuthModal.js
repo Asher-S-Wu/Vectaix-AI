@@ -16,9 +16,9 @@ export default function AuthModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="auth-modal w-full max-w-sm rounded-2xl bg-white shadow-xl p-8">
+      <div className="auth-modal w-full max-w-sm rounded-2xl bg-white shadow-pop p-8">
         <div className="flex justify-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-zinc-500 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
             <Sparkles size={24} className="text-white" />
           </div>
         </div>
@@ -56,9 +56,9 @@ export default function AuthModal({
               required
             />
           )}
-          <button disabled={loading} className="w-full bg-zinc-600 hover:bg-zinc-500 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+          <button disabled={loading} className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? (authMode === "login" ? "登录中..." : "注册中...") : (authMode === "login" ? "登录" : "注册")}
+            {loading ? (authMode === "login" ? "登录中…" : "注册中…") : (authMode === "login" ? "登录" : "注册")}
           </button>
 
         </form>

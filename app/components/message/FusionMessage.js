@@ -184,7 +184,7 @@ function StepState({ status = "loading", text = "" }) {
     <div className="flex min-h-[88px] items-center justify-center rounded-2xl border border-zinc-200 bg-white/70 px-4 py-6 text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-500">
       <div className="flex items-center gap-2">
         <LoaderCircle className="h-4 w-4 animate-spin shrink-0" />
-        <span>{text || "处理中..."}</span>
+        <span>{text || "处理中…"}</span>
       </div>
     </div>
   );
@@ -280,7 +280,7 @@ function AnalysisGroup({ section, items, open, onToggle }) {
           <div className="text-[17px] font-medium text-zinc-900 dark:text-zinc-100">{section.title}</div>
           <div className="mt-1 max-h-12 overflow-hidden text-sm leading-6 text-zinc-500 dark:text-zinc-400">
             {previewText}
-            {previewText.length >= 180 ? "..." : ""}
+            {previewText.length >= 180 ? "…" : ""}
           </div>
         </div>
         <span className="text-sm font-medium text-zinc-400 dark:text-zinc-500">{items.length}</span>
@@ -382,7 +382,7 @@ function ResultCard({ content, analysis, fusionExperts }) {
           <span className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100">{FUSION_SYNTHESIS_LABEL}</span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 dark:border-zinc-700 dark:bg-zinc-950">
             <FusedModelStack experts={fusionExperts} />
-            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Fused</span>
+            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">多模型融合</span>
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -493,7 +493,7 @@ export default function FusionMessage({
         ) : (
           <StepState
             status={resultError ? "error" : "loading"}
-            text={resultError || fusionResultState?.message || "正在整理正式回复..."}
+            text={resultError || fusionResultState?.message || "正在整理正式回复…"}
           />
         )}
       </div>
@@ -516,7 +516,7 @@ export default function FusionMessage({
             ))}
           </div>
         ) : (
-          <StepState text="正在等待三位专家完成..." />
+          <StepState text="正在等待三位专家完成…" />
         )}
       </div>
 
@@ -539,7 +539,7 @@ export default function FusionMessage({
               })}
             </div>
           ) : (
-            <StepState text="正在汇总三位专家的异同点..." />
+            <StepState text="正在汇总三位专家的异同点…" />
           )}
         </div>
       ) : null}
@@ -552,7 +552,7 @@ export default function FusionMessage({
           ) : (
             <StepState
               status={resultError ? "error" : "loading"}
-              text={resultError || fusionResultState?.message || "正在整理正式回复..."}
+              text={resultError || fusionResultState?.message || "正在整理正式回复…"}
             />
           )}
         </div>

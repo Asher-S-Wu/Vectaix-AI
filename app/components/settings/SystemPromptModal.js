@@ -119,7 +119,7 @@ export default function SystemPromptModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.96, opacity: 0, y: 20 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden border border-zinc-200/50 dark:border-zinc-800/50 h-[85vh] md:h-[80vh] min-h-[400px] md:min-h-[500px] max-h-[800px]"
+            className="bg-white dark:bg-zinc-900 rounded-3xl shadow-pop w-full max-w-5xl flex flex-col md:flex-row overflow-hidden border border-zinc-200/50 dark:border-zinc-800/50 h-[85dvh] md:h-[80vh] min-h-[400px] md:min-h-[500px] max-h-[800px]"
           >
             {/* Left Panel: Presets */}
             <div className="w-full md:w-72 lg:w-80 bg-zinc-50/80 dark:bg-zinc-900/50 border-r border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0 h-1/3 md:h-auto border-b md:border-b-0">
@@ -175,7 +175,7 @@ export default function SystemPromptModal({
               {/* Body */}
               <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto fade-scrollbar">
                 {editingId ? (
-                  <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex flex-col h-full">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                         {editingId === "new" ? "新建预设" : "编辑预设"}
@@ -190,7 +190,7 @@ export default function SystemPromptModal({
                     />
                     <textarea
                       className="flex-1 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 text-sm text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all leading-relaxed fade-scrollbar"
-                      placeholder="输入预设的提示词内容..."
+                      placeholder="输入预设的提示词内容…"
                       value={editContent}
                       onChange={e => setEditContent(e.target.value)}
                     />
@@ -198,14 +198,14 @@ export default function SystemPromptModal({
                       <button onClick={() => setEditingId(null)} className="px-5 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
                         取消
                       </button>
-                      <button onClick={submitPreset} className="px-6 py-2.5 text-sm font-medium text-white bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-white rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2">
+                      <button onClick={submitPreset} className="px-6 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2">
                         <Check size={16} />
                         保存预设
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col h-full animate-in fade-in">
+                  <div className="flex flex-col h-full">
                     <div className="flex items-center justify-between mb-3 shrink-0">
                       <label className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                         当前会话生效内容
@@ -234,9 +234,9 @@ export default function SystemPromptModal({
                     <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
                       取消
                     </button>
-                    <button disabled={saving} onClick={handleSave} className="px-6 py-2.5 text-sm font-medium text-white bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-white disabled:opacity-50 rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2">
+                    <button disabled={saving} onClick={handleSave} className="px-6 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2">
                       <Check size={16} />
-                      {saving ? "保存中..." : "应用配置"}
+                      {saving ? "保存中…" : "应用配置"}
                     </button>
                   </div>
                 </div>

@@ -66,7 +66,7 @@ export default function SettingsMenu({
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ type: "spring", damping: 25, stiffness: 350 }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200/50 dark:border-zinc-700/50 overflow-hidden"
+                className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl shadow-pop border border-zinc-200/50 dark:border-zinc-700/50 overflow-hidden"
               >
                 <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
                   <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">

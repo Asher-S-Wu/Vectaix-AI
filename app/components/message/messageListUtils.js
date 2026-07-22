@@ -4,13 +4,13 @@ import {
   normalizeWebBrowsingIdentifier,
 } from "@/lib/shared/webBrowsing";
 
-const PENDING_RUN_TEXTS = new Set(["正在处理中...", "Fusion 正在处理中..."]);
+const PENDING_RUN_TEXTS = new Set(["正在处理中…", "Fusion 正在处理中…"]);
 
 export const STARTER_PROMPTS = [
   { icon: "💡", title: "创意写作", description: "帮我写一个关于火星移民的科幻短篇开头" },
   { icon: "💻", title: "代码助手", description: "用 React 写一个带防抖功能的搜索框组件" },
   { icon: "🌍", title: "旅行规划", description: "制定一份去京都的 5 天文化深度游计划" },
-  { icon: "📊", title: "数据分析", description: "如何通俗易懂地解释什么是‘量化宽松’？" },
+  { icon: "📊", title: "数据分析", description: "如何通俗易懂地解释什么是“量化宽松”？" },
 ];
 
 export function isPendingRunText(text) {
@@ -64,7 +64,7 @@ export function normalizeFallbackToolTimeline(tools) {
         status,
         content: typeof tool.title === "string" && tool.title
           ? tool.title
-          : (isWebBrowsingIdentifier(toolIdentifier) ? getWebBrowsingToolTitle(apiName) : `${toolIdentifier || "tool"}.${tool.apiName || "run"}`),
+          : (isWebBrowsingIdentifier(toolIdentifier) ? getWebBrowsingToolTitle(apiName) : "工具调用"),
         message: typeof tool.content === "string" ? tool.content : "",
       };
     })

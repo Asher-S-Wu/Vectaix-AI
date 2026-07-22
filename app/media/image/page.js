@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import NextImage from 'next/image';
-import { ImagePlus, Sparkles, Upload, X } from 'lucide-react';
+import { ImagePlus, Loader2, Sparkles, Upload, X } from 'lucide-react';
 import ImageResultCard from '@/app/components/media/image-result-card';
 import { editImage, generateImage } from '@/lib/media/client/media';
 import {
@@ -12,6 +12,8 @@ import {
   IMAGE_PROMPT_MAX_LENGTH,
   IMAGE_SIZE_OPTIONS,
 } from '@/lib/media/shared/models';
+
+const IMAGE_EDIT_MAX_MB = Math.round(IMAGE_EDIT_MAX_BYTES / (1024 * 1024));
 
 export default function ImageGenerationPage() {
   const [mode, setMode] = useState('generate');
@@ -68,7 +70,7 @@ export default function ImageGenerationPage() {
         return;
       }
       if (sourceImage.size > IMAGE_EDIT_MAX_BYTES) {
-        setError('图片大小不能超过 25MB');
+        setError(`图片大小不能超过 ${IMAGE_EDIT_MAX_MB}MB`);
         return;
       }
     }
@@ -102,10 +104,10 @@ export default function ImageGenerationPage() {
           {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div> : null}
 
           <div className="grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/70 dark:bg-zinc-900/70 p-1">
-            <button type="button" onClick={() => handleModeChange('generate')} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold ${mode === 'generate' ? 'bg-white dark:bg-zinc-800 shadow-sm' : 'text-zinc-500'}`}>
+            <button type="button" onClick={() => handleModeChange('generate')} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'generate' ? 'bg-white dark:bg-zinc-800 shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
               <Sparkles className="h-4 w-4" /> 生成图片
             </button>
-            <button type="button" onClick={() => handleModeChange('edit')} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold ${mode === 'edit' ? 'bg-white dark:bg-zinc-800 shadow-sm' : 'text-zinc-500'}`}>
+            <button type="button" onClick={() => handleModeChange('edit')} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'edit' ? 'bg-white dark:bg-zinc-800 shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
               <ImagePlus className="h-4 w-4" /> 编辑图片
             </button>
           </div>
@@ -117,7 +119,7 @@ export default function ImageGenerationPage() {
                 <label htmlFor="source-image" className="flex min-h-[132px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-5 text-center text-sm text-zinc-500">
                   <Upload className="mb-2 h-6 w-6" />
                   <span className="font-medium">{sourceImage ? sourceImage.name : '上传 PNG、JPG 或 WEBP'}</span>
-                  <span className="mt-1 text-xs">最大 25MB</span>
+                  <span className="mt-1 text-xs">最大 {IMAGE_EDIT_MAX_MB}MB</span>
                   <input key={sourceInputKey} id="source-image" type="file" accept={IMAGE_EDIT_ACCEPTED_MIME_TYPES.join(',')} className="sr-only" onChange={(event) => handleSourceImageChange(event.target.files?.[0] || null)} />
                 </label>
                 <div className="relative overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
@@ -151,14 +153,29 @@ export default function ImageGenerationPage() {
             </select>
           </div>
 
-          <button type="submit" disabled={isGenerating} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900">
-            <Sparkles className="h-5 w-5" />
-            {isGenerating ? '处理中...' : (mode === 'edit' ? '编辑图片' : '生成图片')}
+          <button type="submit" disabled={isGenerating} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-white transition-colors hover:bg-primary/90 disabled:opacity-60">
+            {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+            {isGenerating ? '处理中…' : (mode === 'edit' ? '编辑图片' : '生成图片')}
           </button>
         </form>
       </div>
 
-      <ImageResultCard imageUrl={imageUrl} title={resultTitle} />
+      {isGenerating ? (
+        <div className="glass-effect rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 p-5 space-y-4" aria-live="polite">
+          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            正在生成图片，请稍候…
+          </div>
+          <div className="flex h-[320px] items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
+            <div className="flex flex-col items-center gap-3 text-zinc-400">
+              <ImagePlus className="h-10 w-10 animate-pulse" />
+              <span className="text-xs">图片生成通常需要十几秒</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <ImageResultCard imageUrl={imageUrl} title={resultTitle} />
+      )}
     </div>
   );
 }

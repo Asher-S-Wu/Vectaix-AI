@@ -16,7 +16,7 @@ const inter = Inter({
 
 export const metadata = {
     title: 'Vectaix AI',
-    description: 'Experience the next generation of AI with Gemini, Claude, GPT, Seed, and more.',
+    description: 'Vectaix AI —— 支持 Gemini、Claude、GPT、Seed 等多种模型的新一代智能对话平台。',
     manifest: '/manifest.webmanifest',
     icons: {
         shortcut: '/favicon.ico',
@@ -29,7 +29,7 @@ export const metadata = {
 };
 
 export const viewport = {
-    themeColor: '#f8fafc',
+    themeColor: '#ffffff',
     width: 'device-width',
     initialScale: 1,
     maximumScale: 1,
@@ -49,14 +49,14 @@ export default async function RootLayout({ children }) {
     if (isDark) {
       document.documentElement.classList.add('dark-mode');
       document.documentElement.style.colorScheme = 'dark';
-      document.documentElement.style.backgroundColor = '#18181b';
+      document.documentElement.style.backgroundColor = '#09090b';
     }
   } catch (e) {}
 })();
 `;
 
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang="zh-CN" suppressHydrationWarning>
             <head>
                 <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
             </head>

@@ -42,7 +42,12 @@ export default function ConfirmModal({
 
         const onKeyDown = (e) => {
             if (isProcessing) return;
+            // 焦点在页面其他输入框（如聊天输入框）时不响应 Enter，避免误触确认
+            const target = e.target;
+            const isTyping = target instanceof HTMLElement
+                && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
             if (e.key === 'Enter') {
+                if (isTyping) return;
                 e.preventDefault();
                 handleConfirm();
             } else if (e.key === 'Escape') {
@@ -71,7 +76,7 @@ export default function ConfirmModal({
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.95, opacity: 0 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-sm w-full p-6"
+                        className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-pop max-w-sm w-full p-6"
                     >
                         <button
                             onClick={handleCancel}
@@ -105,9 +110,9 @@ export default function ConfirmModal({
                                 <button
                                     onClick={handleConfirm}
                                     disabled={isProcessing}
-                                    className={`flex-1 px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${danger
+                                    className={`flex-1 px-4 py-2.5 text-sm font-medium text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${danger
                                             ? "bg-red-500 hover:bg-red-600"
-                                            : "bg-zinc-600 hover:bg-zinc-500"
+                                            : "bg-primary hover:bg-primary/90"
                                         }`}
                                 >
                                     {confirmText}

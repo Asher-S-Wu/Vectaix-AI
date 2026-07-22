@@ -187,7 +187,7 @@ export default function UserManagementModal({ open, onClose }) {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-2xl shadow-xl border border-zinc-200 dark:border-zinc-700 relative max-h-[85vh] flex flex-col"
+              className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 relative max-h-[85vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* 头部 */}
@@ -211,7 +211,7 @@ export default function UserManagementModal({ open, onClose }) {
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
                     type="text"
-                    placeholder="搜索邮箱..."
+                    placeholder="搜索邮箱…"
                     value={search}
                     onChange={(e) => onSearchChange(e.target.value)}
                     className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:border-zinc-400 outline-none"

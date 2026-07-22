@@ -317,16 +317,16 @@ export default function Composer({
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute bottom-full mb-3 left-0 right-0 flex flex-wrap gap-2 p-3 glass-effect rounded-2xl shadow-xl border-zinc-200/50 z-30 mx-2 md:mx-0"
+            className="absolute bottom-full mb-3 left-0 right-0 flex flex-wrap gap-2 p-3 glass-effect rounded-2xl shadow-pop border-zinc-200/50 z-30 mx-2 md:mx-0"
           >
             {selectedAttachments.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200/60 shadow-sm animate-in fade-in slide-in-from-bottom-1"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200/60 shadow-sm"
               >
                 {isImageAttachment(item) ? (
                   <div className="relative w-6 h-6 rounded-lg overflow-hidden border border-zinc-100 dark:border-zinc-700">
-                    {item.preview ? <NextImage src={item.preview} alt="" fill sizes="24px" unoptimized className="object-cover" /> : null}
+                    {item.preview ? <NextImage src={item.preview} alt="附件预览" fill sizes="24px" unoptimized className="object-cover" /> : null}
                   </div>
                 ) : (
                   <FileText size={14} className="text-primary" />
@@ -398,8 +398,8 @@ export default function Composer({
             onFocus={() => setIsMainInputFocused(true)}
             onBlur={() => setIsMainInputFocused(false)}
             readOnly={false}
-            placeholder="给 AI 发送消息..."
-            className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base md:text-[15px] text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none py-2 min-h-[44px] transition-all scrollbar-none"
+            placeholder="给 AI 发送消息…"
+            className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base md:text-[15px] text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none py-2 min-h-[44px] transition-all no-scrollbar"
             rows={1}
           />
 
@@ -408,9 +408,9 @@ export default function Composer({
               onClick={isStreaming || isWaitingForAI ? onStop : handleSend}
               disabled={!isStreaming && !isWaitingForAI && (isUploading || (!input.trim() && selectedAttachments.length === 0))}
               className={`flex items-center justify-center w-9 h-9 rounded-full transition-all active:scale-90 ${
-                isStreaming || isWaitingForAI 
-                  ? "bg-red-500 hover:bg-red-600 text-white" 
-                  : "bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-700 dark:hover:bg-zinc-300 text-white dark:text-zinc-900 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600"
+                isStreaming || isWaitingForAI
+                  ? "bg-red-500 hover:bg-red-600 text-white"
+                  : "bg-primary hover:bg-primary/90 text-white disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600"
               }`}
               type="button"
             >

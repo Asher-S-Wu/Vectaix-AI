@@ -180,27 +180,27 @@ export default function Sidebar({
                   <div className={`absolute right-2 flex items-center gap-0.5 transition-all duration-200 ${activeActionsId === conv._id ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto"}`}>
                     <button
                       onClick={(e) => handlePinClick(conv, e)}
-                      className={`p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors ${conv.pinned
+                      className={`p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors ${conv.pinned
                         ? "text-blue-500"
                         : "text-zinc-400"
                         }`}
                       title={conv.pinned ? "取消置顶" : "置顶"}
                     >
-                      <Pin size={14} fill={conv.pinned ? "currentColor" : "none"} />
+                      <Pin size={16} fill={conv.pinned ? "currentColor" : "none"} />
                     </button>
                     <button
                       onClick={(e) => handleEditClick(conv, e)}
-                      className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600 transition-colors"
+                      className="p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600 transition-colors"
                       title="重命名"
                     >
-                      <Pencil size={14} />
+                      <Pencil size={16} />
                     </button>
                     <button
                       onClick={(e) => handleDeleteClick(conv, e)}
-                      className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-red-500 transition-colors"
+                      className="p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-red-500 transition-colors"
                       title="删除"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </>
@@ -219,7 +219,7 @@ export default function Sidebar({
                 {avatar ? (
                   <NextImage
                     src={avatar}
-                    alt=""
+                    alt="用户头像"
                     width={40}
                     height={40}
                     unoptimized

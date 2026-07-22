@@ -21,6 +21,25 @@
   --glass-bg: rgba(255, 255, 255, 0.72);
   --glass-border: rgba(228, 228, 231, 0.6);
   --glass-blur: 12px;
+
+  /* Elevation shadows for floating layers (modals, menus, popovers) */
+  --shadow-pop: 0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-pop-hover: 0 12px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Floating layer shadow utility */
+.shadow-pop {
+  box-shadow: var(--shadow-pop);
+}
+
+/* Hide scrollbars entirely (e.g. auto-growing textarea) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 * {
@@ -64,16 +83,16 @@ a {
   border: 1px solid var(--glass-border);
 }
 
-/* Mobile: lock page scroll */
+/* Mobile: lock page scroll (chat page only; pages can opt out via .allow-page-scroll on <html>) */
 @media (max-width: 768px) {
-  html {
+  html:not(.allow-page-scroll) {
     height: 100%;
     overflow: hidden;
     position: fixed;
     width: 100%;
   }
 
-  body {
+  html:not(.allow-page-scroll) body {
     height: 100%;
     overflow: hidden;
     position: fixed;
@@ -81,12 +100,12 @@ a {
     overscroll-behavior: none;
   }
 
-  .main-layout {
+  html:not(.allow-page-scroll) .main-layout {
     height: 100%;
     overflow: hidden;
   }
 
-  .app-root {
+  html:not(.allow-page-scroll) .app-root {
     position: fixed;
     top: var(--app-offset-top, 0px);
     left: 0;
@@ -334,8 +353,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .dark-mode .msg-bubble-user {
-  background: #1e1e22;
-  border-color: #3f3f46;
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
 }
 
 .msg-bubble-ai {
@@ -347,8 +366,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .dark-mode .msg-bubble-ai {
-  background: #1e1e22;
-  border-color: #3f3f46;
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
 }
 
 /* Input area wrapper */
@@ -394,6 +413,8 @@ h1, h2, h3, h4, h5, h6 {
   --primary: #3b82f6;
   --glass-bg: rgba(9, 9, 11, 0.8);
   --glass-border: rgba(63, 63, 70, 0.5);
+  --shadow-pop: 0 8px 30px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-pop-hover: 0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
   background-color: var(--bg-primary);
   color: var(--text-primary);
 }
@@ -491,23 +512,6 @@ h1, h2, h3, h4, h5, h6 {
 
 .dark-mode .border-zinc-200\/40 {
   border-color: rgba(63, 63, 70, 0.4) !important;
-}
-
-/* Shadows in dark mode */
-.dark-mode .shadow-lg {
-  box-shadow: none !important;
-}
-
-.dark-mode .shadow-xl {
-  box-shadow: none !important;
-}
-
-.dark-mode .shadow-2xl {
-  box-shadow: none !important;
-}
-
-.dark-mode .shadow-md {
-  box-shadow: none !important;
 }
 
 /* Dark mode prose/markdown */
@@ -799,9 +803,10 @@ h1, h2, h3, h4, h5, h6 {
   .msg-bubble-user, .msg-bubble-ai { border-radius: 16px; }
 }
 
-/* Remove all UI shadow effects */
-body *,
-body *::before,
-body *::after {
-  box-shadow: none !important;
+/* Touch devices: message action buttons are always visible (no hover available) */
+@media (hover: none) {
+  .msg-actions {
+    opacity: 1;
+    transform: none;
+  }
 }

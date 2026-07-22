@@ -46,7 +46,7 @@ function ToastItem({ toast, onDismiss }) {
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={`
-        flex items-center gap-2.5 px-4 py-2.5 rounded-full border shadow-lg backdrop-blur-sm
+        flex items-center gap-2.5 px-4 py-2.5 rounded-full border shadow-pop backdrop-blur-sm
         ${config.bg}
         max-w-[90vw] sm:max-w-md
       `}

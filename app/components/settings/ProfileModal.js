@@ -200,7 +200,7 @@ export default function ProfileModal({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-xl border border-zinc-200 dark:border-zinc-700 relative"
+              className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-pop border border-zinc-200 dark:border-zinc-700 relative"
               onClick={(e) => e.stopPropagation()}
             >
             <button
@@ -226,7 +226,7 @@ export default function ProfileModal({
                 title="点击更换头像"
               >
                 {avatar ? (
-                  <NextImage src={avatar} alt="" fill sizes="64px" unoptimized className="object-cover" />
+                  <NextImage src={avatar} alt="用户头像" fill sizes="64px" unoptimized className="object-cover" />
                 ) : (
                   <div className="w-full h-full bg-zinc-500 flex items-center justify-center text-xl font-semibold text-white">
                     {emailInitial}
@@ -284,9 +284,9 @@ export default function ProfileModal({
                             type="button"
                             onClick={saveNickname}
                             disabled={nicknameSaving}
-                            className="mt-2 w-full bg-zinc-600 hover:bg-zinc-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-xs transition-colors"
+                            className="mt-2 w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-xs transition-colors"
                           >
-                            {nicknameSaving ? "保存中..." : "保存昵称"}
+                            {nicknameSaving ? "保存中…" : "保存昵称"}
                           </button>
                         )}
                       </div>
@@ -314,9 +314,9 @@ export default function ProfileModal({
                               type="button"
                               onClick={saveEmail}
                               disabled={emailSaving}
-                              className="w-full bg-zinc-600 hover:bg-zinc-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-xs transition-colors"
+                              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-xs transition-colors"
                             >
-                              {emailSaving ? "保存中..." : "保存邮箱"}
+                              {emailSaving ? "保存中…" : "保存邮箱"}
                             </button>
                           </div>
                         )}
@@ -376,7 +376,7 @@ export default function ProfileModal({
                         <button
                           type="submit"
                           disabled={pwLoading}
-                          className="w-full bg-zinc-600 hover:bg-zinc-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
+                          className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
                         >
                           更新密码
                         </button>
@@ -423,7 +423,7 @@ export default function ProfileModal({
                               onClick={() => onThemeModeChange(t.id)}
                               type="button"
                               className={`flex-1 py-2 rounded-lg border transition-colors text-sm ${themeMode === t.id
-                                ? "bg-zinc-600 text-white border-zinc-600"
+                                ? "bg-primary text-white border-primary"
                                 : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                 }`}
                             >
@@ -447,7 +447,7 @@ export default function ProfileModal({
                               onClick={() => onFontSizeChange(f.id)}
                               type="button"
                               className={`flex-1 py-2 rounded-lg border transition-colors ${fontSize === f.id
-                                ? "bg-zinc-600 text-white border-zinc-600"
+                                ? "bg-primary text-white border-primary"
                                 : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                 } ${f.size}`}
                             >

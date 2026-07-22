@@ -64,7 +64,7 @@ export default function ModelSelector({
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute bottom-full left-0 mb-2 w-[min(88vw,248px)] bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 p-2 z-50"
+              className="absolute bottom-full left-0 mb-2 w-[min(88vw,248px)] bg-white dark:bg-zinc-900 rounded-xl shadow-pop border border-zinc-200 dark:border-zinc-700 p-2 z-50"
             >
               <div className="max-h-[360px] overflow-y-auto pr-1 mobile-scroll fade-scrollbar">
                 {(() => {
@@ -90,7 +90,7 @@ export default function ModelSelector({
                           }}
                           className={`w-full px-3 py-2.5 rounded-lg text-sm md:text-[13px] font-medium flex items-center gap-2.5 transition-colors ${
                             model === item.id
-                              ? "bg-zinc-600 text-white"
+                              ? "bg-primary text-white"
                               : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                           }`}
                           type="button"

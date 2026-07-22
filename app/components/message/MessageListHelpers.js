@@ -197,7 +197,7 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
     >
       <Image
         src={activeSrc}
-        alt=""
+        alt="图片附件"
         width={280}
         height={240}
         unoptimized
@@ -403,7 +403,7 @@ export function ToolRunCards({ tools }) {
         const icon = isWeb ? <Search size={13} /> : <Terminal size={13} />;
         const title = typeof tool.title === "string" && tool.title
           ? tool.title
-          : (isWeb ? getWebBrowsingToolTitle(tool.apiName) : `${toolIdentifier || "tool"}.${tool.apiName || "run"}`);
+          : (isWeb ? getWebBrowsingToolTitle(tool.apiName) : "工具调用");
         const statusText = tool.status === "error" ? "失败" : (tool.status === "running" ? "运行中" : "完成");
 
         return (

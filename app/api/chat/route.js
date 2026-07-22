@@ -228,7 +228,7 @@ export async function POST(req) {
 
     if (user && !currentConversationId) {
       const titleSource = isNonEmptyString(prompt) ? prompt : (currentAttachments[0]?.name || (config?.images?.length ? "图片对话" : "New Chat"));
-      const title = titleSource.length > 30 ? `${titleSource.substring(0, 30)}...` : titleSource;
+      const title = titleSource.length > 30 ? `${titleSource.substring(0, 30)}…` : titleSource;
       const newConv = await Conversation.create({
         userId: user.userId,
         title,

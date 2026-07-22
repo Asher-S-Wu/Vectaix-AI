@@ -34,6 +34,7 @@ import {
 
 const ACTIVE_STATUSES = new Set(['queued', 'in_progress']);
 const DELETABLE_STATUSES = new Set(['queued', 'completed', 'failed']);
+const VIDEO_FRAME_MAX_MB = Math.round(VIDEO_FRAME_MAX_BYTES / (1024 * 1024));
 
 const STATUS_LABELS = {
   queued: '排队中',
@@ -72,7 +73,12 @@ function formatDuration(value) {
 function formatTokens(task) {
   const total = Number(task?.usage?.total_tokens ?? task?.upstream?.usage?.total_tokens);
   if (!Number.isFinite(total) || total <= 0) return '';
-  return `${total.toLocaleString('zh-CN')} tokens`;
+  return `用量 ${total.toLocaleString('zh-CN')}`;
+}
+
+function formatRatio(value) {
+  if (!value || value === 'adaptive') return '自适应比例';
+  return VIDEO_ASPECT_RATIO_OPTIONS.find((option) => option.id === value)?.label || value;
 }
 
 function getTaskError(task) {
@@ -121,7 +127,7 @@ function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
             {task.prompt || '仅使用图片生成'}
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
-            <span>{params.ratio || 'adaptive'}</span>
+            <span>{formatRatio(params.ratio)}</span>
             <span>{formatDuration(params.duration)}</span>
             <span>{params.resolution || '720p'}</span>
             <span>{params.generateAudio ? '有声' : '无声'}</span>
@@ -281,7 +287,7 @@ export default function VideoGenerationPage() {
   const validateFrame = (file, label) => {
     if (!file) return '';
     if (!isAcceptedFrame(file)) return `${label}仅支持 PNG、JPG、WEBP 图片`;
-    if (file.size > VIDEO_FRAME_MAX_BYTES) return `${label}大小不能超过 25MB`;
+    if (file.size > VIDEO_FRAME_MAX_BYTES) return `${label}大小不能超过 ${VIDEO_FRAME_MAX_MB}MB`;
     return '';
   };
 
@@ -295,7 +301,7 @@ export default function VideoGenerationPage() {
               <>
                 <Upload className="mb-2 h-6 w-6" />
                 <span className="font-medium">{file ? file.name : '上传 PNG、JPG 或 WEBP'}</span>
-                <span className="mt-1 text-xs">最大 25MB</span>
+                <span className="mt-1 text-xs">最大 {VIDEO_FRAME_MAX_MB}MB</span>
               </>
             )}
           </label>
@@ -382,10 +388,10 @@ export default function VideoGenerationPage() {
           {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div> : null}
 
           <div className="grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 bg-zinc-100/70 p-1 dark:border-zinc-700 dark:bg-zinc-900/70">
-            <button type="button" onClick={() => { setMode('text'); setError(''); }} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold ${mode === 'text' ? 'bg-white shadow-sm dark:bg-zinc-800' : 'text-zinc-500'}`}>
+            <button type="button" onClick={() => { setMode('text'); setError(''); }} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'text' ? 'bg-white shadow-sm dark:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
               <Clapperboard className="h-4 w-4" /> 文字生成
             </button>
-            <button type="button" onClick={() => { setMode('image'); setError(''); }} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold ${mode === 'image' ? 'bg-white shadow-sm dark:bg-zinc-800' : 'text-zinc-500'}`}>
+            <button type="button" onClick={() => { setMode('image'); setError(''); }} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'image' ? 'bg-white shadow-sm dark:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
               <ImagePlus className="h-4 w-4" /> 图片转视频
             </button>
           </div>
@@ -436,9 +442,9 @@ export default function VideoGenerationPage() {
 
           <p className="text-xs text-zinc-500">视频任务提交后会进入下方列表，排队中和生成中的任务会自动刷新。</p>
 
-          <button type="submit" disabled={isSubmitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900">
+          <button type="submit" disabled={isSubmitting} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-white transition-colors hover:bg-primary/90 disabled:opacity-60">
             {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-            {isSubmitting ? '正在创建任务...' : '创建视频任务'}
+            {isSubmitting ? '正在创建任务…' : '创建视频任务'}
           </button>
         </form>
       </div>
@@ -462,7 +468,7 @@ export default function VideoGenerationPage() {
 
         {tasksLoading ? (
           <div className="rounded-2xl border border-zinc-200/70 bg-white/80 p-6 text-sm text-zinc-500 dark:border-zinc-800/70 dark:bg-zinc-950/70">
-            正在读取任务...
+            正在读取任务…
           </div>
         ) : tasks.length === 0 ? (
           <div className="rounded-2xl border border-zinc-200/70 bg-white/80 p-6 text-sm text-zinc-500 dark:border-zinc-800/70 dark:bg-zinc-950/70">

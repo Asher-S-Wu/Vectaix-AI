@@ -40,7 +40,7 @@ export const dynamic = "force-dynamic";
 function buildTitle(prompt) {
   const text = typeof prompt === "string" ? prompt.trim() : "";
   if (!text) return "Fusion";
-  return text.length > 30 ? `${text.slice(0, 30)}...` : text;
+  return text.length > 30 ? `${text.slice(0, 30)}…` : text;
 }
 
 function normalizeMessageId(value) {
