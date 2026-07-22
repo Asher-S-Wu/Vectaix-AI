@@ -14,25 +14,23 @@ function FusionGlyph({ size = 16 }) {
   );
 }
 
-const PROVIDER_MARKS = Object.freeze({
-  openai: { label: "O", background: "#111827", color: "#ffffff" },
-  anthropic: { label: "A", background: "#d97757", color: "#ffffff" },
-  google: { label: "G", background: "linear-gradient(135deg,#4285f4,#34a853,#fbbc05,#ea4335)", color: "#ffffff" },
-  xai: { label: "x", background: "#050505", color: "#ffffff" },
-  zai: { label: "Z", background: "#315efb", color: "#ffffff" },
-  openrouter: { label: "OR", background: "#6d28d9", color: "#ffffff" },
+const PROVIDER_LOGOS = Object.freeze({
+  aihubmix: "https://assets.aihubmix.com/logos/logo.png",
+  openai: "https://assets.aihubmix.com/logos_svg/logo_GPT.svg",
+  anthropic: "https://assets.aihubmix.com/logos_svg/logo_claude2.svg",
+  google: "https://assets.aihubmix.com/logos/logo_gemini.svg",
+  xai: "https://assets.aihubmix.com/logos_svg/logo_Grok.svg",
+  moonshot: "https://assets.aihubmix.com/logos_svg/logo_kimi.svg",
 });
 
 function ProviderMark({ provider, size }) {
-  const mark = PROVIDER_MARKS[provider] || PROVIDER_MARKS.openai;
+  const logo = PROVIDER_LOGOS[provider] || PROVIDER_LOGOS.openai;
   return (
     <span
       aria-hidden
-      className="inline-flex shrink-0 items-center justify-center font-bold leading-none"
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.22), background: mark.background, color: mark.color, fontSize: Math.max(8, Math.round(size * 0.5)) }}
-    >
-      {mark.label}
-    </span>
+      className="inline-flex shrink-0 bg-contain bg-center bg-no-repeat"
+      style={{ width: size, height: size, backgroundImage: `url("${logo}")` }}
+    />
   );
 }
 

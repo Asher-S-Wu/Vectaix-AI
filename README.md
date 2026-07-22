@@ -29,14 +29,14 @@
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.6%20Sol-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.6 Sol"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.8-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.5%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.6%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.5-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.5"/><br/><sub><b>xAI</b></sub></td>
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-OpenRouter%20Fusion-111827?style=for-the-badge&logoColor=white" alt="OpenRouter Fusion"/><br/><sub><b>OpenRouter</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT%20Image%202-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT Image 2"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Seedance%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Seedance"/><br/><sub><b>ByteDance</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GLM--5.2-315EFB?style=for-the-badge&logoColor=white" alt="GLM-5.2"/><br/><sub><b>Z.AI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
 </tr>
 </table>
 
@@ -64,16 +64,17 @@ At its core is **Fusion Mode**, a novel multi-agent consensus framework that dis
 
 ### 🤖 Multi-Model Intelligence
 
-Access 5 direct chat models plus Fusion Mode through a unified interface. Switch models mid-conversation with full context preservation.
+Access 6 direct chat models plus Fusion Mode through a unified interface. Switch models mid-conversation with full context preservation.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **Fusion** | OpenRouter | — | Text | — | — |
+| **Auto Router (Balanced)** | AIHubMix | Dynamic | Text, Image | ✅ | ✅ |
 | **GPT-5.6 Sol** | OpenAI | 1.05M | Text, Image | ✅ | ✅ |
 | **Claude Opus 4.8** | Anthropic | 1M | Text, Image | ✅ | ✅ |
-| **Gemini 3.5 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
+| **Gemini 3.6 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
 | **Grok 4.5** | xAI | 500K | Text, Image | ✅ | ✅ |
-| **GLM-5.2** | Z.AI | 1M | Text, Image | ✅ | ✅ |
+| **Kimi K3** | Moonshot AI | 1M | Text, Image | ✅ | ✅ |
 
 Dedicated media models:
 
@@ -97,7 +98,7 @@ The crown jewel of Vectaix AI. Inspired by the deliberative processes of real-wo
                           ▼            ▼            ▼
                    ┌────────────┐┌────────────┐┌────────────┐
                    │    GPT     ││   Claude   ││   Gemini   │
-                   │    5.5     ││  Opus 4.8  ││ 3.5 Flash  │
+                   │    5.5     ││  Opus 4.8  ││ 3.6 Flash  │
                    │  (Expert)  ││  (Expert)  ││  (Expert)  │
                    └─────┬──────┘└─────┬──────┘└─────┬──────┘
                          │             │             │
@@ -118,7 +119,7 @@ The crown jewel of Vectaix AI. Inspired by the deliberative processes of real-wo
 
 **How it works:**
 
-1. **Parallel Generation** — Your query is simultaneously sent to GPT-5.6 Sol, Claude Opus 4.8, and Gemini 3.5 Flash
+1. **Parallel Generation** — Your query is simultaneously sent to GPT-5.6 Sol, Claude Opus 4.8, and Gemini 3.6 Flash
 2. **Independent Reasoning** — Each expert reasons independently with its own strengths and knowledge
 3. **Structured Synthesis** — OpenRouter Fusion analyzes all responses, identifying:
    - ✅ **Agreement** — Points where all experts converge
@@ -329,7 +330,7 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB connection string |
 | `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
-| `AIHUBMIX_API_KEY` | — | Inferera key for GPT, Grok, Claude, GLM, image, and video APIs |
+| `AIHUBMIX_API_KEY` | — | Shared API key for AIHubMix Auto Router, Kimi K3 via Anthropic Messages, and Inferera GPT, Grok, Claude, image, and video APIs |
 | `GEMINI_API_KEY` | — | Google Gemini API key for Gemini chat and conversation compression |
 | `OPENROUTER_API_KEY` | — | OpenRouter API key for Fusion synthesis |
 | `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |
