@@ -12,9 +12,8 @@ import { useChatScroll } from "@/lib/client/hooks/useChatScroll";
 import { useUserSettings } from "@/lib/client/hooks/useUserSettings";
 import { normalizeWebSearchSettings } from "@/lib/shared/webSearch";
 import {
-  getModelConfig,
   DEFAULT_MODEL,
-  normalizeModelId,
+  resolveUsableModelId,
 } from "@/lib/shared/models";
 import { useToast } from "./components/common/ToastProvider";
 import AuthModal from "./components/modals/AuthModal";
@@ -274,19 +273,23 @@ export default function ChatApp() {
   });
 
   const persistConversationModel = async (conversationIdToUpdate, nextModel) => {
-    if (!conversationIdToUpdate || !nextModel) return;
+    if (!conversationIdToUpdate || !nextModel) return false;
     try {
-      await fetch(`/api/conversations/${conversationIdToUpdate}`, {
+      const response = await fetch(`/api/conversations/${conversationIdToUpdate}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: nextModel }),
       });
+      if (!response.ok) return false;
       setConversations((prev) => prev.map((conversation) => (
         conversation?._id === conversationIdToUpdate
           ? { ...conversation, model: nextModel }
           : conversation
       )));
-    } catch { }
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const {
@@ -353,11 +356,13 @@ export default function ChatApp() {
         });
         setCurrentConversationId(id);
 
-        const targetModel = normalizeModelId(conversation.model);
-
+        const targetModel = resolveUsableModelId(conversation.model, DEFAULT_MODEL);
         if (targetModel !== model) {
           setModel(targetModel);
           lastTextModelRef.current = targetModel;
+        }
+        if (conversation.model !== targetModel) {
+          await persistConversationModel(id, targetModel);
         }
 
         applyConversationSettings(conversation.settings);
@@ -497,13 +502,14 @@ export default function ChatApp() {
       if (!sourceConversation) {
         throw new Error("未找到要复制的话题");
       }
+      const sourceModel = resolveUsableModelId(sourceConversation.model, DEFAULT_MODEL);
 
       const createRes = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: buildDuplicateTitle(sourceConversation.title),
-          model: sourceConversation.model,
+          model: sourceModel,
           messages: Array.isArray(sourceConversation.messages) ? sourceConversation.messages : [],
           settings: sourceConversation.settings && typeof sourceConversation.settings === "object"
             ? sourceConversation.settings
@@ -536,11 +542,9 @@ export default function ChatApp() {
       setCurrentConversationId(duplicatedConversation._id);
       setMessages(Array.isArray(duplicatedConversation.messages) ? duplicatedConversation.messages : []);
 
-      const duplicatedModelId = normalizeModelId(duplicatedConversation.model);
-      if (getModelConfig(duplicatedModelId)?.id) {
-        setModel(duplicatedModelId);
-        lastTextModelRef.current = duplicatedModelId;
-      }
+      const duplicatedModelId = resolveUsableModelId(duplicatedConversation.model, DEFAULT_MODEL);
+      setModel(duplicatedModelId);
+      lastTextModelRef.current = duplicatedModelId;
 
       applyConversationSettings(duplicatedConversation.settings);
 
