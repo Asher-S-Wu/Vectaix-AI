@@ -9,7 +9,7 @@
 
 <br/><br/>
 
-**Multi-Model AI Chat Platform with Fusion Mode for Consensus-Driven Intelligence**
+**Multi-Model AI Chat Platform for Conversations, Web Search, and Media Creation**
 
 <br/>
 
@@ -28,12 +28,11 @@
 <table>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.6%20Sol-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.6 Sol"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.8-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.6%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.5-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.5"/><br/><sub><b>xAI</b></sub></td>
 </tr>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-OpenRouter%20Fusion-111827?style=for-the-badge&logoColor=white" alt="OpenRouter Fusion"/><br/><sub><b>OpenRouter</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT%20Image%202-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT Image 2"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Seedance%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Seedance"/><br/><sub><b>ByteDance</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
@@ -50,9 +49,7 @@
 
 ## Overview
 
-**Vectaix AI** is a production-grade, multi-model AI chat platform that unifies the world's most powerful language models under a single, elegant interface. Rather than locking users into one AI provider, Vectaix gives you the freedom to switch between — or even combine — frontier models seamlessly.
-
-At its core is **Fusion Mode**, a novel multi-agent consensus framework that dispatches queries to multiple frontier LLMs in parallel and synthesizes their outputs through structured deliberation — dramatically reducing hallucination and bias.
+**Vectaix AI** is a production-grade, multi-model AI chat platform that unifies leading language models under a single, elegant interface. Rather than locking users into one AI provider, Vectaix gives you the freedom to switch between frontier models.
 
 <br/>
 
@@ -64,14 +61,13 @@ At its core is **Fusion Mode**, a novel multi-agent consensus framework that dis
 
 ### 🤖 Multi-Model Intelligence
 
-Access 6 direct chat models plus Fusion Mode through a unified interface. Switch models mid-conversation with full context preservation.
+Access 6 chat models through a unified interface. Switching models starts a new topic so each model keeps a clean, independent context.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **Fusion** | OpenRouter | — | Text | — | — |
 | **Auto Router (Balanced)** | AIHubMix | Dynamic | Text, Image | ✅ | ✅ |
 | **GPT-5.6 Sol** | OpenAI | 1.05M | Text, Image | ✅ | ✅ |
-| **Claude Opus 4.8** | Anthropic | 1M | Text, Image | ✅ | ✅ |
+| **Claude Opus 5** | Anthropic | 1M | Text, Image | ✅ | ✅ |
 | **Gemini 3.6 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
 | **Grok 4.5** | xAI | 500K | Text, Image | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 1M | Text, Image | ✅ | ✅ |
@@ -82,60 +78,6 @@ Dedicated media models:
 |:---:|:---:|:---|
 | **GPT Image 2** | OpenAI | Image generation and image editing |
 | **Seedance 2.0 Standard** | ByteDance | Text-to-video and image-to-video |
-
-<br/>
-
-### 🏛️ Fusion Mode — Multi-Agent Consensus
-
-The crown jewel of Vectaix AI. Inspired by the deliberative processes of real-world councils, this mode orchestrates multiple AI experts to arrive at a more truthful, balanced answer.
-
-```
-                              ┌─────────────────┐
-                              │   User Query     │
-                              └────────┬─────────┘
-                                       │
-                          ┌────────────┼────────────┐
-                          ▼            ▼            ▼
-                   ┌────────────┐┌────────────┐┌────────────┐
-                   │    GPT     ││   Claude   ││   Gemini   │
-                   │    5.5     ││  Opus 4.8  ││ 3.6 Flash  │
-                   │  (Expert)  ││  (Expert)  ││  (Expert)  │
-                   └─────┬──────┘└─────┬──────┘└─────┬──────┘
-                         │             │             │
-                         └─────────────┼─────────────┘
-                                       ▼
-                              ┌─────────────────┐
-                              │OpenRouter Fusion│
-                              │  (Synthesis)    │
-                              └────────┬─────────┘
-                                       │
-                         ┌─────────────┼─────────────┐
-                         ▼             ▼             ▼
-                   ┌──────────┐ ┌──────────┐ ┌──────────┐
-                   │Agreement │ │Key Diffs │ │ Unique   │
-                   │  Points  │ │& Debates │ │ Insights │
-                   └──────────┘ └──────────┘ └──────────┘
-```
-
-**How it works:**
-
-1. **Parallel Generation** — Your query is simultaneously sent to GPT-5.6 Sol, Claude Opus 4.8, and Gemini 3.6 Flash
-2. **Independent Reasoning** — Each expert reasons independently with its own strengths and knowledge
-3. **Structured Synthesis** — OpenRouter Fusion analyzes all responses, identifying:
-   - ✅ **Agreement** — Points where all experts converge
-   - ⚖️ **Key Differences** — Where experts disagree and why
-   - 💡 **Unique Insights** — Valuable perspectives from individual experts
-   - 🔍 **Blind Spots** — Gaps that only cross-model analysis reveals
-
-> Fusion Mode currently does not support web search; it focuses on text-only multi-model reasoning.
-
-**Key Results from Research:**
-
-| Benchmark | Improvement |
-|:---|:---:|
-| HaluEval (Hallucination Detection) | **35.9% relative reduction** |
-| TruthfulQA | **+7.8 points over best individual model** |
-| Cross-domain Bias Variance | **Significantly lower** |
 
 <br/>
 
@@ -239,7 +181,6 @@ Upload private media files stored on the Zeabur mounted disk.
 vectaix-ai/
 ├── app/
 │   ├── api/
-│   │   ├── fusion/           # Fusion Mode orchestration
 │   │   ├── chat/             # Multi-provider chat & compression
 │   │   ├── auth/             # Authentication endpoints
 │   │   ├── conversations/    # Conversation CRUD
@@ -249,7 +190,6 @@ vectaix-ai/
 │   ├── components/           # React UI components
 │   │   ├── chat/             # Chat input & model selector
 │   │   ├── message/          # Message display components
-│   │   │   ├── FusionMessage.js # Fusion Mode result rendering
 │   │   │   ├── MessageList.js
 │   │   │   └── ...
 │   └── ChatApp.js            # Root application component
@@ -297,7 +237,7 @@ vectaix-ai/
 | **Backend** | Next.js API Routes · Node.js · SSE (Server-Sent Events) Streaming |
 | **Database** | MongoDB with Mongoose ODM |
 | **Storage** | Zeabur mounted disk (private media files) |
-| **AI Providers** | Inferera · Google Gemini API · OpenRouter |
+| **AI Providers** | AIHubMix · Inferera · Google Gemini API |
 | **Auth** | MongoDB server sessions · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **Deployment** | Zeabur native Next.js service (single instance) |
@@ -332,7 +272,6 @@ vectaix-ai/
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
 | `AIHUBMIX_API_KEY` | — | Shared API key for AIHubMix Auto Router, Kimi K3 via Anthropic Messages, and Inferera GPT, Grok, Claude, image, and video APIs |
 | `GEMINI_API_KEY` | — | Google Gemini API key for Gemini chat and conversation compression |
-| `OPENROUTER_API_KEY` | — | OpenRouter API key for Fusion synthesis |
 | `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |
 
 > [!TIP]
@@ -376,7 +315,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 <br/>
 
-<sub>Built with intelligence. Powered by consensus.</sub>
+<sub>Built with intelligence. Designed for creative freedom.</sub>
 
 <br/>
 

@@ -194,7 +194,6 @@ function sanitizeStoredMessage(msg) {
     if (Array.isArray(msg.citations) && msg.citations.length > 0) out.citations = msg.citations;
     if (Array.isArray(msg.tools) && msg.tools.length > 0) out.tools = msg.tools;
     if (Array.isArray(msg.thinkingTimeline) && msg.thinkingTimeline.length > 0) out.thinkingTimeline = msg.thinkingTimeline;
-    if (Number.isFinite(msg.searchContextTokens) && msg.searchContextTokens > 0) out.searchContextTokens = Math.max(0, Math.floor(msg.searchContextTokens));
     if (msg.providerState && typeof msg.providerState === 'object') out.providerState = msg.providerState;
     out.parts = normalizedParts;
     return out;
@@ -322,28 +321,4 @@ export async function injectCurrentTimeSystemReminder(systemText) {
 
     const reminder = `\n\n<system-reminder>\n${reminderContent}\n</system-reminder>`;
     return `${systemText}${reminder}`;
-}
-
-/**
- * 服务端估算文本的 token 数量
- * 中文字符 ~1.5 token，ASCII ~0.25 token/字符，其他 ~0.5 token/字符
- */
-export function estimateTokens(text) {
-    if (!text || typeof text !== 'string' || text.length === 0) return 0;
-    let total = 0;
-    for (let i = 0; i < text.length; i++) {
-        const c = text.charCodeAt(i);
-        if ((c >= 0x4E00 && c <= 0x9FFF) || (c >= 0x3400 && c <= 0x4DBF)) {
-            total += 1.5;
-        } else if (c >= 0x3000 && c <= 0x303F) {
-            total += 1;
-        } else if (c >= 0xFF00 && c <= 0xFFEF) {
-            total += 1;
-        } else if (c <= 0x7F) {
-            total += 0.25;
-        } else {
-            total += 0.5;
-        }
-    }
-    return Math.max(1, Math.ceil(total));
 }

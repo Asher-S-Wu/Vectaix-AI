@@ -9,7 +9,7 @@
 
 <br/><br/>
 
-**マルチモデルAIチャットプラットフォーム · Fusion Modeによる合意駆動型インテリジェンス**
+**会話・ウェブ検索・メディア制作のためのマルチモデルAIチャットプラットフォーム**
 
 <br/>
 
@@ -28,12 +28,11 @@
 <table>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.6%20Sol-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.6 Sol"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.8-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.6%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.5-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.5"/><br/><sub><b>xAI</b></sub></td>
 </tr>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-OpenRouter%20Fusion-111827?style=for-the-badge&logoColor=white" alt="OpenRouter Fusion"/><br/><sub><b>OpenRouter</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT%20Image%202-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT Image 2"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Seedance%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Seedance"/><br/><sub><b>ByteDance</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
@@ -50,9 +49,7 @@
 
 ## 概要
 
-**Vectaix AI** は、世界最先端の言語モデルを統一インターフェースに集約した、プロダクショングレードのマルチモデルAIチャットプラットフォームです。単一のAIプロバイダーに縛られることなく、複数のフロンティアモデル間を自由に切り替え、さらには組み合わせて使用できます。
-
-中核となる **Fusion Mode** は、クエリを複数のフロンティアLLMに並列分配し、構造化された討議を通じてそれらの出力を統合する新しいマルチエージェント合意フレームワークです。これにより、ハルシネーションとバイアスが大幅に低減されます。
+**Vectaix AI** は、世界をリードする言語モデルを統一インターフェースに集約した、プロダクショングレードのマルチモデルAIチャットプラットフォームです。単一のAIプロバイダーに縛られることなく、複数のフロンティアモデル間を自由に切り替えられます。
 
 <br/>
 
@@ -64,14 +61,13 @@
 
 ### 🤖 マルチモデルインテリジェンス
 
-6つの直接チャットモデルとFusion Modeに、統一インターフェースでアクセス。会話中にモデルを切り替えても、コンテキストは完全に保持されます。
+6つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しいトピックが開始され、各モデルのコンテキストが独立して保たれます。
 
 | モデル | プロバイダー | コンテキスト | 入力タイプ | 思考 | ウェブ検索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **Fusion** | OpenRouter | — | テキスト | — | — |
 | **自動ルーティング（バランス）** | AIHubMix | 動的 | テキスト、画像 | ✅ | ✅ |
 | **GPT-5.6 Sol** | OpenAI | 1.05M | テキスト、画像 | ✅ | ✅ |
-| **Claude Opus 4.8** | Anthropic | 1M | テキスト、画像 | ✅ | ✅ |
+| **Claude Opus 5** | Anthropic | 1M | テキスト、画像 | ✅ | ✅ |
 | **Gemini 3.6 Flash** | Google | 1M | テキスト、画像、音声、動画 | ✅ | ✅ |
 | **Grok 4.5** | xAI | 500K | テキスト、画像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 1M | テキスト、画像 | ✅ | ✅ |
@@ -82,60 +78,6 @@
 |:---:|:---:|:---|
 | **GPT Image 2** | OpenAI | 画像生成と画像編集 |
 | **Seedance 2.0 Standard** | ByteDance | テキストから動画、画像から動画 |
-
-<br/>
-
-### 🏛️ Fusion Mode — マルチエージェント合意
-
-Vectaix AIの最大の特徴です。複数のAIエキスパートを協調させて、より真実かつバランスの取れた回答を導き出します。
-
-```
-                              ┌─────────────────┐
-                              │   ユーザークエリ   │
-                              └────────┬─────────┘
-                                       │
-                          ┌────────────┼────────────┐
-                          ▼            ▼            ▼
-                   ┌────────────┐┌────────────┐┌────────────┐
-                   │    GPT     ││   Claude   ││   Gemini   │
-                   │    5.5     ││  Opus 4.8  ││ 3.6 Flash  │
-                   │（エキスパート）││（エキスパート）││（エキスパート）│
-                   └─────┬──────┘└─────┬──────┘└─────┬──────┘
-                         │             │             │
-                         └─────────────┼─────────────┘
-                                       ▼
-                              ┌─────────────────┐
-                              │OpenRouter Fusion│
-                              │  （統合分析）     │
-                              └────────┬─────────┘
-                                       │
-                         ┌─────────────┼─────────────┐
-                         ▼             ▼             ▼
-                   ┌──────────┐ ┌──────────┐ ┌──────────┐
-                   │ 合意点    │ │ 主な相違  │ │ 独自の    │
-                   │          │ │          │ │ 知見     │
-                   └──────────┘ └──────────┘ └──────────┘
-```
-
-**仕組み：**
-
-1. **並列生成** — クエリは GPT-5.6 Sol、Claude Opus 4.8、Gemini 3.6 Flash に同時送信
-2. **独立推論** — 各エキスパートがそれぞれの強みと知識で独立して推論
-3. **構造化統合** — OpenRouter Fusion が全回答を分析し、以下を特定：
-   - ✅ **合意点** — 全エキスパートが一致する見解
-   - ⚖️ **主な相違** — エキスパート間の意見の相違とその理由
-   - 💡 **独自の知見** — 個々のエキスパートからの価値ある視点
-   - 🔍 **盲点の発見** — クロスモデル分析でのみ明らかになるギャップ
-
-> Fusion Mode の現在のバージョンはウェブ検索に非対応で、マルチモデルのテキスト推論に特化しています。
-
-**論文の主要成果：**
-
-| ベンチマーク | 改善 |
-|:---|:---:|
-| HaluEval（ハルシネーション検出） | **相対35.9%削減** |
-| TruthfulQA | **最良単一モデルを+7.8ポイント上回る** |
-| ドメイン間バイアス分散 | **大幅に低下** |
 
 <br/>
 
@@ -239,7 +181,6 @@ Zeabur のマウントディスクに保存したプライベートメディア�
 vectaix-ai/
 ├── app/
 │   ├── api/
-│   │   ├── fusion/           # Fusion Modeオーケストレーション
 │   │   ├── chat/             # マルチプロバイダーチャットと圧縮
 │   │   ├── auth/             # 認証エンドポイント
 │   │   ├── conversations/    # 会話CRUD
@@ -249,7 +190,6 @@ vectaix-ai/
 │   ├── components/           # React UIコンポーネント
 │   │   ├── chat/             # チャット入力とモデル選択
 │   │   ├── message/          # メッセージ表示コンポーネント
-│   │   │   ├── FusionMessage.js # Fusion Mode結果レンダリング
 │   │   │   ├── MessageList.js
 │   │   │   └── ...
 │   └── ChatApp.js            # ルートアプリケーションコンポーネント
@@ -296,7 +236,7 @@ vectaix-ai/
 | **バックエンド** | Next.js API Routes · Node.js · SSE（Server-Sent Events）ストリーミング |
 | **データベース** | MongoDB + Mongoose ODM |
 | **ストレージ** | Zeabur マウントディスク（プライベートメディア） |
-| **AIプロバイダー** | Inferera · Google Gemini API · OpenRouter |
+| **AIプロバイダー** | AIHubMix · Inferera · Google Gemini API |
 | **認証** | MongoDBサーバーセッション · bcryptjs |
 | **レンダリング** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **デプロイ** | Zeabur ネイティブ Next.js サービス（単一インスタンス） |
@@ -331,7 +271,6 @@ vectaix-ai/
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
 | `AIHUBMIX_API_KEY` | — | AIHubMixの自動ルーティング、Anthropic Messages経由のKimi K3、およびInfereraのGPT、Grok、Claude、画像、動画で共用するAPIキー |
 | `GEMINI_API_KEY` | — | Geminiチャットと会話圧縮用のGoogle Gemini APIキー |
-| `OPENROUTER_API_KEY` | — | Fusion統合モデル用のOpenRouter APIキー |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search と Scrape 用のAPIキー |
 
 > [!TIP]
@@ -375,7 +314,7 @@ vectaix-ai/
 
 <br/>
 
-<sub>知性で構築し、合意で駆動する。</sub>
+<sub>知性で構築し、創造の自由を広げる。</sub>
 
 <br/>
 

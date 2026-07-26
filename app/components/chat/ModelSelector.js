@@ -6,10 +6,8 @@ import { ChevronUp } from "lucide-react";
 import {
   getModelConfig,
   getSelectableChatModels,
-  isFusionModel,
   MODEL_GROUP_ORDER,
   MODEL_GROUP_TITLES,
-  MODEL_DISPLAY_GROUP,
 } from "@/lib/shared/models";
 import { ModelGlyph } from "../common/ModelVisuals";
 
@@ -17,13 +15,12 @@ export default function ModelSelector({
   model,
   onModelChange,
   ready = true,
-  includeFusion = true,
   fullWidth = false,
 }) {
   const [showModelMenu, setShowModelMenu] = useState(false);
   const currentModel = ready ? getModelConfig(model) : null;
   const currentModelLabel = currentModel?.name || "模型";
-  const selectableModels = getSelectableChatModels().filter((item) => includeFusion || !isFusionModel(item.id));
+  const selectableModels = getSelectableChatModels();
 
   return (
     <div className="relative">
@@ -70,7 +67,7 @@ export default function ModelSelector({
                 {(() => {
                   const groups = {};
                   selectableModels.forEach((item) => {
-                    const group = MODEL_DISPLAY_GROUP[item.provider] || item.provider;
+                    const group = item.provider;
                     if (!groups[group]) groups[group] = [];
                     groups[group].push(item);
                   });

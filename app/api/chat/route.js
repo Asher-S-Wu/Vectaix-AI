@@ -12,7 +12,6 @@ import {
   isNonEmptyString,
   sanitizeStoredMessagesStrict,
   generateMessageId,
-  estimateTokens,
 } from "@/app/api/chat/utils";
 import {
   CONVERSATION_WRITE_CONFLICT_ERROR,
@@ -91,7 +90,7 @@ export async function POST(req) {
       return Response.json({ error: "Invalid JSON in request body" }, { status: 400 });
     }
 
-    const { prompt, model, config, history, historyLimit, conversationId, mode, messages, settings, userMessageId, modelMessageId } = body;
+    const { prompt, model, config, history, conversationId, mode, messages, settings, userMessageId, modelMessageId } = body;
 
     if (!model || typeof model !== "string") {
       return Response.json({ error: "Model is required" }, { status: 400 });
@@ -149,11 +148,6 @@ export async function POST(req) {
       ? config.attachments.filter((item) => ["audio", "video"].includes(item?.category) && isNonEmptyString(item?.fileId))
       : [];
 
-    const limit = Number.parseInt(historyLimit, 10);
-    if (!Number.isFinite(limit) || limit < 0) {
-      return Response.json({ error: "historyLimit invalid" }, { status: 400 });
-    }
-
     const isRegenerateMode = mode === "regenerate" && user && currentConversationId && Array.isArray(messages);
     const resolvedUserMessageId = (typeof userMessageId === "string" && userMessageId.trim()) ? userMessageId.trim() : generateMessageId();
     const resolvedModelMessageId = (typeof modelMessageId === "string" && modelMessageId.trim()) ? modelMessageId.trim() : generateMessageId();
@@ -207,11 +201,10 @@ export async function POST(req) {
       const msgs = storedMessagesForRegenerate;
       const historyBeforeCurrentPrompt = Array.isArray(msgs) && msgs[msgs.length - 1]?.role === "user" ? msgs.slice(0, -1) : msgs;
       const currentTurn = Array.isArray(msgs) && msgs[msgs.length - 1]?.role === "user" ? [msgs[msgs.length - 1]] : [];
-      const effectiveHistory = (limit > 0) ? historyBeforeCurrentPrompt.slice(-limit) : historyBeforeCurrentPrompt;
-      const inputMessages = [...effectiveHistory, ...currentTurn];
+      const inputMessages = [...historyBeforeCurrentPrompt, ...currentTurn];
       chatMessages = await buildChatMessagesFromHistory(inputMessages, { userId: user.userId });
     } else {
-      const effectiveHistory = attachStoredProviderState((limit > 0) ? history.slice(-limit) : history);
+      const effectiveHistory = attachStoredProviderState(history);
       chatMessages = await buildChatMessagesFromHistory(effectiveHistory, { userId: user.userId });
     }
 
@@ -221,7 +214,7 @@ export async function POST(req) {
     let enableWebSearch;
     try {
       webSearchConfig = parseWebSearchConfig(config?.webSearch);
-      enableWebSearch = parseWebSearchEnabled(config?.webSearch) && getModelConfig(model)?.supportsWebSearch === true;
+      enableWebSearch = parseWebSearchEnabled(config?.webSearch);
     } catch (error) {
       return Response.json({ error: error?.message || "webSearch invalid" }, { status: 400 });
     }
@@ -353,7 +346,6 @@ export async function POST(req) {
         let finalMessagePersisted = false;
         const citations = [];
         const toolRecords = [];
-        let searchContextTokens = 0;
 
         const rollbackCurrentTurn = async () => {
           if (finalMessagePersisted) return;
@@ -435,7 +427,6 @@ export async function POST(req) {
                 signal: req?.signal,
               });
               toolRecords.push(toolExecution.toolRecord);
-              searchContextTokens += estimateTokens(toolExecution.outputText);
               if (toolExecution.result?.success === false) {
                 throw new Error(toolExecution.outputText || "联网搜索失败");
               }
@@ -444,9 +435,6 @@ export async function POST(req) {
           });
           finalUsage = result.usage || null;
           finalProviderState = result.providerState || null;
-          if (searchContextTokens > 0) {
-            sendEvent({ type: "search_context_tokens", tokens: searchContextTokens });
-          }
 
           if (clientAborted) {
             await rollbackCurrentTurn();
@@ -472,7 +460,6 @@ export async function POST(req) {
               parts: [{ text: fullText }],
               ...(toolRecords.length > 0 ? { tools: toolRecords } : {}),
               ...(citations.length > 0 ? { citations } : {}),
-              ...(searchContextTokens > 0 ? { searchContextTokens } : {}),
               ...(providerState ? { providerState } : {}),
             };
             const persistedConversation = await Conversation.findOneAndUpdate(

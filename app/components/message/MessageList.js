@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import Markdown from "../common/Markdown";
 import ThinkingBlock from "./ThinkingBlock";
-import FusionMessage from "./FusionMessage";
 import ImageLightbox from "../modals/ImageLightbox";
 import ConfirmModal from "../modals/ConfirmModal";
 import { useToast } from "../common/ToastProvider";
@@ -34,7 +33,6 @@ import {
 } from "./MessageListHelpers";
 import {
   CHAT_MODELS,
-  isFusionModel,
   modelSupportsAvailableInput,
 } from "@/lib/shared/models";
 import {
@@ -79,8 +77,6 @@ export default function MessageList({
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, index: null, role: null });
   const [openExportMenuIndex, setOpenExportMenuIndex] = useState(null);
-  const isFusionConversation = isFusionModel(model);
-  const canEditUserMessage = !isFusionConversation;
   const canEditImages = modelSupportsAvailableInput(model, "image");
   const toast = useToast();
   const hasWaitingFirstChunk = messages.some((message) => message?.isWaitingFirstChunk);
@@ -239,7 +235,7 @@ export default function MessageList({
         onClose={() => setDeleteConfirm({ open: false, index: null, role: null })}
         onConfirm={handleConfirmDelete}
         title="删除消息"
-        message={isFusionConversation ? "确定要从这一轮开始删除吗？此操作会删除这一轮及其后所有轮次，无法撤销。" : `确定要删除这条${deleteConfirm.role === "user" ? "你的" : "AI"}消息吗？此操作无法撤销。`}
+        message={`确定要删除这条${deleteConfirm.role === "user" ? "你的" : "AI"}消息吗？此操作无法撤销。`}
         confirmText="删除"
         danger
       />
@@ -309,21 +305,12 @@ export default function MessageList({
             : fallbackThinkingTimeline;
           const hasThinkingTimeline = Array.isArray(resolvedThinkingTimeline)
             && resolvedThinkingTimeline.some((step) => step?.kind === "search" || step?.kind === "reader" || step?.kind === "thought" || step?.kind === "tool" || step?.kind === "planner" || step?.kind === "writer" || step?.kind === "image_gen");
-          const hasFusionAnalysis = msg.fusionAnalysis && typeof msg.fusionAnalysis === "object";
-          const hasFusionResultState = msg.fusionResultState && typeof msg.fusionResultState === "object";
-          const shouldRenderFusionMessage = isFusionConversation && msg.role === "model" && (
-            hasFusionAnalysis
-            || hasFusionResultState
-            || Array.isArray(msg.fusionExperts)
-            || hasVisibleContent
-            || msg.isStreaming
-          );
           const hasToolRuns = Array.isArray(msg.tools) && msg.tools.length > 0;
           const shouldRenderToolCards = msg.role === "model" && hasToolRuns && !hasThinkingTimeline && msg.tools.some((t) => t?.id);
-          const shouldRenderBubble = !shouldRenderFusionMessage && (hasParts || hasVisibleContent || shouldRenderToolCards);
-          const canRegenerateMessage = !isFusionConversation && msg.role === "model" && messages[i - 1]?.role === "user";
+          const shouldRenderBubble = hasParts || hasVisibleContent || shouldRenderToolCards;
+          const canRegenerateMessage = msg.role === "model" && messages[i - 1]?.role === "user";
 
-          if (msg.role === "model" && !msg.thought && !hasVisibleContent && !hasParts && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasFusionAnalysis && !hasFusionResultState && !hasToolRuns && msg.isWaitingFirstChunk) {
+          if (msg.role === "model" && !msg.thought && !hasVisibleContent && !hasParts && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasToolRuns && msg.isWaitingFirstChunk) {
             return null;
           }
 
@@ -334,7 +321,7 @@ export default function MessageList({
               animate={{ opacity: 1, y: 0 }}
               className={`flex flex-col gap-3 ${msg.role === "user" ? "items-end" : "items-start"} max-w-4xl mx-auto w-full group`}
             >
-              {msg.role === "model" && !shouldRenderFusionMessage && (msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasFusionAnalysis || hasFusionResultState || hasToolRuns) && (
+              {msg.role === "model" && (msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasToolRuns) && (
                 <div className="flex items-center gap-2 pl-1">
                   <AIAvatar model={model} size={24} animate={msg.isStreaming} />
                   <span className="text-[11px] text-zinc-400 font-bold tracking-wider">
@@ -358,21 +345,11 @@ export default function MessageList({
                     )}
                   </div>
                 )}
-                {shouldRenderFusionMessage ? (
-                  <FusionMessage
-                    content={typeof msg.content === "string" ? msg.content : ""}
-                    fusionExperts={msg.fusionExperts}
-                    fusionAnalysis={msg.fusionAnalysis}
-                    fusionResultState={msg.fusionResultState}
-                  />
-                ) : null}
-
-                {msg.role === "model" && !shouldRenderFusionMessage && (msg.thought || msg.isSearching || msg.searchError || hasThinkingTimeline) && (
+                {msg.role === "model" && (msg.thought || msg.isSearching || msg.searchError || hasThinkingTimeline) && (
                   <ThinkingBlock
                     thought={msg.thought}
                     isStreaming={msg.isThinkingStreaming}
                     isSearching={msg.isSearching}
-                    searchQuery={msg.searchQuery}
                     searchError={msg.searchError}
                     timeline={resolvedThinkingTimeline}
                     tools={msg.tools}
@@ -381,7 +358,7 @@ export default function MessageList({
                   />
                 )}
 
-                {editingMsgIndex === i && msg.role === "user" && canEditUserMessage ? (
+                {editingMsgIndex === i && msg.role === "user" ? (
                   <div className="w-full flex flex-col items-end gap-2">
                     <div className="msg-bubble-user w-full max-w-full glass-effect !bg-white dark:!bg-zinc-800 border-primary/20">
                       {canEditImages ? (
@@ -524,7 +501,7 @@ export default function MessageList({
                           <Copy size={16} />
                         </button>
                         <button onClick={() => handleDeleteClick(i, msg.role)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="删除"><Trash2 size={16} /></button>
-                        {msg.role === "user" && canEditUserMessage && (
+                        {msg.role === "user" && (
                           <button onClick={() => onStartEdit(i, msg)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg" title="编辑"><Edit3 size={16} /></button>
                         )}
                       </div>

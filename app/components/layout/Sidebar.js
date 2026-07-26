@@ -22,7 +22,6 @@ export default function Sidebar({
   onLogout,
   onClose,
   onTogglePinConversation,
-  onDuplicateConversation,
 }) {
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null, title: "" });
   const [pinConfirm, setPinConfirm] = useState({ open: false, id: null, title: "", nextPinned: false });
@@ -100,11 +99,6 @@ export default function Sidebar({
   const handleConversationTouchStart = (conv, e) => {
     if (activeActionsId === conv._id || editingId === conv._id) return;
     revealActions(conv._id);
-  };
-
-  const handleDuplicateClick = async (conv, e) => {
-    e.stopPropagation();
-    await onDuplicateConversation?.(conv._id);
   };
 
   const handleKeyDown = (e) => {

@@ -9,7 +9,7 @@
 
 <br/><br/>
 
-**多模型 AI 聊天平台 · 内置 Fusion Mode 共识驱动智能框架**
+**多模型 AI 聊天平台 · 对话、联网搜索与多媒体创作**
 
 <br/>
 
@@ -28,12 +28,11 @@
 <table>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.6%20Sol-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.6 Sol"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%204.8-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.6%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.5-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.5"/><br/><sub><b>xAI</b></sub></td>
 </tr>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-OpenRouter%20Fusion-111827?style=for-the-badge&logoColor=white" alt="OpenRouter Fusion"/><br/><sub><b>OpenRouter</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT%20Image%202-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT Image 2"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Seedance%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Seedance"/><br/><sub><b>字节跳动</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
@@ -50,9 +49,7 @@
 
 ## 项目概述
 
-**Vectaix AI** 是一个生产级的多模型 AI 聊天平台，将全球最强大的语言模型汇聚于一个优雅的统一界面。不再局限于单一 AI 服务商，Vectaix 让你自由地在多个前沿模型之间切换，甚至可以组合使用。
-
-其核心是 **Fusion Mode**—— 一种新颖的多智能体共识框架，能够将查询并行分发至多个前沿大模型，并通过结构化讨论综合它们的输出，从而大幅减少幻觉和偏见。
+**Vectaix AI** 是一个生产级的多模型 AI 聊天平台，将全球领先的语言模型汇聚于一个优雅的统一界面。不再局限于单一 AI 服务商，Vectaix 让你自由地在多个前沿模型之间切换。
 
 <br/>
 
@@ -64,14 +61,13 @@
 
 ### 🤖 多模型智能
 
-支持 6 个直连聊天模型和 Fusion 模式，通过统一界面访问。对话中随时切换模型，上下文完整保留。
+支持 6 个聊天模型，通过统一界面访问。对话中切换模型时会新建话题，避免不同模型的上下文相互混淆。
 
 | 模型 | 供应商 | 上下文窗口 | 输入类型 | 深度思考 | 联网搜索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **Fusion** | OpenRouter | — | 文本 | — | — |
 | **自动路由（均衡）** | AIHubMix | 动态 | 文本、图像 | ✅ | ✅ |
 | **GPT-5.6 Sol** | OpenAI | 105 万 | 文本、图像 | ✅ | ✅ |
-| **Claude Opus 4.8** | Anthropic | 100 万 | 文本、图像 | ✅ | ✅ |
+| **Claude Opus 5** | Anthropic | 100 万 | 文本、图像 | ✅ | ✅ |
 | **Gemini 3.6 Flash** | Google | 100 万 | 文本、图像、音频、视频 | ✅ | ✅ |
 | **Grok 4.5** | xAI | 50 万 | 文本、图像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 100 万 | 文本、图像 | ✅ | ✅ |
@@ -82,59 +78,6 @@
 |:---:|:---:|:---|
 | **GPT Image 2** | OpenAI | 图片生成和图片编辑 |
 | **Seedance 2.0 标准版** | 字节跳动 | 文生视频和图生视频 |
-
-<br/>
-
-### 🏛️ Fusion Mode —— 多智能体共识
-
-Vectaix AI 的核心亮点。该模式协调多个 AI 专家共同推理，得出更真实、更均衡的答案。
-
-```
-                              ┌─────────────────┐
-                              │    用户提问       │
-                              └────────┬─────────┘
-                                       │
-                          ┌────────────┼────────────┐
-                          ▼            ▼            ▼
-                   ┌────────────┐┌────────────┐┌────────────┐
-                   │    GPT     ││   Claude   ││   Gemini   │
-                   │    5.5     ││  Opus 4.8  ││ 3.6 Flash  │
-                   │  （专家）   ││  （专家）   ││  （专家）   │
-                   └─────┬──────┘└─────┬──────┘└─────┬──────┘
-                         │             │             │
-                         └─────────────┼─────────────┘
-                                       ▼
-                              ┌─────────────────┐
-                              │OpenRouter Fusion│
-                              │   （汇总分析）    │
-                              └────────┬─────────┘
-                                       │
-                         ┌─────────────┼─────────────┐
-                         ▼             ▼             ▼
-                   ┌──────────┐ ┌──────────┐ ┌──────────┐
-                   │ 共识要点  │ │ 关键分歧  │ │ 独特见解  │
-                   └──────────┘ └──────────┘ └──────────┘
-```
-
-**工作原理：**
-
-1. **并行生成** — 你的问题同时发送给 GPT-5.6 Sol、Claude Opus 4.8 和 Gemini 3.6 Flash
-2. **独立推理** — 每位专家利用自身优势和知识独立思考
-3. **结构化综合** — OpenRouter Fusion 汇总模型分析所有回答，识别出：
-   - ✅ **共识要点** — 所有专家达成一致的观点
-   - ⚖️ **关键分歧** — 专家之间的不同意见及原因
-   - 💡 **独特见解** — 单个专家提供的有价值观点
-   - 🔍 **盲区发现** — 只有跨模型分析才能揭示的遗漏
-
-> Fusion Mode 当前版本暂不支持联网搜索，专注于多模型纯文本推理。
-
-**论文核心成果：**
-
-| 评测基准 | 提升幅度 |
-|:---|:---:|
-| HaluEval（幻觉检测） | **相对降低 35.9%** |
-| TruthfulQA | **超越最佳单一模型 +7.8 分** |
-| 跨领域偏见方差 | **显著降低** |
 
 <br/>
 
@@ -238,7 +181,6 @@ Vectaix AI 的核心亮点。该模式协调多个 AI 专家共同推理，得�
 vectaix-ai/
 ├── app/
 │   ├── api/
-│   │   ├── fusion/           # Fusion Mode 编排
 │   │   ├── chat/             # 多供应商聊天与压缩
 │   │   ├── auth/             # 认证端点
 │   │   ├── conversations/    # 对话 CRUD
@@ -248,7 +190,6 @@ vectaix-ai/
 │   ├── components/           # React UI 组件
 │   │   ├── chat/             # 聊天输入与模型选择
 │   │   ├── message/          # 消息展示组件
-│   │   │   ├── FusionMessage.js # Fusion Mode 结果渲染
 │   │   │   ├── MessageList.js
 │   │   │   └── ...
 │   └── ChatApp.js            # 根应用组件
@@ -295,7 +236,7 @@ vectaix-ai/
 | **后端** | Next.js API Routes · Node.js · SSE（Server-Sent Events）流式传输 |
 | **数据库** | MongoDB + Mongoose ODM |
 | **存储** | Zeabur 挂载硬盘（私有媒体文件） |
-| **AI 供应商** | Inferera · Google Gemini API · OpenRouter |
+| **AI 供应商** | AIHubMix · Inferera · Google Gemini API |
 | **认证** | MongoDB 服务端会话 · bcryptjs |
 | **渲染** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **部署** | Zeabur 原生 Next.js 服务（单实例） |
@@ -330,7 +271,6 @@ vectaix-ai/
 | `ADMIN_EMAILS` | — | 管理员邮箱，多个邮箱使用英文逗号分隔 |
 | `AIHUBMIX_API_KEY` | — | AIHubMix 自动路由、通过 Anthropic Messages 调用的 Kimi K3，以及 Inferera 的 GPT、Grok、Claude、图片和视频共用的 API 密钥 |
 | `GEMINI_API_KEY` | — | Gemini 聊天与对话压缩使用的 Google Gemini API 密钥 |
-| `OPENROUTER_API_KEY` | — | Fusion 综合模型使用的 OpenRouter API 密钥 |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search 与 Scrape 使用的 API 密钥 |
 
 > [!TIP]
@@ -374,7 +314,7 @@ vectaix-ai/
 
 <br/>
 
-<sub>以智能构建，以共识驱动。</sub>
+<sub>以智能构建，让创作更自由。</sub>
 
 <br/>
 

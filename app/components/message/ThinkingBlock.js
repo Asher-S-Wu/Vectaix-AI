@@ -16,7 +16,6 @@ export default function ThinkingBlock({
   thought,
   isStreaming,
   isSearching,
-  searchQuery,
   searchError,
   timeline,
   tools,
@@ -468,7 +467,6 @@ export default function ThinkingBlock({
             {headerIcon}
             <span className="thinking-btn-label flex items-center">
               <span className="truncate max-w-[240px]">{headerText}</span>
-              {null}
             </span>
             {collapsed ? (
               <ChevronDown className="thinking-icon-chevron" />

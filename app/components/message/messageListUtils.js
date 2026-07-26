@@ -4,7 +4,7 @@ import {
   normalizeWebBrowsingIdentifier,
 } from "@/lib/shared/webBrowsing";
 
-const PENDING_RUN_TEXTS = new Set(["正在处理中…", "Fusion 正在处理中…"]);
+const PENDING_RUN_TEXTS = new Set(["正在处理中…"]);
 
 export const STARTER_PROMPTS = [
   { icon: "💡", title: "创意写作", description: "帮我写一个关于火星移民的科幻短篇开头" },
