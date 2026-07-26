@@ -5,8 +5,8 @@ export default function manifest() {
         description: 'Experience the next generation of AI with Gemini, Claude, GPT, Seed, and more.',
         start_url: '/',
         display: 'standalone',
-        background_color: '#f8fafc',
-        theme_color: '#f8fafc',
+        background_color: '#ffffff',
+        theme_color: '#38bdf8',
         icons: [
             {
                 src: '/icon',

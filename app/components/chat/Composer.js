@@ -346,7 +346,7 @@ export default function Composer({
         )}
       </AnimatePresence>
 
-      <div className="relative flex flex-col glass-effect rounded-[24px] border-zinc-200/60 dark:border-zinc-800/60 transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700">
+      <div className="composer-shell relative flex flex-col glass-effect rounded-[24px] border-zinc-200/60 dark:border-zinc-800/60 hover:border-zinc-300 dark:hover:border-zinc-700">
         <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-zinc-100/50 dark:border-zinc-800/50 bg-zinc-50/30 dark:bg-zinc-900/30 rounded-t-[24px]">
           <ModelSelector
             model={model}
@@ -409,8 +409,8 @@ export default function Composer({
               disabled={!isStreaming && !isWaitingForAI && (isUploading || (!input.trim() && selectedAttachments.length === 0))}
               className={`flex items-center justify-center w-9 h-9 rounded-full transition-all active:scale-90 ${
                 isStreaming || isWaitingForAI
-                  ? "bg-red-500 hover:bg-red-600 text-white"
-                  : "bg-primary hover:bg-primary/90 text-white disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600"
+                  ? "bg-red-500 hover:bg-red-600 text-white shadow-soft"
+                  : "btn-primary disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600 disabled:shadow-none"
               }`}
               type="button"
             >

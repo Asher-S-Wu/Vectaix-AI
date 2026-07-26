@@ -284,7 +284,7 @@ export default function ProfileModal({
                             type="button"
                             onClick={saveNickname}
                             disabled={nicknameSaving}
-                            className="mt-2 w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-xs transition-colors"
+                            className="mt-2 w-full btn-primary disabled:opacity-50 font-medium py-2 rounded-lg text-xs"
                           >
                             {nicknameSaving ? "保存中…" : "保存昵称"}
                           </button>
@@ -314,7 +314,7 @@ export default function ProfileModal({
                               type="button"
                               onClick={saveEmail}
                               disabled={emailSaving}
-                              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-xs transition-colors"
+                              className="w-full btn-primary disabled:opacity-50 font-medium py-2 rounded-lg text-xs"
                             >
                               {emailSaving ? "保存中…" : "保存邮箱"}
                             </button>
@@ -376,7 +376,7 @@ export default function ProfileModal({
                         <button
                           type="submit"
                           disabled={pwLoading}
-                          className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl text-sm transition-colors"
+                          className="w-full btn-primary disabled:opacity-50 font-medium py-2.5 rounded-xl text-sm"
                         >
                           更新密码
                         </button>

@@ -7,10 +7,10 @@ import {
 const PENDING_RUN_TEXTS = new Set(["正在处理中…"]);
 
 export const STARTER_PROMPTS = [
-  { icon: "💡", title: "创意写作", description: "帮我写一个关于火星移民的科幻短篇开头" },
-  { icon: "💻", title: "代码助手", description: "用 React 写一个带防抖功能的搜索框组件" },
-  { icon: "🌍", title: "旅行规划", description: "制定一份去京都的 5 天文化深度游计划" },
-  { icon: "📊", title: "数据分析", description: "如何通俗易懂地解释什么是“量化宽松”？" },
+  { icon: "sparkles", title: "创意写作", description: "帮我写一个关于火星移民的科幻短篇开头" },
+  { icon: "code", title: "代码助手", description: "用 React 写一个带防抖功能的搜索框组件" },
+  { icon: "compass", title: "旅行规划", description: "制定一份去京都的 5 天文化深度游计划" },
+  { icon: "chart", title: "数据分析", description: "如何通俗易懂地解释什么是“量化宽松”？" },
 ];
 
 export function isPendingRunText(text) {

@@ -5,6 +5,7 @@ import NextImage from "next/image";
 import { LogOut, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import ConfirmModal from "../modals/ConfirmModal";
 import { ModelGlyph } from "../common/ModelVisuals";
+import BrandMark from "../common/BrandMark";
 
 export default function Sidebar({
   isOpen,
@@ -116,7 +117,16 @@ export default function Sidebar({
         className={`fixed md:relative z-50 md:z-40 flex w-72 max-w-[85vw] h-full glass-effect border-r border-zinc-200/50 flex-col transform-gpu transition-transform duration-300 ease-out will-change-transform ${isOpen ? "translate-x-0" : "-translate-x-full pointer-events-none md:pointer-events-auto md:translate-x-0"
           }`}
       >
-        <div className="p-3 border-b border-zinc-200/50 dark:border-zinc-800/50 flex items-center gap-2">
+        <div className="px-4 pt-4 pb-3 flex items-center gap-2.5">
+          <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary/10 border border-primary/15 shrink-0">
+            <BrandMark size={18} />
+          </span>
+          <span className="text-[15px] font-bold tracking-tight text-zinc-800 dark:text-zinc-100">
+            Vectaix <span className="text-primary">AI</span>
+          </span>
+        </div>
+
+        <div className="px-3 pb-3 border-b border-zinc-200/50 dark:border-zinc-800/50 flex items-center gap-2">
           <button
             onClick={onStartNewChat}
             type="button"

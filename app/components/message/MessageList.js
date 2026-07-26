@@ -16,6 +16,8 @@ import Markdown from "../common/Markdown";
 import ThinkingBlock from "./ThinkingBlock";
 import ImageLightbox from "../modals/ImageLightbox";
 import ConfirmModal from "../modals/ConfirmModal";
+import BrandMark from "../common/BrandMark";
+import { BarChart3, Code2, Compass, Sparkles } from "lucide-react";
 import { useToast } from "../common/ToastProvider";
 import { exportMessageContent } from "@/lib/client/messageExport";
 import { getMessageImageSrc, isKeepableImageSrc } from "@/lib/shared/messageImage";
@@ -42,6 +44,13 @@ import {
 } from "./messageListUtils";
 
 const EXPORT_FORMAT_LABELS = { markdown: "Markdown", pdf: "PDF", docx: "Word 文档" };
+
+const STARTER_ICONS = {
+  sparkles: Sparkles,
+  code: Code2,
+  compass: Compass,
+  chart: BarChart3,
+};
 
 
 export default function MessageList({
@@ -248,42 +257,54 @@ export default function MessageList({
             </div>
           </div>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center space-y-10 text-center px-4 max-w-4xl mx-auto w-full">
-            <div className="space-y-6">
-              <motion.div 
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", damping: 15 }}
-                className="relative inline-block"
+          <div className="h-full flex flex-col items-center justify-center space-y-10 text-center px-4 max-w-4xl mx-auto w-full relative">
+            {/* 背景品牌光晕 */}
+            <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-primary/10 blur-3xl" />
+            </div>
+
+            <div className="space-y-6 relative z-10">
+              <motion.div
+                initial={{ scale: 0.6, opacity: 0, rotate: -12 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                transition={{ type: "spring", damping: 14, stiffness: 180 }}
+                className="relative inline-flex items-center justify-center"
               >
-                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
-                <AIAvatar model={model} size={72} animate={false} className="relative z-10" />
+                <div className="absolute inset-0 bg-primary/25 blur-3xl rounded-full scale-150" />
+                <div className="relative w-20 h-20 rounded-[22px] glass-effect border-primary/20 shadow-lift flex items-center justify-center">
+                  <BrandMark size={44} />
+                </div>
               </motion.div>
               <div className="space-y-3 relative z-10">
-                <h2 className="text-3xl font-bold bg-gradient-to-b from-zinc-800 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent tracking-tight">
+                <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-zinc-900 via-zinc-700 to-primary dark:from-white dark:via-zinc-200 dark:to-primary bg-clip-text text-transparent tracking-tight">
                   今天能帮您做点什么？
                 </h2>
                 <p className="text-zinc-400 dark:text-zinc-500 text-[15px] max-w-sm mx-auto leading-relaxed">
-                  选择一个模型开始对话
+                  选择一个模型开始对话，或从下面的灵感开始
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4">
-              {STARTER_PROMPTS.map((prompt, idx) => (
-                <motion.button
-                  key={idx}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  onClick={() => onSendStarterPrompt?.(prompt.description)}
-                  className="flex flex-col items-start p-4 rounded-2xl glass-effect border-zinc-200/40 hover:border-primary/30 hover:bg-primary/5 transition-all text-left group active:scale-[0.98]"
-                >
-                  <span className="text-xl mb-2 group-hover:scale-110 transition-transform">{prompt.icon}</span>
-                  <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">{prompt.title}</span>
-                  <span className="text-xs text-zinc-400 dark:text-zinc-500 line-clamp-1">{prompt.description}</span>
-                </motion.button>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4 relative z-10">
+              {STARTER_PROMPTS.map((prompt, idx) => {
+                const StarterIcon = STARTER_ICONS[prompt.icon] || Sparkles;
+                return (
+                  <motion.button
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 + idx * 0.08, type: "spring", damping: 20 }}
+                    onClick={() => onSendStarterPrompt?.(prompt.description)}
+                    className="flex flex-col items-start p-4 rounded-2xl glass-effect border-zinc-200/40 hover:border-primary/40 hover:shadow-lift hover:-translate-y-0.5 transition-all duration-300 text-left group active:scale-[0.98]"
+                  >
+                    <span className="mb-2.5 flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                      <StarterIcon size={17} strokeWidth={2.2} />
+                    </span>
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">{prompt.title}</span>
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500 line-clamp-1">{prompt.description}</span>
+                  </motion.button>
+                );
+              })}
             </div>
           </div>
         )
@@ -409,7 +430,7 @@ export default function MessageList({
                       <button
                         onClick={() => onSubmitEdit(i)}
                         disabled={isEditingImageUploading}
-                        className="px-3 py-1.5 text-xs text-white bg-primary rounded-lg disabled:opacity-40"
+                        className="btn-primary px-3 py-1.5 text-xs rounded-lg disabled:opacity-40"
                       >
                         {isEditingImageUploading ? "上传中" : "提交"}
                       </button>

@@ -153,7 +153,7 @@ export default function ImageGenerationPage() {
             </select>
           </div>
 
-          <button type="submit" disabled={isGenerating} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-white transition-colors hover:bg-primary/90 disabled:opacity-60">
+          <button type="submit" disabled={isGenerating} className="btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">
             {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
             {isGenerating ? '处理中…' : (mode === 'edit' ? '编辑图片' : '生成图片')}
           </button>
