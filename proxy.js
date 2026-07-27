@@ -30,6 +30,10 @@ function buildCsp(nonce) {
 }
 
 export function proxy(request) {
+  if (request.headers.has("next-action")) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   const nonce = generateNonce();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-csp-nonce", nonce);

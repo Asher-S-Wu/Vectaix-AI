@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 import { UI_THEME_MODE_KEY } from "@/lib/shared/storageKeys";
+
+const THEME_CHANGE_EVENT = "vectaix-theme-change";
 
 function applyTheme(isDark) {
   const root = document.documentElement;
@@ -20,20 +22,41 @@ function resolveIsDark(mode) {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+function getThemeSnapshot() {
+  const mode = localStorage.getItem(UI_THEME_MODE_KEY) || "system";
+  return resolveIsDark(mode);
+}
+
+function getServerThemeSnapshot() {
+  return false;
+}
+
+function subscribeTheme(onStoreChange) {
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(THEME_CHANGE_EVENT, onStoreChange);
+  mediaQuery.addEventListener("change", onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(THEME_CHANGE_EVENT, onStoreChange);
+    mediaQuery.removeEventListener("change", onStoreChange);
+  };
+}
+
 export default function MediaHeader() {
   const pathname = usePathname();
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    const mode = localStorage.getItem(UI_THEME_MODE_KEY) || "system";
-    setIsDark(resolveIsDark(mode));
-  }, []);
+  const isDark = useSyncExternalStore(
+    subscribeTheme,
+    getThemeSnapshot,
+    getServerThemeSnapshot,
+  );
 
   const toggleTheme = () => {
     const next = !isDark;
-    setIsDark(next);
     localStorage.setItem(UI_THEME_MODE_KEY, next ? "dark" : "light");
     applyTheme(next);
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   };
 
   const navItems = [
