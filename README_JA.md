@@ -112,7 +112,6 @@ Zeabur のマウントディスクに保存したプライベートメディア�
 
 **💬 会話管理**
 - MongoDBベースの永続的チャット履歴
-- インテリジェントな長会話圧縮
 - 重要な会話のピン留め
 - 会話単位のモデル・設定管理
 
@@ -181,7 +180,7 @@ Zeabur のマウントディスクに保存したプライベートメディア�
 vectaix-ai/
 ├── app/
 │   ├── api/
-│   │   ├── chat/             # マルチプロバイダーチャットと圧縮
+│   │   ├── chat/             # マルチプロバイダーチャット
 │   │   ├── auth/             # 認証エンドポイント
 │   │   ├── conversations/    # 会話CRUD
 │   │   ├── media/            # 画像/動画生成
@@ -270,7 +269,7 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | マウントディスクのパス。Zeabur では `/data/vectaix` |
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
 | `AIHUBMIX_API_KEY` | — | AIHubMixの自動ルーティング、Anthropic Messages経由のKimi K3、およびInfereraのGPT、Grok、Claude、画像、動画で共用するAPIキー |
-| `GEMINI_API_KEY` | — | Geminiチャットと会話圧縮用のGoogle Gemini APIキー |
+| `GEMINI_API_KEY` | — | Geminiチャット用のGoogle Gemini APIキー |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search と Scrape 用のAPIキー |
 
 > [!TIP]

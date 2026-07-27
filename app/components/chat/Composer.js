@@ -15,7 +15,16 @@ import ModelSelector from "./ModelSelector";
 import SettingsMenu from "../settings/SettingsMenu";
 import {
   getModelAttachmentSupport,
+  isImageGenerationModel,
+  isMediaGenerationModel,
+  isVideoGenerationModel,
 } from "@/lib/shared/models";
+import {
+  IMAGE_SIZE_OPTIONS,
+  VIDEO_ASPECT_RATIO_OPTIONS,
+  VIDEO_DURATION_OPTIONS,
+  VIDEO_RESOLUTION_OPTIONS,
+} from "@/lib/media/shared/models";
 import {
   getAttachmentInputType,
   getAttachmentAcceptForModel,
@@ -49,6 +58,11 @@ export default function Composer({
   const [input, setInput] = useState("");
   const [selectedAttachments, setSelectedAttachments] = useState([]);
   const [isMainInputFocused, setIsMainInputFocused] = useState(false);
+  const [imageSize, setImageSize] = useState("1024x1024");
+  const [videoRatio, setVideoRatio] = useState("adaptive");
+  const [videoDuration, setVideoDuration] = useState(5);
+  const [videoResolution, setVideoResolution] = useState("720p");
+  const [videoGenerateAudio, setVideoGenerateAudio] = useState(true);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const mountedRef = useRef(true);
@@ -59,6 +73,10 @@ export default function Composer({
     supportsAudio,
     supportsFilePicker,
   } = getModelAttachmentSupport(model);
+  const isMediaModel = isMediaGenerationModel(model);
+  const isImageModel = isImageGenerationModel(model);
+  const isVideoModel = isVideoGenerationModel(model);
+  const attachmentLimit = isMediaModel ? 1 : MAX_CHAT_ATTACHMENTS;
   const attachmentAccept = getAttachmentAcceptForModel({
     supportsImages,
     supportsVideo,
@@ -154,7 +172,7 @@ export default function Composer({
     if (!supportsFilePicker) return;
     if (!files.length) return;
 
-    const remainingSlots = MAX_CHAT_ATTACHMENTS - selectedAttachments.length;
+    const remainingSlots = attachmentLimit - selectedAttachments.length;
     const filesToAdd = files.slice(0, remainingSlots);
     const nextAttachments = [];
     const blockedUnsupported = [];
@@ -162,7 +180,7 @@ export default function Composer({
     const oversizedFiles = [];
 
     if (files.length > remainingSlots) {
-      toast.warning(`一次最多添加 ${MAX_CHAT_ATTACHMENTS} 个文件，超出的已跳过`);
+      toast.warning(`一次最多添加 ${attachmentLimit} 个文件，超出的已跳过`);
     }
 
     for (const file of filesToAdd) {
@@ -224,7 +242,7 @@ export default function Composer({
     }
 
     if (nextAttachments.length > 0 && mountedRef.current) {
-      setSelectedAttachments((prev) => [...prev, ...nextAttachments].slice(0, MAX_CHAT_ATTACHMENTS));
+      setSelectedAttachments((prev) => [...prev, ...nextAttachments].slice(0, attachmentLimit));
 
       for (const att of nextAttachments) {
         uploadAttachmentInBackground(att);
@@ -304,7 +322,17 @@ export default function Composer({
     if ((!text && selectedAttachments.length === 0) || loading || isUploading) return;
     const validAttachments = selectedAttachments.filter((item) => item.uploadStatus === "ready");
     if (!text && validAttachments.length === 0) return;
-    onSend({ text, attachments: validAttachments });
+    const mediaOptions = isImageModel
+      ? { size: imageSize }
+      : isVideoModel
+        ? {
+            ratio: videoRatio,
+            duration: videoDuration,
+            resolution: videoResolution,
+            generateAudio: videoGenerateAudio,
+          }
+        : undefined;
+    onSend({ text, attachments: validAttachments, mediaOptions });
     setInput("");
     setSelectedAttachments([]);
   };
@@ -353,18 +381,78 @@ export default function Composer({
             onModelChange={onModelChange}
             ready={modelReady}
           />
-          <SettingsMenu
-            model={model}
-            ready={modelReady}
-            webSearch={webSearch}
-            setWebSearch={setWebSearch}
-            chatSystemPrompt={chatSystemPrompt}
-            onChatSystemPromptSave={onChatSystemPromptSave}
-            systemPrompts={systemPrompts}
-            addSystemPrompt={addSystemPrompt}
-            updateSystemPrompt={updateSystemPrompt}
-            deleteSystemPrompt={deleteSystemPrompt}
-          />
+          {isMediaModel ? (
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5">
+              {isImageModel ? (
+                <select
+                  aria-label="图片尺寸"
+                  value={imageSize}
+                  onChange={(event) => setImageSize(event.target.value)}
+                  className="h-8 max-w-[170px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:text-zinc-300"
+                >
+                  {IMAGE_SIZE_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              ) : null}
+              {isVideoModel ? (
+                <>
+                  <select
+                    aria-label="视频比例"
+                    value={videoRatio}
+                    onChange={(event) => setVideoRatio(event.target.value)}
+                    className="h-8 max-w-[120px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:text-zinc-300"
+                  >
+                    {VIDEO_ASPECT_RATIO_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="视频时长"
+                    value={videoDuration}
+                    onChange={(event) => setVideoDuration(Number(event.target.value))}
+                    className="h-8 max-w-[90px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:text-zinc-300"
+                  >
+                    {VIDEO_DURATION_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="视频清晰度"
+                    value={videoResolution}
+                    onChange={(event) => setVideoResolution(event.target.value)}
+                    className="h-8 max-w-[84px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:text-zinc-300"
+                  >
+                    {VIDEO_RESOLUTION_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                  <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-200 px-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+                    <input
+                      type="checkbox"
+                      checked={videoGenerateAudio}
+                      onChange={(event) => setVideoGenerateAudio(event.target.checked)}
+                      className="accent-primary"
+                    />
+                    音轨
+                  </label>
+                </>
+              ) : null}
+            </div>
+          ) : (
+            <SettingsMenu
+              model={model}
+              ready={modelReady}
+              webSearch={webSearch}
+              setWebSearch={setWebSearch}
+              chatSystemPrompt={chatSystemPrompt}
+              onChatSystemPromptSave={onChatSystemPromptSave}
+              systemPrompts={systemPrompts}
+              addSystemPrompt={addSystemPrompt}
+              updateSystemPrompt={updateSystemPrompt}
+              deleteSystemPrompt={deleteSystemPrompt}
+            />
+          )}
         </div>
         <div className="relative flex items-end gap-2 p-3 md:p-4 rounded-b-[24px]">
           {supportsFilePicker && (
@@ -375,11 +463,11 @@ export default function Composer({
                 onChange={handleFileSelect}
                 className="hidden"
                 accept={attachmentAccept}
-                multiple
+                multiple={!isMediaModel}
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={selectedAttachments.length >= MAX_CHAT_ATTACHMENTS}
+                disabled={selectedAttachments.length >= attachmentLimit}
                 className="p-2.5 rounded-xl text-zinc-400 hover:text-primary hover:bg-primary/5 transition-all disabled:opacity-30 active:scale-90"
                 type="button"
                 title="上传附件"
@@ -398,7 +486,7 @@ export default function Composer({
             onFocus={() => setIsMainInputFocused(true)}
             onBlur={() => setIsMainInputFocused(false)}
             readOnly={false}
-            placeholder="给 AI 发送消息…"
+            placeholder={isImageModel ? "描述你想生成或修改的图片…" : (isVideoModel ? "描述你想生成的视频…" : "给 AI 发送消息…")}
             className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base md:text-[15px] text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none py-2 min-h-[44px] transition-all no-scrollbar"
             rows={1}
           />

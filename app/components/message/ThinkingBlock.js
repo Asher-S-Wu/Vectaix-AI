@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ChevronUp, FileScan, Lightbulb, Loader2, Paintbrush, Scale, Search, Terminal, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Clapperboard, FileScan, Lightbulb, Loader2, Paintbrush, Scale, Search, Terminal, Zap } from "lucide-react";
 import Markdown from "../common/Markdown";
 import { LoadingSweepText, ToolRunPreview, hasToolRunPreview } from "./MessageListHelpers";
 import {
@@ -395,15 +395,16 @@ export default function ThinkingBlock({
       );
     }
 
-    if (step.kind === "image_gen") {
+    if (step.kind === "image_gen" || step.kind === "video_gen") {
+      const isVideoGeneration = step.kind === "video_gen";
       const progressMatch = typeof step.content === "string" && step.content.match(/(\d+)%/);
       const progressText = progressMatch ? ` (${progressMatch[1]}%)` : "";
       const label = isRunning ? `生成中${progressText}` : (isError ? "生成失败" : "已生成");
       return (
-        <div key={step.id || `image_gen-${idx}`} className="w-full max-w-full md:max-w-[760px]">
+        <div key={step.id || `${step.kind}-${idx}`} className="w-full max-w-full md:max-w-[760px]">
           <div className={`thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium py-1.5 px-3 rounded-full ${isError ? "bg-red-50 dark:bg-red-900/20 text-red-600" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500"}`}>
             <div className={`p-1 rounded-md ${isRunning ? "bg-primary/10 text-primary animate-pulse" : "bg-zinc-200 dark:bg-zinc-700"}`}>
-              <Paintbrush className="thinking-icon-step" />
+              {isVideoGeneration ? <Clapperboard className="thinking-icon-step" /> : <Paintbrush className="thinking-icon-step" />}
             </div>
             <StepStatusText text={label} active={isRunning} />
           </div>

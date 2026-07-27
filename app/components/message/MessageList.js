@@ -325,7 +325,7 @@ export default function MessageList({
             ? msg.thinkingTimeline
             : fallbackThinkingTimeline;
           const hasThinkingTimeline = Array.isArray(resolvedThinkingTimeline)
-            && resolvedThinkingTimeline.some((step) => step?.kind === "search" || step?.kind === "reader" || step?.kind === "thought" || step?.kind === "tool" || step?.kind === "planner" || step?.kind === "writer" || step?.kind === "image_gen");
+            && resolvedThinkingTimeline.some((step) => step?.kind === "search" || step?.kind === "reader" || step?.kind === "thought" || step?.kind === "tool" || step?.kind === "planner" || step?.kind === "writer" || step?.kind === "image_gen" || step?.kind === "video_gen");
           const hasToolRuns = Array.isArray(msg.tools) && msg.tools.length > 0;
           const shouldRenderToolCards = msg.role === "model" && hasToolRuns && !hasThinkingTimeline && msg.tools.some((t) => t?.id);
           const shouldRenderBubble = hasParts || hasVisibleContent || shouldRenderToolCards;

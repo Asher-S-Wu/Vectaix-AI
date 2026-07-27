@@ -112,7 +112,6 @@
 
 **💬 对话管理**
 - 基于 MongoDB 的持久化聊天记录
-- 智能长对话压缩
 - 置顶重要对话
 - 对话级别的模型与设置
 
@@ -181,7 +180,7 @@
 vectaix-ai/
 ├── app/
 │   ├── api/
-│   │   ├── chat/             # 多供应商聊天与压缩
+│   │   ├── chat/             # 多供应商聊天
 │   │   ├── auth/             # 认证端点
 │   │   ├── conversations/    # 对话 CRUD
 │   │   ├── media/            # 图片/视频生成
@@ -270,7 +269,7 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | 挂载硬盘目录，Zeabur 使用 `/data/vectaix` |
 | `ADMIN_EMAILS` | — | 管理员邮箱，多个邮箱使用英文逗号分隔 |
 | `AIHUBMIX_API_KEY` | — | AIHubMix 自动路由、通过 Anthropic Messages 调用的 Kimi K3，以及 Inferera 的 GPT、Grok、Claude、图片和视频共用的 API 密钥 |
-| `GEMINI_API_KEY` | — | Gemini 聊天与对话压缩使用的 Google Gemini API 密钥 |
+| `GEMINI_API_KEY` | — | Gemini 聊天使用的 Google Gemini API 密钥 |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search 与 Scrape 使用的 API 密钥 |
 
 > [!TIP]

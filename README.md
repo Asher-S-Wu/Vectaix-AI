@@ -112,7 +112,6 @@ Upload private media files stored on the Zeabur mounted disk.
 
 **💬 Conversation Management**
 - Persistent chat history with MongoDB
-- Intelligent long-conversation compression
 - Pin important conversations
 - Conversation-specific model & settings
 
@@ -181,7 +180,7 @@ Upload private media files stored on the Zeabur mounted disk.
 vectaix-ai/
 ├── app/
 │   ├── api/
-│   │   ├── chat/             # Multi-provider chat & compression
+│   │   ├── chat/             # Multi-provider chat
 │   │   ├── auth/             # Authentication endpoints
 │   │   ├── conversations/    # Conversation CRUD
 │   │   ├── media/            # Image/video generation
@@ -271,7 +270,7 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
 | `AIHUBMIX_API_KEY` | — | Shared API key for AIHubMix Auto Router, Kimi K3 via Anthropic Messages, and Inferera GPT, Grok, Claude, image, and video APIs |
-| `GEMINI_API_KEY` | — | Google Gemini API key for Gemini chat and conversation compression |
+| `GEMINI_API_KEY` | — | Google Gemini API key for Gemini chat |
 | `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |
 
 > [!TIP]
