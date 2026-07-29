@@ -27,6 +27,7 @@ export default function ThinkingBlock({
   const containerRef = useRef(null);
   const autoCollapsedRef = useRef(false);
   const [manualExpandedStepId, setManualExpandedStepId] = useState(null);
+  const [dismissedStepId, setDismissedStepId] = useState(null);
   const safeThought = typeof thought === "string" ? thought : "";
   const safeBodyText = typeof bodyText === "string" ? bodyText : "";
   const safeSearchError = typeof searchError === "string" ? searchError : "";
@@ -65,20 +66,22 @@ export default function ThinkingBlock({
         .reverse()
         .find((step) => step.kind === "thought");
       if (!lastThoughtStep?.id || manualExpandedStepId) return;
+      if (dismissedStepId === lastThoughtStep.id) return;
       setExpandedTimelineId(lastThoughtStep.id);
     }, 0);
     return () => clearTimeout(timer);
-  }, [hasTimeline, timeline, manualExpandedStepId]);
+  }, [hasTimeline, timeline, manualExpandedStepId, dismissedStepId]);
 
   // 简单模式：思考流式输出时自动展开内层思考气泡
   useEffect(() => {
     if (hasTimeline) return;
     if (autoCollapsedRef.current) return;
     if (isStreaming || safeThought) {
+      if (dismissedStepId === "__simple__") return;
       const timer = setTimeout(() => setExpandedTimelineId("__simple__"), 0);
       return () => clearTimeout(timer);
     }
-  }, [hasTimeline, isStreaming, safeThought]);
+  }, [hasTimeline, isStreaming, safeThought, dismissedStepId]);
 
   // 正文开始输出后，自动折叠外层容器
   useEffect(() => {
@@ -87,6 +90,7 @@ export default function ThinkingBlock({
       autoCollapsedRef.current = true;
       const timer = setTimeout(() => {
         setManualExpandedStepId(null);
+        setDismissedStepId(null);
         setCollapsed(true);
         setExpandedTimelineId(null);
       }, 0);
@@ -99,6 +103,7 @@ export default function ThinkingBlock({
 
   // ── 外层标题文本（始终固定） ──
   const headerText = "执行过程";
+  const isThinkingActive = Boolean(isStreaming || isSearching) || timelineItems.some((step) => step.status === "running" || step.status === "streaming");
 
   // ── 外层图标（始终固定） ──
   const headerIcon = <Zap className="thinking-icon-header" />;
@@ -107,6 +112,7 @@ export default function ThinkingBlock({
   const completedThoughtLabel = "已思考";
   const toggleExpandedStep = (stepId) => {
     const nextId = expandedTimelineId === stepId ? null : stepId;
+    setDismissedStepId(nextId === null ? stepId : null);
     setManualExpandedStepId(nextId);
     setExpandedTimelineId(nextId);
   };
@@ -168,7 +174,7 @@ export default function ThinkingBlock({
                 ? <Terminal className="thinking-icon-step" />
                 : thoughtIcon;
 
-    const capsuleClass = `thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium transition-all duration-300 py-1.5 px-3 rounded-full ${isError ? "bg-red-50 dark:bg-red-900/20 text-red-600" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-primary hover:bg-primary/5"}`;
+    const capsuleClass = `thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium transition-all duration-300 py-1.5 px-3 rounded-full ${isError ? "bg-red-50 text-red-600" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-primary hover:bg-primary/5"}`;
 
     if (step.kind === "thought") {
       const hasContent = typeof step.content === "string" && step.content.trim();
@@ -178,7 +184,7 @@ export default function ThinkingBlock({
       const canExpandThought = showThoughtDetails && hasContent;
       const isThoughtOpen = canExpandThought && isExpanded;
       return (
-        <div key={step.id || `thought-${idx}`} className="w-full max-w-2xl">
+        <div key={step.id || `thought-${idx}`} className="w-full max-w-full md:max-w-[760px]">
           {canExpandThought ? (
             <button
               type="button"
@@ -210,13 +216,13 @@ export default function ThinkingBlock({
                 className="overflow-hidden"
               >
                 <div
-                  className={`thinking-content mt-2 ml-4 p-4 glass-effect rounded-2xl text-sm leading-relaxed transition-all duration-500 ${isThoughtStreaming ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(37,99,235,0.12)] dark:shadow-[0_0_15px_rgba(37,99,235,0.1)]" : "border-zinc-200/50"}`}
+                  className={`thinking-content mt-2 ml-4 p-4 glass-effect rounded-2xl text-sm leading-relaxed transition-all duration-500 max-h-[16em] overflow-y-auto fade-scrollbar ${isThoughtStreaming ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(56,189,248,0.18)] dark:shadow-[0_0_15px_rgba(56,189,248,0.14)]" : "border-zinc-200/50"}`}
                   ref={containerRef}
                 >
                   <Markdown
                     enableHighlight={!isThoughtStreaming}
                     enableMath={true}
-                    className="prose-xs text-zinc-500 dark:text-zinc-400"
+                    className="text-zinc-500 dark:text-zinc-400"
                   >
                     {thoughtDetailText}
                   </Markdown>
@@ -369,13 +375,13 @@ export default function ThinkingBlock({
                 className="overflow-hidden"
               >
                 <div
-                  className={`thinking-content mt-2 ml-4 p-4 glass-effect rounded-2xl text-sm leading-relaxed transition-all duration-500 ${isRunning ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(37,99,235,0.12)] dark:shadow-[0_0_15px_rgba(37,99,235,0.1)]" : "border-zinc-200/50"}`}
+                  className={`thinking-content mt-2 ml-4 p-4 glass-effect rounded-2xl text-sm leading-relaxed transition-all duration-500 ${isRunning ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(56,189,248,0.18)] dark:shadow-[0_0_15px_rgba(56,189,248,0.14)]" : "border-zinc-200/50"}`}
                   ref={containerRef}
                 >
                   <Markdown
                     enableHighlight={!isRunning}
                     enableMath={true}
-                    className="prose-xs text-zinc-500 dark:text-zinc-400"
+                    className="text-zinc-500 dark:text-zinc-400"
                   >
                     {step.content}
                   </Markdown>
@@ -402,7 +408,7 @@ export default function ThinkingBlock({
       const label = isRunning ? `生成中${progressText}` : (isError ? "生成失败" : "已生成");
       return (
         <div key={step.id || `${step.kind}-${idx}`} className="w-full max-w-full md:max-w-[760px]">
-          <div className={`thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium py-1.5 px-3 rounded-full ${isError ? "bg-red-50 dark:bg-red-900/20 text-red-600" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500"}`}>
+          <div className={`thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium py-1.5 px-3 rounded-full ${isError ? "bg-red-50 text-red-600" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500"}`}>
             <div className={`p-1 rounded-md ${isRunning ? "bg-primary/10 text-primary animate-pulse" : "bg-zinc-200 dark:bg-zinc-700"}`}>
               {isVideoGeneration ? <Clapperboard className="thinking-icon-step" /> : <Paintbrush className="thinking-icon-step" />}
             </div>
@@ -463,9 +469,9 @@ export default function ThinkingBlock({
             onClick={() => {
               setCollapsed(!collapsed);
             }}
-            className="thinking-btn flex items-center font-medium mb-1.5 transition-colors text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800"
+            className="thinking-btn flex items-center font-medium mb-1.5 transition-colors text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200"
           >
-            {headerIcon}
+            {isThinkingActive ? <Loader2 className="thinking-icon-header animate-spin text-primary" /> : headerIcon}
             <span className="thinking-btn-label flex items-center">
               <span className="truncate max-w-[240px]">{headerText}</span>
             </span>
@@ -505,9 +511,7 @@ export default function ThinkingBlock({
                       <div className="w-full max-w-full md:max-w-[760px]">
                         <button
                           type="button"
-                          onClick={() => {
-                            setExpandedTimelineId((prev) => prev === "__simple__" ? null : "__simple__");
-                          }}
+                          onClick={() => toggleExpandedStep("__simple__")}
                           className="thinking-capsule inline-flex w-fit max-w-full items-center font-medium transition-colors text-zinc-500 cursor-pointer"
                         >
                           <Lightbulb className="thinking-icon-step" />
@@ -516,13 +520,13 @@ export default function ThinkingBlock({
                         </button>
                         {expandedTimelineId === "__simple__" ? (
                           <div
-                            className={`thinking-content thinking-content-panel bg-white/60 dark:bg-zinc-800/60 border overflow-y-auto fade-scrollbar w-full max-w-full md:max-w-[760px] text-zinc-400 transition-all duration-500 ${isStreaming ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(37,99,235,0.12)] dark:shadow-[0_0_15px_rgba(37,99,235,0.1)]" : "border-zinc-200/60 dark:border-zinc-700/60"}`}
+                            className={`thinking-content thinking-content-panel bg-white/60 dark:bg-zinc-800/60 border overflow-y-auto fade-scrollbar w-full max-w-full md:max-w-[760px] text-zinc-400 transition-all duration-500 ${isStreaming ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(56,189,248,0.18)] dark:shadow-[0_0_15px_rgba(56,189,248,0.14)]" : "border-zinc-200/60 dark:border-zinc-700/60"}`}
                             ref={containerRef}
                           >
                             <Markdown
                               enableHighlight={!isStreaming}
                               enableMath={true}
-                              className="prose-xs prose-pre:bg-zinc-800 prose-pre:text-zinc-100 prose-code:text-xs thinking-prose"
+                              className="thinking-prose"
                             >
                               {safeThought}
                             </Markdown>
@@ -542,7 +546,7 @@ export default function ThinkingBlock({
                     <div className="thinking-timeline flex flex-col border-l-2 border-zinc-200/80 dark:border-zinc-700/80">
                       <div className="w-full max-w-full md:max-w-[760px]">
                         <div className="thinking-capsule inline-flex w-fit max-w-full items-center font-medium text-zinc-500">
-                          <LoadingSweepText text="···" className="loading-sweep-dots" />
+                          <LoadingSweepText text="..." className="loading-sweep-dots" />
                         </div>
                       </div>
                     </div>

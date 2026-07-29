@@ -58,6 +58,15 @@ export default function UserManagementModal({ open, onClose }) {
     return () => clearTimeout(timer);
   }, [open, fetchUsers]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !confirmOpen) onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, confirmOpen, onClose]);
+
   const onSearchChange = (val) => {
     setSearch(val);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
@@ -180,14 +189,17 @@ export default function UserManagementModal({ open, onClose }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
             onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-label="用户管理"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 relative max-h-[85vh] flex flex-col"
+              className="bg-white rounded-2xl w-full max-w-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 relative max-h-[85vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* 头部 */}
@@ -214,7 +226,7 @@ export default function UserManagementModal({ open, onClose }) {
                     placeholder="搜索邮箱…"
                     value={search}
                     onChange={(e) => onSearchChange(e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:border-zinc-400 outline-none"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   />
                 </div>
               </div>
@@ -271,7 +283,7 @@ export default function UserManagementModal({ open, onClose }) {
                     {users.map((u) => (
                       <div
                         key={u.id}
-                        className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 rounded-xl p-3 border border-zinc-100 dark:border-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-600 transition-colors"
+                        className="flex items-center justify-between bg-zinc-50 rounded-xl p-3 border border-zinc-100 hover:border-zinc-200 transition-colors"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 min-w-0">
@@ -307,7 +319,7 @@ export default function UserManagementModal({ open, onClose }) {
                             <button
                               onClick={() => requestResetPassword(u)}
                               disabled={actionLoading !== null}
-                              className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors disabled:opacity-50"
+                              className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 rounded-lg transition-colors disabled:opacity-50"
                               title="重置密码"
                             >
                              <KeyRound size={15} />
@@ -333,7 +345,7 @@ export default function UserManagementModal({ open, onClose }) {
                   <button
                     onClick={() => goPage(page - 1)}
                     disabled={page <= 1 || loading}
-                    className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors disabled:opacity-40"
+                    className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors disabled:opacity-40"
                   >
                     上一页
                   </button>
@@ -343,7 +355,7 @@ export default function UserManagementModal({ open, onClose }) {
                   <button
                     onClick={() => goPage(page + 1)}
                     disabled={page >= totalPages || loading}
-                    className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors disabled:opacity-40"
+                    className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors disabled:opacity-40"
                   >
                     下一页
                   </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Clapperboard, ChevronUp, ImagePlus } from "lucide-react";
 import {
@@ -42,6 +42,15 @@ export default function ModelSelector({
   const currentModelLabel = currentModel?.name || "模型";
   const selectableModels = getSelectableChatModels();
 
+  useEffect(() => {
+    if (!showModelMenu) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setShowModelMenu(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showModelMenu]);
+
   return (
     <div className="relative">
       <button
@@ -52,6 +61,9 @@ export default function ModelSelector({
         className={`px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center gap-1.5 text-sm ${fullWidth ? "w-full justify-between" : ""}`}
         type="button"
         disabled={!ready}
+        aria-haspopup="listbox"
+        aria-expanded={showModelMenu}
+        aria-label="选择模型"
       >
         <span className="inline-flex h-3.5 w-3.5 items-center justify-center shrink-0">
           {currentModel ? (
@@ -81,6 +93,10 @@ export default function ModelSelector({
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              style={{ transformOrigin: "bottom left" }}
+              role="listbox"
+              aria-label="可选模型"
               className="absolute bottom-full left-0 mb-2 w-[min(88vw,248px)] bg-white dark:bg-zinc-900 rounded-xl shadow-pop border border-zinc-200 dark:border-zinc-700 p-2 z-50"
             >
               <div className="max-h-[360px] overflow-y-auto pr-1 mobile-scroll fade-scrollbar">

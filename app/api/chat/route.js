@@ -454,6 +454,7 @@ export async function POST(req) {
             const modelMessage = {
               id: resolvedModelMessageId,
               role: "model",
+              model,
               content: fullText,
               thought: fullThought,
               type: "text",

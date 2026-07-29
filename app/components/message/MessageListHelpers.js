@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Download, ExternalLink, FileText, Search, Terminal, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Download, ExternalLink, FileText, Loader2, Search, Terminal, X } from "lucide-react";
 import { ModelAvatar } from "../common/ModelVisuals";
 import { formatAttachmentMeta } from "@/lib/shared/messageAttachments";
 import { toFileDownloadUrl } from "@/lib/shared/fileUrls";
@@ -144,7 +145,7 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
     <button
       type="button"
       onClick={() => onClick?.(activeSrc)}
-      className={`block text-left ${className}`}
+      className={`block text-left group/thumb ${className}`}
       title="点击查看"
     >
       <Image
@@ -153,8 +154,8 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
         width={280}
         height={240}
         unoptimized
-        className="block max-w-[280px] sm:max-w-[240px] max-h-[240px] sm:max-h-[180px] w-auto h-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-        loading="eager"
+        className="block max-w-[240px] sm:max-w-[280px] max-h-[180px] sm:max-h-[240px] w-auto h-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 transition-all duration-300 group-hover/thumb:shadow-md group-hover/thumb:scale-[1.02]"
+        loading="lazy"
         decoding="async"
       />
     </button>
@@ -198,6 +199,16 @@ export function AttachmentCard({ file, compact = false }) {
 
 export function Citations({ citations }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
   if (!citations || !Array.isArray(citations) || citations.length === 0) return null;
 
   const uniqueCitations = [];
@@ -236,13 +247,24 @@ export function Citations({ citations }) {
         )}
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setOpen(false)}
-          />
-          <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-md p-4">
+      <AnimatePresence>
+        {open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label="信息来源">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 w-full max-w-md p-4"
+            >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 font-medium">
                 <Search size={14} />
@@ -258,32 +280,33 @@ export function Citations({ citations }) {
               </button>
             </div>
 
-            <div className="max-h-[60vh] overflow-y-auto fade-scrollbar">
-              <div className="flex flex-col gap-2">
-                {uniqueCitations.map((citation, idx) => {
-                  const domain = getDomainFromUrl(citation.url) || citation.url;
-                  return (
-                    <a
-                      key={idx}
-                      href={citation.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-2.5 py-2 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 transition-colors"
-                      title={citation.title || citation.url}
-                    >
-                      <WebFavicon url={citation.url} size={16} className="flex-shrink-0" />
-                      <span className="truncate flex-1">
-                        {citation.title || domain}
-                      </span>
-                      <ExternalLink size={14} className="text-zinc-400" />
-                    </a>
-                  );
-                })}
+              <div className="max-h-[60vh] overflow-y-auto fade-scrollbar">
+                <div className="flex flex-col gap-2">
+                  {uniqueCitations.map((citation, idx) => {
+                    const domain = getDomainFromUrl(citation.url) || citation.url;
+                    return (
+                      <a
+                        key={idx}
+                        href={citation.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-2.5 py-2 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 transition-colors"
+                        title={citation.title || citation.url}
+                      >
+                        <WebFavicon url={citation.url} size={16} className="flex-shrink-0" />
+                        <span className="truncate flex-1">
+                          {citation.title || domain}
+                        </span>
+                        <ExternalLink size={14} className="text-zinc-400" />
+                      </a>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -357,6 +380,7 @@ export function ToolRunCards({ tools }) {
           ? tool.title
           : (isWeb ? getWebBrowsingToolTitle(tool.apiName) : "工具调用");
         const statusText = tool.status === "error" ? "失败" : (tool.status === "running" ? "运行中" : "完成");
+        const isRunning = tool.status === "running";
 
         return (
           <div
@@ -365,11 +389,11 @@ export function ToolRunCards({ tools }) {
           >
             <div className="flex items-center gap-2 mb-2">
               <div className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                {icon}
+                {isRunning ? <Loader2 size={13} className="animate-spin text-primary" /> : icon}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium text-zinc-700 dark:text-zinc-200">{title}</div>
-                <div className="text-[11px] text-zinc-400">{statusText}</div>
+                <div className={`text-[11px] ${isRunning ? "text-primary" : "text-zinc-400"}`}>{statusText}</div>
               </div>
             </div>
             <ToolRunPreview tool={tool} />

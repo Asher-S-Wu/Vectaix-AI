@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, Settings2, MessageSquareQuote, X } from "lucide-react";
@@ -36,6 +36,15 @@ export default function SettingsMenu({
     }));
   };
 
+  useEffect(() => {
+    if (!showSettings) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setShowSettings(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showSettings]);
+
   return (
     <div className="relative">
       <button
@@ -57,8 +66,11 @@ export default function SettingsMenu({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/40"
+              className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
               onClick={() => setShowSettings(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-label="对话设置"
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -87,13 +99,16 @@ export default function SettingsMenu({
                   {supportsWebSearch ? (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-zinc-600 dark:text-zinc-300 flex items-center gap-2">
-                        <Search size={15} className="text-blue-500" />
+                        <Search size={15} className="text-primary" />
                         智能联网
                       </span>
                       <button
                         onClick={() => updateWebSearch({ enabled: !webSearchSettings.enabled })}
                         type="button"
-                        className={`relative w-10 h-[22px] rounded-full transition-colors ${webSearchSettings.enabled ? "bg-blue-600" : "bg-zinc-300 dark:bg-zinc-600"}`}
+                        role="switch"
+                        aria-checked={webSearchSettings.enabled}
+                        aria-label="智能联网"
+                        className={`relative w-10 h-[22px] rounded-full transition-colors ${webSearchSettings.enabled ? "bg-primary" : "bg-zinc-300 dark:bg-zinc-600"}`}
                       >
                         <span className={`absolute top-0.5 left-0.5 w-[18px] h-[18px] rounded-full bg-white shadow transition-transform ${webSearchSettings.enabled ? "translate-x-[18px]" : ""}`} />
                       </button>

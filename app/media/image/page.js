@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import NextImage from 'next/image';
-import { ImagePlus, Loader2, Sparkles, Upload, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ImagePlus, Loader2, RefreshCw, Sparkles, Upload, Wand2, X } from 'lucide-react';
 import ImageResultCard from '@/app/components/media/image-result-card';
 import { editImage, generateImage } from '@/lib/media/client/media';
 import {
@@ -48,7 +49,6 @@ export default function ImageGenerationPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
-    setImageUrl('');
 
     if (!prompt.trim()) {
       setError('请输入图片描述');
@@ -93,7 +93,7 @@ export default function ImageGenerationPage() {
     <div className="space-y-6">
       <div className="glass-effect rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 p-5">
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><ImagePlus className="h-5 w-5" /></span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Wand2 className="h-5 w-5" /></span>
           <div>
             <h2 className="text-lg font-semibold">图片生成</h2>
             <p className="text-sm text-zinc-500">使用 {IMAGE_MODEL_NAME}，生成新图片或编辑已有图片。</p>
@@ -101,14 +101,45 @@ export default function ImageGenerationPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div> : null}
+          <AnimatePresence initial={false}>
+            {error ? (
+              <motion.div
+                key="form-error"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  <span>{error}</span>
+                  <button type="submit" className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline">
+                    <RefreshCw className="h-3 w-3" /> 重试
+                  </button>
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
 
-          <div className="grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/70 dark:bg-zinc-900/70 p-1">
-            <button type="button" onClick={() => handleModeChange('generate')} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'generate' ? 'bg-white dark:bg-zinc-800 shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
-              <Sparkles className="h-4 w-4" /> 生成图片
+          <div className="relative grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/70 dark:bg-zinc-900/70 p-1">
+            <button type="button" onClick={() => handleModeChange('generate')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'generate' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
+              {mode === 'generate' && (
+                <motion.span
+                  layoutId="image-mode-pill"
+                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                  className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-800 shadow-sm"
+                />
+              )}
+              <span className="relative flex items-center gap-2"><Sparkles className="h-4 w-4" /> 生成图片</span>
             </button>
-            <button type="button" onClick={() => handleModeChange('edit')} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'edit' ? 'bg-white dark:bg-zinc-800 shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
-              <ImagePlus className="h-4 w-4" /> 编辑图片
+            <button type="button" onClick={() => handleModeChange('edit')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'edit' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
+              {mode === 'edit' && (
+                <motion.span
+                  layoutId="image-mode-pill"
+                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                  className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-800 shadow-sm"
+                />
+              )}
+              <span className="relative flex items-center gap-2"><ImagePlus className="h-4 w-4" /> 编辑图片</span>
             </button>
           </div>
 
@@ -146,7 +177,7 @@ export default function ImageGenerationPage() {
 
           <div className="space-y-2">
             <label htmlFor="image-size" className="text-sm font-medium">图片尺寸</label>
-            <select id="image-size" value={size} onChange={(event) => setSize(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none">
+            <select id="image-size" value={size} onChange={(event) => setSize(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
               {IMAGE_SIZE_OPTIONS.map((option) => (
                 <option key={option.id} value={option.id}>{option.label}</option>
               ))}
@@ -161,20 +192,36 @@ export default function ImageGenerationPage() {
       </div>
 
       {isGenerating ? (
-        <div className="glass-effect rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 p-5 space-y-4" aria-live="polite">
+        <motion.div
+          key="generating"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="glass-effect rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 p-5 space-y-4"
+          aria-live="polite"
+        >
           <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
             正在生成图片，请稍候…
           </div>
-          <div className="flex h-[320px] items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
-            <div className="flex flex-col items-center gap-3 text-zinc-400">
+          <div className="relative flex h-[320px] items-center justify-center overflow-hidden rounded-xl border border-primary/20 bg-primary/5">
+            <div aria-hidden className="absolute inset-0 animate-pulse bg-gradient-to-br from-primary/10 via-transparent to-primary/10" />
+            <div className="relative flex flex-col items-center gap-3 text-primary/70">
               <ImagePlus className="h-10 w-10 animate-pulse" />
               <span className="text-xs">图片生成通常需要十几秒</span>
             </div>
           </div>
-        </div>
-      ) : (
+        </motion.div>
+      ) : imageUrl ? (
         <ImageResultCard imageUrl={imageUrl} title={resultTitle} />
+      ) : (
+        <div className="glass-effect rounded-2xl border border-dashed border-zinc-200/60 dark:border-zinc-800/60 p-8 flex flex-col items-center justify-center text-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <ImagePlus className="h-6 w-6" />
+          </span>
+          <p className="text-sm font-medium text-zinc-500">生成的图片会显示在这里</p>
+          <p className="text-xs text-zinc-400">在上方输入描述，点击「生成图片」开始创作</p>
+        </div>
       )}
     </div>
   );

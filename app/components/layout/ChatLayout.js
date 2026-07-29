@@ -24,6 +24,9 @@ export default function ChatLayout({
   onEmailChange,
   sidebarOpen,
   conversations,
+  conversationsReady = true,
+  conversationsError = false,
+  onRetryConversations,
   currentConversationId,
   onStartNewChat,
   onLoadConversation,
@@ -64,15 +67,22 @@ export default function ChatLayout({
   return (
     <div className="app-root flex overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <ProfileModal open={showProfileModal} onClose={onCloseProfile} user={user} isAdmin={isAdmin} themeMode={themeMode} fontSize={fontSize} onThemeModeChange={onThemeModeChange} onFontSizeChange={onFontSizeChange} completionSoundVolume={completionSoundVolume} onCompletionSoundVolumeChange={onCompletionSoundVolumeChange} avatar={userAvatar} onAvatarChange={onAvatarChange} nickname={nickname} onNicknameChange={onNicknameChange} onEmailChange={onEmailChange} />
-      <Sidebar isOpen={sidebarOpen} conversations={conversations} currentConversationId={currentConversationId} user={user} avatar={userAvatar} nickname={nickname} profileReady={isSettingsReady} onStartNewChat={onStartNewChat} onLoadConversation={onLoadConversation} onDeleteConversation={onDeleteConversation} onRenameConversation={onRenameConversation} onTogglePinConversation={onTogglePinConversation} onOpenProfile={onOpenProfile} onLogout={onLogout} onClose={onCloseSidebar} />
-      {sidebarOpen ? (
-        <button
-          onClick={onCloseSidebar}
-          type="button"
-          aria-label="收起对话列表"
-          className="fixed inset-0 z-[45] cursor-default bg-black/20 backdrop-blur-[2px] md:hidden"
-        />
-      ) : null}
+      <Sidebar isOpen={sidebarOpen} conversations={conversations} conversationsReady={conversationsReady} conversationsError={conversationsError} onRetryConversations={onRetryConversations} currentConversationId={currentConversationId} user={user} avatar={userAvatar} nickname={nickname} profileReady={isSettingsReady} onStartNewChat={onStartNewChat} onLoadConversation={onLoadConversation} onDeleteConversation={onDeleteConversation} onRenameConversation={onRenameConversation} onTogglePinConversation={onTogglePinConversation} onOpenProfile={onOpenProfile} onLogout={onLogout} onClose={onCloseSidebar} />
+      <AnimatePresence>
+        {sidebarOpen ? (
+          <motion.button
+            key="sidebar-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onCloseSidebar}
+            type="button"
+            aria-label="收起对话列表"
+            className="fixed inset-0 z-[45] bg-black/30 dark:bg-black/60 backdrop-blur-[2px] md:hidden"
+          />
+        ) : null}
+      </AnimatePresence>
       <div className="flex-1 flex flex-col w-full h-full relative overflow-hidden">
         <ChatHeader
           onToggleSidebar={onToggleSidebar}
@@ -123,7 +133,7 @@ export default function ChatLayout({
               </motion.button>
             )}
           </AnimatePresence>
-          <div className="composer-wrapper px-4 pb-4 md:pb-6 pt-2 z-20">
+          <div className="composer-wrapper px-4 pt-2 z-20 safe-bottom">
             <Composer {...composerProps} />
           </div>
         </main>

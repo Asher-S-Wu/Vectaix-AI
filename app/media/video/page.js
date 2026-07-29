@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import NextImage from 'next/image';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -16,6 +17,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
+import ConfirmModal from '@/app/components/modals/ConfirmModal';
 import {
   createVideoTask,
   deleteVideoTask,
@@ -45,10 +47,12 @@ const STATUS_LABELS = {
 
 const STATUS_STYLES = {
   queued: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300',
-  in_progress: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300',
+  in_progress: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300',
   completed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300',
   failed: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300',
 };
+
+const STALE_TASK_MS = 10 * 60 * 1000;
 
 function isAcceptedFrame(file) {
   return VIDEO_FRAME_ACCEPTED_MIME_TYPES.includes(file.type);
@@ -97,26 +101,34 @@ function mergeTask(tasks, nextTask) {
 function TaskStatus({ status }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES.queued;
   const label = STATUS_LABELS[status] || status || '排队中';
-  const Icon = status === 'completed' ? CheckCircle2 : status === 'failed' ? AlertTriangle : Clock3;
+  const Icon = status === 'completed' ? CheckCircle2 : status === 'failed' ? AlertTriangle : status === 'in_progress' ? Loader2 : Clock3;
   return (
     <span className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium ${style}`}>
-      <Icon className="h-3.5 w-3.5" />
+      <Icon className={`h-3.5 w-3.5 ${status === 'in_progress' ? 'animate-spin' : ''}`} />
       {label}
     </span>
   );
 }
 
-function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
+function VideoTaskCard({ task, acting, stale, onRefresh, onDelete }) {
   const params = task.params || {};
   const createdAt = formatDate(task.createdAt);
   const tokens = formatTokens(task);
   const errorText = getTaskError(task);
   const canDelete = DELETABLE_STATUSES.has(task.status);
   const isActive = ACTIVE_STATUSES.has(task.status);
+  const isStale = Boolean(stale);
   const title = task.inputMode === 'image' ? '参考图生成视频' : '文字生成视频';
 
   return (
-    <article className="rounded-2xl border border-zinc-200/70 bg-white/80 p-4 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/70">
+    <motion.article
+      layout="position"
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="rounded-2xl border border-zinc-200/70 bg-white/80 p-4 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/70"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -146,7 +158,7 @@ function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
             aria-label="刷新任务"
             title="刷新任务"
           >
-            <RefreshCw className={`h-4 w-4 ${isActive ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${acting ? 'animate-spin' : ''}`} />
           </button>
           {canDelete ? (
             <button
@@ -171,6 +183,12 @@ function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
         </div>
       </div>
 
+      {isStale ? (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+          任务耗时较长，可能仍在排队。可点击右上角刷新按钮手动同步状态。
+        </div>
+      ) : null}
+
       {errorText ? (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
           {errorText}
@@ -182,7 +200,7 @@ function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
           <video
             controls
             playsInline
-            className="w-full overflow-hidden rounded-xl border border-zinc-200 bg-black dark:border-zinc-700"
+            className="w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-950 dark:border-zinc-700"
             src={task.videoUrl}
           >
             您的浏览器不支持视频播放。
@@ -195,7 +213,7 @@ function VideoTaskCard({ task, acting, onRefresh, onDelete }) {
           </div>
         </div>
       ) : null}
-    </article>
+    </motion.article>
   );
 }
 
@@ -215,6 +233,8 @@ export default function VideoGenerationPage() {
   const [actingTaskId, setActingTaskId] = useState('');
   const [error, setError] = useState('');
   const [tasks, setTasks] = useState([]);
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState(null);
+  const [staleTaskIds, setStaleTaskIds] = useState(() => new Set());
 
   const activeTaskKey = useMemo(
     () => tasks
@@ -276,6 +296,21 @@ export default function VideoGenerationPage() {
       clearInterval(timer);
     };
   }, [activeTaskKey, refreshActiveTasks]);
+
+  // 标记耗时过长的任务（在 effect 中计算，避免渲染期调用 Date.now）
+  useEffect(() => {
+    const computeStale = () => {
+      const now = Date.now();
+      setStaleTaskIds(new Set(
+        tasks
+          .filter((task) => ACTIVE_STATUSES.has(task.status) && task.createdAt && (now - new Date(task.createdAt).getTime() > STALE_TASK_MS))
+          .map((task) => task.id)
+      ));
+    };
+    computeStale();
+    const timer = setInterval(computeStale, 60_000);
+    return () => clearInterval(timer);
+  }, [tasks]);
 
   const handleFrameChange = (_kind, file) => {
     setError('');
@@ -356,7 +391,10 @@ export default function VideoGenerationPage() {
     }
   };
 
-  const handleDeleteTask = async (task) => {
+  const handleDeleteTask = async () => {
+    const task = deleteConfirmTask;
+    setDeleteConfirmTask(null);
+    if (!task) return;
     setError('');
     setActingTaskId(task.id);
     try {
@@ -377,7 +415,7 @@ export default function VideoGenerationPage() {
     <div className="space-y-6">
       <div className="glass-effect rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60">
         <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"><Clapperboard className="h-5 w-5" /></span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Clapperboard className="h-5 w-5" /></span>
           <div>
             <h2 className="text-lg font-semibold">视频生成</h2>
             <p className="text-sm text-zinc-500">使用 {VIDEO_MODEL_NAME}，创建视频任务并自动同步结果。</p>
@@ -385,14 +423,40 @@ export default function VideoGenerationPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div> : null}
+          <AnimatePresence initial={false}>
+            {error ? (
+              <motion.div
+                key="video-form-error"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
 
-          <div className="grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 bg-zinc-100/70 p-1 dark:border-zinc-700 dark:bg-zinc-900/70">
-            <button type="button" onClick={() => { setMode('text'); setError(''); }} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'text' ? 'bg-white shadow-sm dark:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
-              <Clapperboard className="h-4 w-4" /> 文字生成
+          <div className="relative grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 bg-zinc-100/70 p-1 dark:border-zinc-700 dark:bg-zinc-900/70">
+            <button type="button" onClick={() => { setMode('text'); setError(''); }} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'text' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
+              {mode === 'text' && (
+                <motion.span
+                  layoutId="video-mode-pill"
+                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                  className="absolute inset-0 rounded-lg bg-white shadow-sm dark:bg-zinc-800"
+                />
+              )}
+              <span className="relative flex items-center gap-2"><Clapperboard className="h-4 w-4" /> 文字生成</span>
             </button>
-            <button type="button" onClick={() => { setMode('image'); setError(''); }} className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'image' ? 'bg-white shadow-sm dark:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
-              <ImagePlus className="h-4 w-4" /> 图片转视频
+            <button type="button" onClick={() => { setMode('image'); setError(''); }} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'image' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
+              {mode === 'image' && (
+                <motion.span
+                  layoutId="video-mode-pill"
+                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                  className="absolute inset-0 rounded-lg bg-white shadow-sm dark:bg-zinc-800"
+                />
+              )}
+              <span className="relative flex items-center gap-2"><ImagePlus className="h-4 w-4" /> 图片转视频</span>
             </button>
           </div>
 
@@ -404,26 +468,26 @@ export default function VideoGenerationPage() {
 
           <div className="space-y-2">
             <label htmlFor="video-prompt" className="text-sm font-medium">视频描述</label>
-            <textarea id="video-prompt" value={prompt} maxLength={VIDEO_PROMPT_MAX_LENGTH} onChange={(event) => setPrompt(event.target.value)} placeholder="描述你想生成的视频内容" className="min-h-[140px] w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-900" />
+            <textarea id="video-prompt" value={prompt} maxLength={VIDEO_PROMPT_MAX_LENGTH} onChange={(event) => setPrompt(event.target.value)} placeholder="描述你想生成的视频内容" className="min-h-[140px] w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-primary dark:border-zinc-700 dark:bg-zinc-900" />
             <div className="text-right text-xs text-zinc-500">{prompt.length}/{VIDEO_PROMPT_MAX_LENGTH}</div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <label htmlFor="video-ratio" className="text-sm font-medium">画面比例</label>
-              <select id="video-ratio" value={ratio} onChange={(event) => setRatio(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+              <select id="video-ratio" value={ratio} onChange={(event) => setRatio(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:bg-zinc-900">
                 {VIDEO_ASPECT_RATIO_OPTIONS.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
               </select>
             </div>
             <div className="space-y-2">
               <label htmlFor="video-duration" className="text-sm font-medium">视频时长</label>
-              <select id="video-duration" value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+              <select id="video-duration" value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:bg-zinc-900">
                 {VIDEO_DURATION_OPTIONS.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
               </select>
             </div>
             <div className="space-y-2">
               <label htmlFor="video-resolution" className="text-sm font-medium">分辨率</label>
-              <select id="video-resolution" value={resolution} onChange={(event) => setResolution(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+              <select id="video-resolution" value={resolution} onChange={(event) => setResolution(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:bg-zinc-900">
                 {VIDEO_RESOLUTION_OPTIONS.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
               </select>
             </div>
@@ -431,11 +495,11 @@ export default function VideoGenerationPage() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <label className="flex min-h-[64px] items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-700">
-              <input type="checkbox" checked={generateAudio} onChange={(event) => setGenerateAudio(event.target.checked)} className="h-4 w-4" />
+              <input type="checkbox" checked={generateAudio} onChange={(event) => setGenerateAudio(event.target.checked)} className="h-4 w-4 accent-primary" />
               生成音轨
             </label>
             <label className="flex min-h-[64px] items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-700">
-              <input type="checkbox" checked={watermark} onChange={(event) => setWatermark(event.target.checked)} className="h-4 w-4" />
+              <input type="checkbox" checked={watermark} onChange={(event) => setWatermark(event.target.checked)} className="h-4 w-4 accent-primary" />
               添加水印
             </label>
           </div>
@@ -467,27 +531,53 @@ export default function VideoGenerationPage() {
         </div>
 
         {tasksLoading ? (
-          <div className="rounded-2xl border border-zinc-200/70 bg-white/80 p-6 text-sm text-zinc-500 dark:border-zinc-800/70 dark:bg-zinc-950/70">
-            正在读取任务…
+          <div className="space-y-3" aria-hidden="true">
+            {[0, 1].map((i) => (
+              <div key={i} className="rounded-2xl border border-zinc-200/70 bg-white/80 p-4 shadow-sm dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-8 w-20 rounded-full bg-zinc-200 animate-pulse" />
+                  <div className="h-4 w-28 rounded bg-zinc-100 animate-pulse" />
+                </div>
+                <div className="h-4 w-3/4 rounded bg-zinc-100 animate-pulse mb-2" />
+                <div className="h-3 w-1/2 rounded bg-zinc-100 animate-pulse" />
+              </div>
+            ))}
           </div>
         ) : tasks.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-200/70 bg-white/80 p-6 text-sm text-zinc-500 dark:border-zinc-800/70 dark:bg-zinc-950/70">
-            暂无视频任务
+          <div className="rounded-2xl border border-dashed border-zinc-200/70 bg-white/80 p-8 flex flex-col items-center justify-center text-center gap-3 dark:border-zinc-800/70 dark:bg-zinc-950/70">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Clapperboard className="h-6 w-6" />
+            </span>
+            <p className="text-sm font-medium text-zinc-500">暂无视频任务</p>
+            <p className="text-xs text-zinc-400">在上方填写描述并创建任务，生成进度会实时同步到这里</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {tasks.map((task) => (
-              <VideoTaskCard
-                key={task.id}
-                task={task}
-                acting={actingTaskId === task.id}
-                onRefresh={refreshTask}
-                onDelete={handleDeleteTask}
-              />
-            ))}
+            <AnimatePresence initial={false}>
+              {tasks.map((task) => (
+                <VideoTaskCard
+                  key={task.id}
+                  task={task}
+                  acting={actingTaskId === task.id}
+                  stale={staleTaskIds.has(task.id)}
+                  onRefresh={refreshTask}
+                  onDelete={setDeleteConfirmTask}
+                />
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </section>
+
+      <ConfirmModal
+        open={Boolean(deleteConfirmTask)}
+        onClose={() => setDeleteConfirmTask(null)}
+        onConfirm={handleDeleteTask}
+        title="删除视频任务"
+        message="确定要删除这个视频任务吗？已生成的视频将无法再访问。"
+        confirmText="删除"
+        danger
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import NextImage from "next/image";
 import {
+  Check,
   Copy,
   Download,
   Edit3,
@@ -86,6 +87,8 @@ export default function MessageList({
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, index: null, role: null });
   const [openExportMenuIndex, setOpenExportMenuIndex] = useState(null);
+  const [copiedIndex, setCopiedIndex] = useState(null);
+  const copyTimerRef = useRef(null);
   const canEditImages = modelSupportsAvailableInput(model, "image");
   const toast = useToast();
   const hasWaitingFirstChunk = messages.some((message) => message?.isWaitingFirstChunk);
@@ -111,7 +114,7 @@ export default function MessageList({
   useEffect(() => {
     const timer = setTimeout(() => setOpenExportMenuIndex(null), 0);
     return () => clearTimeout(timer);
-  }, [messages]);
+  }, [messages.length]);
 
   const openLightbox = (src) => {
     if (!src) return;
@@ -126,6 +129,13 @@ export default function MessageList({
 
   const handleDeleteClick = (index, role) => {
     setDeleteConfirm({ open: true, index, role });
+  };
+
+  const handleCopyClick = (index, msg) => {
+    onCopy(buildCopyText(msg));
+    setCopiedIndex(index);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopiedIndex(null), 1600);
   };
 
   const handleConfirmDelete = () => {
@@ -309,7 +319,8 @@ export default function MessageList({
           </div>
         )
       ) : (
-        messages.map((msg, i) => {
+        <AnimatePresence initial={false}>
+          {messages.map((msg, i) => {
           const fallbackThinkingTimeline = normalizeFallbackToolTimeline(msg.tools);
           const displayParts = Array.isArray(msg.parts) && msg.role === "model"
             ? msg.parts.filter((part) => !(typeof part?.text === "string" && isPendingRunText(part.text)) && !part?.thought)
@@ -330,6 +341,8 @@ export default function MessageList({
           const shouldRenderToolCards = msg.role === "model" && hasToolRuns && !hasThinkingTimeline && msg.tools.some((t) => t?.id);
           const shouldRenderBubble = hasParts || hasVisibleContent || shouldRenderToolCards;
           const canRegenerateMessage = msg.role === "model" && messages[i - 1]?.role === "user";
+          const isFailedModelMessage = msg.role === "model" && !shouldRenderBubble && !msg.isStreaming && !msg.isWaitingFirstChunk
+            && !msg.thought && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasToolRuns;
 
           if (msg.role === "model" && !msg.thought && !hasVisibleContent && !hasParts && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasToolRuns && msg.isWaitingFirstChunk) {
             return null;
@@ -338,15 +351,17 @@ export default function MessageList({
           return (
             <motion.div
               key={msg.id}
+              layout="position"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
               className={`flex flex-col gap-3 ${msg.role === "user" ? "items-end" : "items-start"} max-w-4xl mx-auto w-full group`}
             >
               {msg.role === "model" && (msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasToolRuns) && (
                 <div className="flex items-center gap-2 pl-1">
-                  <AIAvatar model={model} size={24} animate={msg.isStreaming} />
+                  <AIAvatar model={msg.model || model} size={24} animate={msg.isStreaming} />
                   <span className="text-[11px] text-zinc-400 font-bold tracking-wider">
-                    {CHAT_MODELS.find((m) => m.id === model)?.name}
+                    {CHAT_MODELS.find((m) => m.id === (msg.model || model))?.name}
                   </span>
                 </div>
               )}
@@ -358,7 +373,7 @@ export default function MessageList({
                       {userNickname || "您"}
                     </span>
                     {userAvatar ? (
-                      <NextImage src={userAvatar} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-md object-cover ring-1 ring-zinc-200/50" />
+                      <NextImage src={userAvatar} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-md object-cover ring-1 ring-zinc-200/50 dark:ring-zinc-700" />
                     ) : (
                       <div className="w-5 h-5 rounded-md bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-500">
                         {userNickname?.[0] || "您"}
@@ -381,7 +396,7 @@ export default function MessageList({
 
                 {editingMsgIndex === i && msg.role === "user" ? (
                   <div className="w-full flex flex-col items-end gap-2">
-                    <div className="msg-bubble-user w-full max-w-full glass-effect !bg-white dark:!bg-zinc-800 border-primary/20">
+                    <div className="msg-bubble-user w-full max-w-full glass-effect !bg-white border-primary/20">
                       {canEditImages ? (
                         <>
                           <input
@@ -426,7 +441,7 @@ export default function MessageList({
                       />
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded-lg">取消</button>
+                      <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors">取消</button>
                       <button
                         onClick={() => onSubmitEdit(i)}
                         disabled={isEditingImageUploading}
@@ -475,30 +490,48 @@ export default function MessageList({
                             })()}
                           </div>
                         ) : hasVisibleContent ? (
-                          <Markdown
-                            enableHighlight={!msg.isStreaming}
-                            enableMath={true}
-                          >
-                            {msg.content}
-                          </Markdown>
+                          <>
+                            <Markdown
+                              enableHighlight={!msg.isStreaming}
+                              enableMath={true}
+                            >
+                              {msg.content}
+                            </Markdown>
+                            {msg.isStreaming && <span className="stream-caret" aria-hidden="true" />}
+                          </>
                         ) : null}
                         {shouldRenderToolCards && <ToolRunCards tools={msg.tools} />}
                         {msg.role === "model" && !msg.isStreaming && msg.citations && <Citations citations={msg.citations} />}
                       </div>
                     )}
 
-                    {!msg.isStreaming && (
-                      <div className={`msg-actions flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                    {isFailedModelMessage && (
+                      <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-sm">
+                        <span>生成失败，没有收到有效回复</span>
+                        {canRegenerateMessage && (
+                          <button
+                            onClick={() => onRegenerateModelMessage?.(i)}
+                            disabled={loading || hasStreamingContent}
+                            className="shrink-0 px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            重新生成
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {!msg.isStreaming && !isFailedModelMessage && (
+                      <div className={`msg-actions flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0 group-focus-within:translate-y-0 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                         {msg.role === "model" && (hasParts || hasVisibleContent) && (
                           <div className="relative" ref={openExportMenuIndex === i ? exportMenuRef : null}>
-                            <button onClick={() => setOpenExportMenuIndex(prev => prev === i ? null : i)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg" title="导出">
+                            <button onClick={() => setOpenExportMenuIndex(prev => prev === i ? null : i)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="导出" aria-label="导出消息">
                               <Download size={16} />
                             </button>
                             <AnimatePresence>
                               {openExportMenuIndex === i && (
-                                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className="absolute right-0 top-full z-20 mt-1 min-w-[150px] rounded-xl glass-effect border-zinc-200/50 p-1.5 shadow-pop">
+                                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className={`absolute right-0 z-20 min-w-[150px] rounded-xl glass-effect border-zinc-200/50 p-1.5 shadow-pop ${i >= messages.length - 2 ? "bottom-full mb-1" : "top-full mt-1"}`}>
                                   {["markdown", "pdf", "docx"].map(format => (
-                                    <button key={format} onClick={() => handleExportMessage(format, msg)} className="w-full text-left px-3 py-2 text-sm hover:bg-primary/5 rounded-lg">{EXPORT_FORMAT_LABELS[format] || format}</button>
+                                    <button key={format} onClick={() => handleExportMessage(format, msg)} className="w-full text-left px-3 py-2 text-sm hover:bg-primary/5 rounded-lg transition-colors">{EXPORT_FORMAT_LABELS[format] || format}</button>
                                   ))}
                                 </motion.div>
                               )}
@@ -508,22 +541,25 @@ export default function MessageList({
                         {canRegenerateMessage ? (
                           <button
                             onClick={() => onRegenerateModelMessage?.(i)}
-                            className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg"
+                            disabled={loading || hasStreamingContent}
+                            className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-400"
                             title="重新生成"
+                            aria-label="重新生成"
                           >
                             <RefreshCw size={16} />
                           </button>
                         ) : null}
                         <button
-                          onClick={() => onCopy(buildCopyText(msg))}
-                          className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg"
+                          onClick={() => handleCopyClick(i, msg)}
+                          className={`p-2 rounded-lg transition-colors ${copiedIndex === i ? "text-emerald-500" : "text-zinc-400 hover:text-primary hover:bg-primary/5"}`}
                           title="复制内容"
+                          aria-label="复制内容"
                         >
-                          <Copy size={16} />
+                          {copiedIndex === i ? <Check size={16} /> : <Copy size={16} />}
                         </button>
-                        <button onClick={() => handleDeleteClick(i, msg.role)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="删除"><Trash2 size={16} /></button>
+                        <button onClick={() => handleDeleteClick(i, msg.role)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="删除" aria-label="删除消息"><Trash2 size={16} /></button>
                         {msg.role === "user" && (
-                          <button onClick={() => onStartEdit(i, msg)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg" title="编辑"><Edit3 size={16} /></button>
+                          <button onClick={() => onStartEdit(i, msg)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="编辑" aria-label="编辑消息"><Edit3 size={16} /></button>
                         )}
                       </div>
                     )}
@@ -532,16 +568,22 @@ export default function MessageList({
               </div>
             </motion.div>
           );
-        })
+          })}
+        </AnimatePresence>
       )}
 
       {messages.length > 0 && (loading || hasWaitingFirstChunk) && !hasStreamingContent && (
-        <div className="flex gap-3 items-start max-w-4xl mx-auto w-full">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="flex gap-3 items-start max-w-4xl mx-auto w-full"
+        >
           <ResponsiveAIAvatar model={model} desktopSize={24} animate />
-          <div className="px-5 py-3 glass-effect rounded-2xl shadow-sm">
+          <div className="msg-bubble-ai px-5 py-3.5">
             <LoadingSweepText text="..." className="loading-sweep-dots text-xl" />
           </div>
-        </div>
+        </motion.div>
       )}
 
       <div ref={chatEndRef} />

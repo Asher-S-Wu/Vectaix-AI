@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, X } from "lucide-react";
+import { Download, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 
@@ -114,8 +114,13 @@ export default function ImageLightbox({ open, onClose, src }) {
             exit={{ scale: 0.98, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
             style={displayStyle}
-            className="relative flex items-center justify-center bg-black/30 rounded-2xl border border-white/10 shadow-pop backdrop-blur overflow-hidden"
+            className="relative flex items-center justify-center bg-black/30 rounded-2xl border border-white/10 shadow-pop backdrop-blur overflow-hidden transition-[width,height] duration-200 min-w-[120px] min-h-[120px]"
           >
+            {(!loadedImage || loadedImage.src !== src) && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Loader2 size={26} className="animate-spin text-white/70" />
+              </div>
+            )}
             <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
               {canDownload && (
                 <button

@@ -83,6 +83,19 @@
   box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
+/* Global keyboard focus indicator (components with focus:outline-none keep their own styles) */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* App surface colors that bypass the dark-mode utility overrides below */
+.bg-app { background-color: var(--bg-primary); }
+.bg-app-secondary { background-color: var(--bg-secondary); }
+.bg-app-tertiary { background-color: var(--bg-tertiary); }
+.text-app-muted { color: var(--text-muted); }
+.border-app { border-color: var(--border-color); }
+
 /* Hide scrollbars entirely (e.g. auto-growing textarea) */
 .no-scrollbar {
   scrollbar-width: none;
@@ -246,6 +259,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .prose :not(pre) > code {
   background: var(--bg-tertiary);
+  color: var(--primary-strong);
   padding: 0.2em 0.4em;
   border-radius: 4px;
   font-size: 0.9em;
@@ -399,14 +413,27 @@ h1, h2, h3, h4, h5, h6 {
 .prose li { margin: 0.25em 0; }
 
 /* ===== Message Bubbles ===== */
-.msg-bubble-user {
-  background: var(--user-bubble-bg);
-  color: var(--user-bubble-text);
-  border-radius: 18px;
-  border-bottom-right-radius: 6px;
-  padding: 0.75rem 1rem;
-  border: none;
-  box-shadow: var(--user-bubble-shadow);
+/* In @layer components so Tailwind spacing utilities in markup can win */
+@layer components {
+  .msg-bubble-user {
+    background: var(--user-bubble-bg);
+    color: var(--user-bubble-text);
+    border-radius: 18px;
+    border-bottom-right-radius: 6px;
+    padding: 0.75rem 1rem;
+    border: none;
+    box-shadow: var(--user-bubble-shadow);
+  }
+
+  .msg-bubble-ai {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 18px;
+    border-top-left-radius: 6px;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-soft);
+  }
 }
 
 .msg-bubble-user .prose {
@@ -422,19 +449,19 @@ h1, h2, h3, h4, h5, h6 {
   color: #e0f2fe;
 }
 
-.msg-bubble-ai {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  border-radius: 18px;
-  border-top-left-radius: 6px;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-soft);
-}
-
 /* Input area wrapper */
 .composer-wrapper {
   background: linear-gradient(to top, var(--bg-primary) 60%, transparent);
+}
+
+/* Bottom safe area for devices with home indicator */
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  .safe-bottom {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
 }
 
 /* Composer: brand-tinted focus glow */
@@ -577,7 +604,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .dark-mode .hover\:bg-zinc-200:hover {
-  background-color: #71717a !important;
+  background-color: #52525b !important;
 }
 
 /* Semi-transparent backgrounds */
@@ -730,12 +757,29 @@ h1, h2, h3, h4, h5, h6 {
 .text-size-medium .prose { font-size: 0.925rem; }
 .text-size-large .prose { font-size: 1.05rem; }
 
-.text-size-small .msg-bubble { font-size: 0.8rem; }
+.text-size-small .msg-bubble-user, .text-size-small .msg-bubble-ai { font-size: 0.8rem; }
 .text-size-small .thinking-block { font-size: 0.8rem; }
-.text-size-medium .msg-bubble { font-size: 0.875rem; }
+.text-size-medium .msg-bubble-user, .text-size-medium .msg-bubble-ai { font-size: 0.875rem; }
 .text-size-medium .thinking-block { font-size: 0.875rem; }
-.text-size-large .msg-bubble { font-size: 0.95rem; }
+.text-size-large .msg-bubble-user, .text-size-large .msg-bubble-ai { font-size: 0.95rem; }
 .text-size-large .thinking-block { font-size: 0.95rem; }
+
+/* ===== Streaming caret ===== */
+.stream-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--primary);
+  vertical-align: -0.12em;
+  border-radius: 1px;
+  animation: caretBlink 0.9s steps(2, start) infinite;
+}
+
+@keyframes caretBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
 
 /* ===== Sweep loading text ===== */
 @keyframes loadingSweep {
@@ -838,7 +882,7 @@ h1, h2, h3, h4, h5, h6 {
 .dark-mode .auth-modal { background-color: var(--bg-secondary); }
 .dark-mode .auth-modal .text-zinc-900 { color: var(--text-primary) !important; }
 .dark-mode .auth-input { background-color: var(--bg-tertiary); border-color: var(--border-color); color: var(--text-primary); }
-.dark-mode .auth-input:focus { border-color: #71717a; }
+.dark-mode .auth-input:focus { border-color: var(--primary); }
 
 /* ===== Toast Dark Mode ===== */
 .toast-success { background-color: #ecfdf5; border-color: #a7f3d0; }
@@ -877,6 +921,10 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Amber / Yellow */
 .dark-mode .bg-amber-50 { background-color: rgba(120, 53, 15, 0.25) !important; }
+.dark-mode .hover\:bg-amber-50:hover { background-color: rgba(120, 53, 15, 0.25) !important; }
+.dark-mode .hover\:text-amber-600:hover { color: #fbbf24 !important; }
+.dark-mode .text-amber-600 { color: #fbbf24 !important; }
+.dark-mode .text-amber-700 { color: #fcd34d !important; }
 
 /* Sky / Blue */
 .dark-mode .bg-sky-100 { background-color: rgba(12, 74, 110, 0.3) !important; }
@@ -895,5 +943,9 @@ h1, h2, h3, h4, h5, h6 {
   .msg-actions {
     opacity: 1;
     transform: none;
+  }
+
+  .preset-actions {
+    opacity: 1;
   }
 }

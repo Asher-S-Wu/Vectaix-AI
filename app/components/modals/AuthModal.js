@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import BrandMark from "../common/BrandMark";
 
@@ -16,15 +17,30 @@ export default function AuthModal({
   loading,
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="auth-modal w-full max-w-sm rounded-3xl bg-white shadow-pop p-8 relative overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", damping: 24, stiffness: 320 }}
+        className="auth-modal w-full max-w-sm rounded-3xl bg-white shadow-pop p-8 relative overflow-hidden"
+      >
         {/* 顶部品牌光晕 */}
         <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-48 bg-primary/15 blur-3xl rounded-full" />
 
         <div className="flex flex-col items-center mb-8 relative">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center shadow-soft">
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ type: "spring", damping: 13, stiffness: 200, delay: 0.08 }}
+            className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center shadow-soft"
+          >
             <BrandMark size={30} />
-          </div>
+          </motion.div>
           <span className="mt-3 text-[11px] font-bold tracking-[0.22em] text-zinc-400 uppercase">
             Vectaix AI
           </span>
@@ -44,6 +60,7 @@ export default function AuthModal({
             onChange={(e) => onEmailChange(e.target.value)}
             className="auth-input focus-ring w-full border border-zinc-200 rounded-xl p-3 text-zinc-900 placeholder-zinc-400 outline-none transition-all"
             required
+            autoFocus
           />
           <input
             type="password"
@@ -54,7 +71,10 @@ export default function AuthModal({
             required
           />
           {authMode === "register" && (
-            <input
+            <motion.input
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              transition={{ duration: 0.2 }}
               type="password"
               placeholder="确认密码"
               value={confirmPassword}
@@ -80,7 +100,7 @@ export default function AuthModal({
             {authMode === "login" ? "立即注册" : "立即登录"}
           </button>
         </p>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -67,28 +67,33 @@ export default function ConfirmModal({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
-                    onClick={onClose}
+                    className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+                    onClick={handleCancel}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={title}
                 >
-                    <div className="absolute inset-0 bg-black/40" />
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
                     <motion.div
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.95, opacity: 0 }}
+                        initial={{ scale: 0.95, opacity: 0, y: 8 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.95, opacity: 0, y: 8 }}
+                        transition={{ duration: 0.18 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-pop max-w-sm w-full p-6"
+                        className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 max-w-sm w-full p-6"
                     >
                         <button
                             onClick={handleCancel}
                             disabled={isProcessing}
-                            className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="关闭"
+                            className="absolute top-4 right-4 p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <X size={18} />
                         </button>
 
                         <div className="flex flex-col items-center text-center">
                             <div
-                                className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${danger ? "bg-red-100 dark:bg-red-900/30 text-red-500" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                                className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${danger ? "bg-red-100 text-red-500" : "bg-zinc-100 text-zinc-600 dark:text-zinc-400"
                                     }`}
                             >
                                 <AlertTriangle size={24} />
@@ -103,7 +108,8 @@ export default function ConfirmModal({
                                 <button
                                     onClick={handleCancel}
                                     disabled={isProcessing}
-                                    className="flex-1 px-4 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    autoFocus
+                                    className="flex-1 px-4 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {cancelText}
                                 </button>

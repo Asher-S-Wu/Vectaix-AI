@@ -426,6 +426,7 @@ export async function POST(req) {
             modelMessage = {
               id: resolvedModelMessageId,
               role: "model",
+              model,
               content: "",
               type: "parts",
               parts: [{
@@ -482,6 +483,7 @@ export async function POST(req) {
             modelMessage = {
               id: resolvedModelMessageId,
               role: "model",
+              model,
               content: "",
               type: "parts",
               parts: [{ fileData: serializeStoredFile(saved.storedFile) }],

@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 import { UI_THEME_MODE_KEY } from "@/lib/shared/storageKeys";
 
 const THEME_CHANGE_EVENT = "vectaix-theme-change";
+const THEME_MODE_CYCLE = ["system", "light", "dark"];
 
 function applyTheme(isDark) {
   const root = document.documentElement;
@@ -22,13 +23,12 @@ function resolveIsDark(mode) {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-function getThemeSnapshot() {
-  const mode = localStorage.getItem(UI_THEME_MODE_KEY) || "system";
-  return resolveIsDark(mode);
+function getModeSnapshot() {
+  return localStorage.getItem(UI_THEME_MODE_KEY) || "system";
 }
 
-function getServerThemeSnapshot() {
-  return false;
+function getServerModeSnapshot() {
+  return "system";
 }
 
 function subscribeTheme(onStoreChange) {
@@ -44,34 +44,45 @@ function subscribeTheme(onStoreChange) {
   };
 }
 
+const MODE_META = {
+  system: { icon: Monitor, label: "跟随系统" },
+  light: { icon: Sun, label: "浅色模式" },
+  dark: { icon: Moon, label: "深色模式" },
+};
+
 export default function MediaHeader() {
   const pathname = usePathname();
-  const isDark = useSyncExternalStore(
+  const mode = useSyncExternalStore(
     subscribeTheme,
-    getThemeSnapshot,
-    getServerThemeSnapshot,
+    getModeSnapshot,
+    getServerModeSnapshot,
   );
 
-  const toggleTheme = () => {
-    const next = !isDark;
-    localStorage.setItem(UI_THEME_MODE_KEY, next ? "dark" : "light");
-    applyTheme(next);
+  const cycleTheme = () => {
+    const next = THEME_MODE_CYCLE[(THEME_MODE_CYCLE.indexOf(mode) + 1) % THEME_MODE_CYCLE.length];
+    if (next === "system") {
+      localStorage.removeItem(UI_THEME_MODE_KEY);
+    } else {
+      localStorage.setItem(UI_THEME_MODE_KEY, next);
+    }
+    applyTheme(resolveIsDark(next));
     window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   };
 
+  const ModeIcon = MODE_META[mode]?.icon || Monitor;
   const navItems = [
     { href: "/media/image", label: "图片生成" },
     { href: "/media/video", label: "视频生成" },
   ];
 
   return (
-    <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
-        <div>
-          <h1 className="text-lg font-semibold">媒体工作台</h1>
-          <p className="text-sm text-zinc-500">图片与视频生成</p>
+    <header className="sticky top-0 z-40 glass-effect border-b border-zinc-200/50">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
+        <div className="min-w-0">
+          <h1 className="text-base sm:text-lg font-semibold leading-tight">媒体工作台</h1>
+          <p className="hidden sm:block text-xs text-zinc-500">图片与视频生成</p>
         </div>
-        <nav className="flex items-center gap-2">
+        <nav className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar">
           {navItems.map((item) => {
             const active = pathname === item.href;
             return (
@@ -79,10 +90,10 @@ export default function MediaHeader() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                className={`shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                   active
                     ? "bg-primary/10 text-primary"
-                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100"
                 }`}
               >
                 {item.label}
@@ -91,17 +102,18 @@ export default function MediaHeader() {
           })}
           <Link
             href="/"
-            className="rounded-xl px-3 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="shrink-0 rounded-xl px-3 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 transition-colors"
           >
             返回聊天
           </Link>
           <button
             type="button"
-            onClick={toggleTheme}
-            aria-label={isDark ? "切换到浅色模式" : "切换到深色模式"}
-            className="rounded-xl p-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            onClick={cycleTheme}
+            aria-label={`主题模式：${MODE_META[mode]?.label}，点击切换`}
+            title={`主题：${MODE_META[mode]?.label}`}
+            className="shrink-0 rounded-xl p-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 transition-colors"
           >
-            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            <ModeIcon size={18} />
           </button>
         </nav>
       </div>

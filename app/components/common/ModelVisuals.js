@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Clapperboard, ImagePlus } from "lucide-react";
 import { getModelProvider } from "@/lib/shared/models";
 
@@ -10,19 +13,46 @@ const PROVIDER_LOGOS = Object.freeze({
   moonshot: "https://assets.aihubmix.com/logos_svg/logo_kimi.svg",
 });
 
+// Logos that are solid black and invisible on dark backgrounds
+const DARK_INVERT_PROVIDERS = new Set(["openai", "xai"]);
+
+function FallbackMark({ provider, size }) {
+  const letter = (typeof provider === "string" && provider ? provider[0] : "?").toUpperCase();
+  return (
+    <span
+      aria-hidden
+      className="inline-flex shrink-0 items-center justify-center rounded-sm bg-primary/15 font-bold text-primary"
+      style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.62)) }}
+    >
+      {letter}
+    </span>
+  );
+}
+
 function ProviderMark({ provider, size }) {
+  const [failed, setFailed] = useState(false);
   if (provider === "image-gen") {
     return <ImagePlus aria-hidden style={{ width: size, height: size }} />;
   }
   if (provider === "video-gen") {
     return <Clapperboard aria-hidden style={{ width: size, height: size }} />;
   }
-  const logo = PROVIDER_LOGOS[provider] || PROVIDER_LOGOS.openai;
+  const logo = PROVIDER_LOGOS[provider];
+  if (!logo || failed) {
+    return <FallbackMark provider={provider} size={size} />;
+  }
   return (
-    <span
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       aria-hidden
-      className="inline-flex shrink-0 bg-contain bg-center bg-no-repeat"
-      style={{ width: size, height: size, backgroundImage: `url("${logo}")` }}
+      src={logo}
+      alt=""
+      width={size}
+      height={size}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className={`inline-block shrink-0 object-contain ${DARK_INVERT_PROVIDERS.has(provider) ? "dark:invert" : ""}`}
+      style={{ width: size, height: size }}
     />
   );
 }

@@ -28,6 +28,8 @@ export default function ChatApp() {
   const [confirmModalConfig, setConfirmModalConfig] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
+  const [conversationsReady, setConversationsReady] = useState(false);
+  const [conversationsError, setConversationsError] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -116,6 +118,8 @@ export default function ChatApp() {
     hasRestoredConversationRef.current = false;
     setServerSettingsReady(false);
     setConversations([]);
+    setConversationsReady(false);
+    setConversationsError(false);
     setCurrentConversationId(null);
     setMessages([]);
     setSettingsError(null);
@@ -203,7 +207,8 @@ export default function ChatApp() {
       } catch {
         data = null;
       }
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("conversations fetch failed");
+      setConversationsError(false);
       let nextConversations = [];
       setConversations(() => {
         nextConversations = data?.conversations
@@ -215,7 +220,10 @@ export default function ChatApp() {
         setCurrentConversationId(null);
         setMessages([]);
       }
-    } catch { }
+    } catch {
+      setConversationsError(true);
+    }
+    setConversationsReady(true);
   }
 
   const handleConversationMissing = () => {
@@ -416,42 +424,51 @@ export default function ChatApp() {
   const deleteConversation = async (id, e) => {
     e?.stopPropagation?.();
     try {
-      await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
       setConversations((prev) => prev.filter((c) => c._id !== id));
       if (currentConversationId === id) {
         setCurrentConversationId(null);
         setMessages([]);
       }
-    } catch { }
+    } catch {
+      toast.error("删除对话失败，请重试");
+    }
   };
 
   const renameConversation = async (id, newTitle) => {
     try {
-      await fetch(`/api/conversations/${id}`, {
+      const res = await fetch(`/api/conversations/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newTitle }),
       });
+      if (!res.ok) throw new Error("rename failed");
       setConversations((prev) =>
         prev.map((c) => (c._id === id ? { ...c, title: newTitle } : c))
       );
-    } catch { }
+    } catch {
+      toast.error("重命名失败，请重试");
+    }
   };
 
   const togglePinConversation = async (id, nextPinned) => {
     try {
-      await fetch(`/api/conversations/${id}`, {
+      const res = await fetch(`/api/conversations/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pinned: nextPinned }),
       });
+      if (!res.ok) throw new Error("pin failed");
       setConversations((prev) => {
         const next = prev.map((c) =>
           c._id === id ? { ...c, pinned: nextPinned, updatedAt: new Date().toISOString() } : c
         );
         return sortConversations(next);
       });
-    } catch { }
+    } catch {
+      toast.error("操作失败，请重试");
+    }
   };
 
   const updateThemeMode = (mode) => {
@@ -482,13 +499,19 @@ export default function ChatApp() {
           onEmailChange={(updatedUser) => setUser((prev) => ({ ...prev, email: updatedUser.email }))}
           sidebarOpen={sidebarOpen}
           conversations={conversations}
+          conversationsReady={conversationsReady}
+          conversationsError={conversationsError}
+          onRetryConversations={fetchConversations}
           currentConversationId={currentConversationId}
           onStartNewChat={startNewChat}
           onLoadConversation={loadConversation}
           onDeleteConversation={deleteConversation}
           onRenameConversation={renameConversation}
           onTogglePinConversation={togglePinConversation}
-          onOpenProfile={() => setShowProfileModal(true)}
+          onOpenProfile={() => {
+            setSidebarOpen(false);
+            setShowProfileModal(true);
+          }}
           onLogout={handleLogout}
           onCloseSidebar={() => setSidebarOpen(false)}
           onToggleSidebar={() => setSidebarOpen((v) => !v)}

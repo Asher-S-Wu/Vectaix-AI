@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Plus, Trash2, Edit3, MessageSquareQuote, Check } from "lucide-react";
 import { useToast } from "../common/ToastProvider";
+import ConfirmModal from "../modals/ConfirmModal";
 import { useClientReady } from "@/lib/client/hooks/useClientReady";
 
 export default function SystemPromptModal({
@@ -26,6 +27,16 @@ export default function SystemPromptModal({
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !deleteConfirmId) onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, deleteConfirmId, onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -90,9 +101,15 @@ export default function SystemPromptModal({
     toast.success(`已应用预设：${preset.name}`);
   };
 
-  const handleDeletePreset = async (e, id) => {
+  const handleDeletePreset = (e, id) => {
     e.stopPropagation();
-    if (!window.confirm("确定删除此预设吗？")) return;
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDeletePreset = async () => {
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
+    if (!id) return;
     try {
       await deleteSystemPrompt(id);
       toast.success("已删除预设");
@@ -105,7 +122,8 @@ export default function SystemPromptModal({
   if (!mounted) return null;
 
   return createPortal(
-    <AnimatePresence>
+    <>
+      <AnimatePresence>
       {open && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -139,9 +157,9 @@ export default function SystemPromptModal({
                     >
                       <div className="flex justify-between items-start mb-1.5">
                         <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate pr-8">{preset.name}</h4>
-                        <div className="absolute right-2 top-2 flex opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => handleEditPreset(e, preset)} className="p-1.5 text-zinc-400 hover:text-blue-500 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 transition-colors"><Edit3 size={14}/></button>
-                          <button onClick={(e) => handleDeletePreset(e, preset._id)} className="p-1.5 text-zinc-400 hover:text-red-500 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 ml-1 transition-colors"><Trash2 size={14}/></button>
+                        <div className="preset-actions absolute right-2 top-2 flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                          <button onClick={(e) => handleEditPreset(e, preset)} aria-label="编辑预设" className="p-1.5 text-zinc-400 hover:text-primary bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 transition-colors"><Edit3 size={14}/></button>
+                          <button onClick={(e) => handleDeletePreset(e, preset._id)} aria-label="删除预设" className="p-1.5 text-zinc-400 hover:text-red-500 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 ml-1 transition-colors"><Trash2 size={14}/></button>
                         </div>
                       </div>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">{preset.content}</p>
@@ -245,7 +263,17 @@ export default function SystemPromptModal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>,
+      </AnimatePresence>
+      <ConfirmModal
+        open={Boolean(deleteConfirmId)}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={confirmDeletePreset}
+        title="删除预设"
+        message="确定要删除这个预设吗？此操作无法撤销。"
+        confirmText="删除"
+        danger
+      />
+    </>,
     document.body
   );
 }

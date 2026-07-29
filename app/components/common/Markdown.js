@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, cloneElement } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
@@ -94,35 +94,44 @@ export default function Markdown({
               <div className="table-cell-inner">{children}</div>
             </td>
           ),
-          code: ({ node, className, children, inline, ...props }) => {
-            const match = /language-(\w+)/.exec(className || "");
+          code: ({ node, className, children, ...props }) => (
+            <code className={className} {...props}>{children}</code>
+          ),
+          pre: ({ children }) => {
+            const childArray = Array.isArray(children) ? children : [children];
+            const codeEl = childArray.find((c) => c && typeof c === "object" && c.props);
+            if (!codeEl) return <pre>{children}</pre>;
+            const codeClass = codeEl.props.className || "";
+            const match = /language-(\w+)/.exec(codeClass);
             const lang = match ? match[1] : "";
-            
-            if (inline) {
-              return <code className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[13px] font-mono text-primary" {...props}>{children}</code>;
-            }
-
+            const rawText = extractText(codeEl.props.children).replace(/\n$/, "");
             return (
               <div className="relative group/code my-4 rounded-xl overflow-hidden border border-zinc-200/50 shadow-sm">
                 <div className="flex items-center justify-between px-4 py-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200/50 text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
                   <span>{lang || "code"}</span>
-                  <CodeCopyButton text={String(children).replace(/\n$/, "")} />
+                  <CodeCopyButton text={rawText} />
                 </div>
                 <pre className="!bg-zinc-900 !m-0 !rounded-none p-4 overflow-x-auto fade-scrollbar">
-                  <code className={`${className} !bg-transparent text-[13.5px] leading-relaxed`} {...props}>
-                    {children}
-                  </code>
+                  {cloneElement(codeEl, {
+                    className: `${codeClass} !bg-transparent text-[13.5px] leading-relaxed`.trim(),
+                  })}
                 </pre>
               </div>
             );
           },
-          pre: ({ children }) => <>{children}</>,
         }}
       >
         {children}
       </ReactMarkdown>
     </div>
   );
+}
+
+function extractText(node) {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(extractText).join("");
+  return extractText(node.props?.children);
 }
 
 function CodeCopyButton({ text }) {

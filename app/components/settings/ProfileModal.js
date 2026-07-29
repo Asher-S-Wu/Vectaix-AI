@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import NextImage from "next/image";
 import {
   ChevronDown,
+  ChevronRight,
   Lock,
   Settings,
   Palette,
@@ -116,6 +117,15 @@ export default function ProfileModal({
     return () => clearTimeout(timer);
   }, [open, savedNickname, user?.email]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !showUserManagement) onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, showUserManagement, onClose]);
+
   const saveNickname = async () => {
     if (!hasNicknameChanges || !onNicknameChange) return;
     setNicknameSaving(true);
@@ -193,14 +203,17 @@ export default function ProfileModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
             onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-label="个人中心"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-pop border border-zinc-200 dark:border-zinc-700 relative"
+              className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-pop border border-zinc-200 dark:border-zinc-700 relative max-h-[85dvh] overflow-y-auto fade-scrollbar"
               onClick={(e) => e.stopPropagation()}
             >
             <button
@@ -250,7 +263,7 @@ export default function ProfileModal({
             <div className="space-y-3">
               <button
                 onClick={() => setShowPersonalInfo(!showPersonalInfo)}
-                className="w-full flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 transition-colors"
+                className="w-full flex items-center justify-between bg-zinc-50 hover:bg-zinc-100 rounded-xl p-4 border border-zinc-100 transition-colors"
               >
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                   <User size={14} /> 个人信息
@@ -269,7 +282,7 @@ export default function ProfileModal({
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 space-y-4">
+                    <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100 space-y-4">
                       <div>
                         <label className="text-xs text-zinc-500 font-medium mb-1.5 block">昵称</label>
                         <input
@@ -277,7 +290,7 @@ export default function ProfileModal({
                           placeholder="输入昵称"
                           value={nicknameDraft}
                           onChange={(e) => setNicknameDraft(e.target.value)}
-                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:border-zinc-400 outline-none"
+                          className="w-full bg-white border border-zinc-200 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                         {hasNicknameChanges && (
                           <button
@@ -299,7 +312,7 @@ export default function ProfileModal({
                           placeholder="输入新邮箱"
                           value={emailDraft}
                           onChange={(e) => setEmailDraft(e.target.value)}
-                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:border-zinc-400 outline-none"
+                          className="w-full bg-white border border-zinc-200 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                         {hasEmailChanges && (
                           <div className="mt-2 space-y-2">
@@ -308,7 +321,7 @@ export default function ProfileModal({
                               placeholder="输入当前密码以验证身份"
                               value={emailPassword}
                               onChange={(e) => setEmailPassword(e.target.value)}
-                              className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:border-zinc-400 outline-none"
+                              className="w-full bg-white border border-zinc-200 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                             />
                             <button
                               type="button"
@@ -327,7 +340,7 @@ export default function ProfileModal({
               </AnimatePresence>
               <button
                 onClick={() => setShowChangePassword(!showChangePassword)}
-                className="w-full flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 transition-colors"
+                className="w-full flex items-center justify-between bg-zinc-50 hover:bg-zinc-100 rounded-xl p-4 border border-zinc-100 transition-colors"
               >
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                   <Lock size={14} /> 修改密码
@@ -347,14 +360,14 @@ export default function ProfileModal({
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700">
+                    <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
                       <form onSubmit={submitChangePassword} className="space-y-3">
                         <input
                           type="password"
                           placeholder="当前密码"
                           value={oldPassword}
                           onChange={(e) => setOldPassword(e.target.value)}
-                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:border-zinc-400 outline-none"
+                          className="w-full bg-white border border-zinc-200 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                           required
                         />
                         <input
@@ -362,7 +375,7 @@ export default function ProfileModal({
                           placeholder="新密码"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
-                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:border-zinc-400 outline-none"
+                          className="w-full bg-white border border-zinc-200 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                           required
                         />
                         <input
@@ -370,7 +383,7 @@ export default function ProfileModal({
                           placeholder="确认新密码"
                           value={confirmNewPassword}
                           onChange={(e) => setConfirmNewPassword(e.target.value)}
-                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:border-zinc-400 outline-none"
+                          className="w-full bg-white border border-zinc-200 rounded-lg p-2.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                           required
                         />
                         <button
@@ -378,7 +391,7 @@ export default function ProfileModal({
                           disabled={pwLoading}
                           className="w-full btn-primary disabled:opacity-50 font-medium py-2.5 rounded-xl text-sm"
                         >
-                          更新密码
+                          {pwLoading ? "更新中…" : "更新密码"}
                         </button>
                       </form>
                     </div>
@@ -387,7 +400,7 @@ export default function ProfileModal({
               </AnimatePresence>
               <button
                 onClick={() => setShowAppearance(!showAppearance)}
-                className="w-full flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 transition-colors"
+                className="w-full flex items-center justify-between bg-zinc-50 hover:bg-zinc-100 rounded-xl p-4 border border-zinc-100 transition-colors"
               >
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                   <Settings size={14} /> 系统设置
@@ -407,7 +420,7 @@ export default function ProfileModal({
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 space-y-4">
+                    <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100 space-y-4">
                       <div>
                         <label className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-2 block flex items-center gap-1">
                           <Palette size={12} /> 主题模式
@@ -424,7 +437,7 @@ export default function ProfileModal({
                               type="button"
                               className={`flex-1 py-2 rounded-lg border transition-colors text-sm ${themeMode === t.id
                                 ? "bg-primary text-white border-primary"
-                                : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                : "bg-white text-zinc-600 dark:text-zinc-400 border-zinc-200 hover:bg-zinc-100"
                                 }`}
                             >
                               {t.label}
@@ -448,7 +461,7 @@ export default function ProfileModal({
                               type="button"
                               className={`flex-1 py-2 rounded-lg border transition-colors ${fontSize === f.id
                                 ? "bg-primary text-white border-primary"
-                                : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                : "bg-white text-zinc-600 dark:text-zinc-400 border-zinc-200 hover:bg-zinc-100"
                                 } ${f.size}`}
                             >
                               {f.label}
@@ -468,7 +481,7 @@ export default function ProfileModal({
                             step="1"
                             value={normalizedVolume}
                             onChange={(e) => onCompletionSoundVolumeChange?.(Number(e.target.value))}
-                            className="w-full"
+                            className="w-full accent-primary"
                           />
                           <span className="text-xs text-zinc-500 w-12 text-right">
                             {normalizedVolume <= 0 ? "关闭" : `${normalizedVolume}%`}
@@ -483,12 +496,12 @@ export default function ProfileModal({
               {canManageUsers && (
                 <button
                   onClick={() => setShowUserManagement(true)}
-                  className="w-full flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl p-4 border border-zinc-100 dark:border-zinc-700 transition-colors"
+                  className="w-full flex items-center justify-between bg-zinc-50 hover:bg-zinc-100 rounded-xl p-4 border border-zinc-100 transition-colors"
                 >
                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
                     <Users size={14} /> 用户管理
                   </span>
-                  <ChevronDown size={16} className="text-zinc-400" />
+                  <ChevronRight size={16} className="text-zinc-400" />
                 </button>
               )}
             </div>
