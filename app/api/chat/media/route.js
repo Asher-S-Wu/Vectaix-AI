@@ -58,6 +58,11 @@ import {
   MAX_REQUEST_BYTES,
   SSE_PADDING,
 } from "@/lib/server/chat/routeConstants";
+import {
+  assertMediaWriteLeaseActive,
+  beginMediaWriteLease,
+  endMediaWriteLease,
+} from "@/lib/media/server/userOperationLeases";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -174,6 +179,17 @@ function waitForVideoPoll(signal) {
 
 export async function POST(req) {
   let writePermitTime = null;
+  let mediaWriteLease = null;
+  let mediaWriteLeaseTransferred = false;
+  let mediaWriteLeaseReleased = false;
+
+  const releaseMediaWriteLease = async () => {
+    if (!mediaWriteLease || mediaWriteLeaseReleased) return;
+    mediaWriteLeaseReleased = true;
+    await endMediaWriteLease(mediaWriteLease).catch((error) => {
+      console.error("[Media Chat] release media write lease:", error);
+    });
+  };
 
   try {
     const contentLength = req.headers.get("content-length");
@@ -231,6 +247,7 @@ export async function POST(req) {
     if (!user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+    mediaWriteLease = await beginMediaWriteLease(auth.userId);
 
     let currentConversationId = conversationId || null;
     let currentConversation = await loadConversationForRoute({
@@ -250,6 +267,7 @@ export async function POST(req) {
     let mediaOptions = null;
 
     if (isRegenerateMode) {
+      await assertMediaWriteLeaseActive(mediaWriteLease);
       const sanitized = sanitizeStoredMessagesStrict(messages);
       currentUserMessage = sanitized[sanitized.length - 1];
       if (currentUserMessage?.role !== "user") {
@@ -271,6 +289,7 @@ export async function POST(req) {
       removedFileIdsAfterRegenerate = collectStoredFileIds(previousMessages)
         .filter((fileId) => !nextFileIds.has(fileId));
       const updatedAt = new Date();
+      await assertMediaWriteLeaseActive(mediaWriteLease);
       const updated = await Conversation.findOneAndUpdate(
         { _id: currentConversationId, userId: auth.userId },
         { $set: { messages: sanitized, updatedAt } },
@@ -288,6 +307,7 @@ export async function POST(req) {
       validateMediaPrompt(model, promptText, Boolean(requestedImage));
 
       if (!currentConversationId) {
+        await assertMediaWriteLeaseActive(mediaWriteLease);
         const fallbackTitle = isImageGenerationModel(model) ? "图片生成" : "视频生成";
         const titleSource = promptText || fallbackTitle;
         const title = titleSource.length > 30 ? `${titleSource.slice(0, 30)}…` : titleSource;
@@ -304,6 +324,7 @@ export async function POST(req) {
 
       let storedReference = null;
       if (requestedImage) {
+        await assertMediaWriteLeaseActive(mediaWriteLease);
         const boundFiles = await bindStoredFiles({
           userId: auth.userId,
           fileIds: [requestedImage.fileId],
@@ -339,6 +360,7 @@ export async function POST(req) {
         providerState: { media: mediaOptions },
       };
       const updatedAt = new Date();
+      await assertMediaWriteLeaseActive(mediaWriteLease);
       const updated = await Conversation.findOneAndUpdate(
         { _id: currentConversationId, userId: auth.userId },
         { $push: { messages: currentUserMessage }, $set: { updatedAt } },
@@ -413,6 +435,7 @@ export async function POST(req) {
                   ownerType: "conversation",
                   ownerId: currentConversationId,
                   signal: req.signal,
+                  mediaWriteLease,
                 })
               : await generateAndStoreImageFile({
                   userId: auth.userId,
@@ -421,6 +444,7 @@ export async function POST(req) {
                   ownerType: "conversation",
                   ownerId: currentConversationId,
                   signal: req.signal,
+                  mediaWriteLease,
                 });
             generatedFileIds.push(saved.fileId);
             modelMessage = {
@@ -446,6 +470,7 @@ export async function POST(req) {
               acceptedMimeTypes: VIDEO_REFERENCE_MIME_TYPES,
               maxBytes: VIDEO_FRAME_MAX_BYTES,
             });
+            await assertMediaWriteLeaseActive(mediaWriteLease);
             const upstreamTask = await createUpstreamVideoTask({
               prompt: effectivePrompt,
               image: referenceImage,
@@ -478,6 +503,7 @@ export async function POST(req) {
               userId: auth.userId,
               conversationId: currentConversationId,
               signal: req.signal,
+              mediaWriteLease,
             });
             generatedFileIds.push(saved.fileId);
             modelMessage = {
@@ -504,6 +530,7 @@ export async function POST(req) {
             return;
           }
 
+          await assertMediaWriteLeaseActive(mediaWriteLease);
           const persisted = await Conversation.findOneAndUpdate(
             buildConversationWriteCondition(currentConversationId, auth.userId, writePermitTime),
             { $push: { messages: modelMessage }, $set: { updatedAt: new Date() } },
@@ -551,9 +578,11 @@ export async function POST(req) {
         } finally {
           if (heartbeatTimer) clearInterval(heartbeatTimer);
           req.signal?.removeEventListener?.("abort", onAbort);
+          await releaseMediaWriteLease();
         }
       },
     });
+    mediaWriteLeaseTransferred = true;
 
     return new Response(responseStream, {
       headers: {
@@ -571,5 +600,9 @@ export async function POST(req) {
     });
     const status = Number.isInteger(error?.status) ? error.status : 500;
     return Response.json({ error: error?.message || "媒体生成失败" }, { status });
+  } finally {
+    if (!mediaWriteLeaseTransferred) {
+      await releaseMediaWriteLease();
+    }
   }
 }

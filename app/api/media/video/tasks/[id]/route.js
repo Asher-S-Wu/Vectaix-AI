@@ -12,6 +12,11 @@ import {
 } from "@/lib/media/server/inferera/taskRecords";
 import { VIDEO_MODEL } from "@/lib/media/shared/models";
 import { deleteStoredFilesByOwner } from "@/lib/server/storage/service";
+import {
+  assertMediaWriteLeaseActive,
+  beginMediaWriteLease,
+  endMediaWriteLease,
+} from "@/lib/media/server/userOperationLeases";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +44,7 @@ async function loadOwnedTask(id, userId) {
 }
 
 export async function GET(request, context) {
+  let mediaWriteLease = null;
   try {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
@@ -51,7 +57,11 @@ export async function GET(request, context) {
     }
 
     if (shouldSyncVideoTask(task)) {
-      task = await syncVideoTaskRecord(task, { signal: request.signal });
+      mediaWriteLease = await beginMediaWriteLease(user.userId);
+      task = await syncVideoTaskRecord(task, {
+        signal: request.signal,
+        mediaWriteLease,
+      });
     } else {
       task = task.toObject();
     }
@@ -65,14 +75,22 @@ export async function GET(request, context) {
     const message = getPublicErrorMessage(error, "查询视频任务失败");
     const status = Number.isInteger(error?.status) && error.status >= 400 ? error.status : 500;
     return jsonMessage(message, status);
+  } finally {
+    if (mediaWriteLease) {
+      await endMediaWriteLease(mediaWriteLease).catch((error) => {
+        console.error("[Media] release video sync write lease:", error);
+      });
+    }
   }
 }
 
 export async function DELETE(request, context) {
+  let mediaWriteLease = null;
   try {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    mediaWriteLease = await beginMediaWriteLease(user.userId);
 
     const id = await getTaskId(context);
     const task = await loadOwnedTask(id, user.userId);
@@ -84,6 +102,7 @@ export async function DELETE(request, context) {
       return jsonMessage("生成中的任务暂时不能删除", 409);
     }
     await deleteUpstreamVideoTask(task.upstreamTaskId, { signal: request.signal });
+    await assertMediaWriteLeaseActive(mediaWriteLease);
     await deleteStoredFilesByOwner({
       userId: user.userId,
       ownerType: "video-task",
@@ -96,5 +115,11 @@ export async function DELETE(request, context) {
     const message = getPublicErrorMessage(error, "处理视频任务失败");
     const status = Number.isInteger(error?.status) && error.status >= 400 ? error.status : 500;
     return jsonMessage(message, status);
+  } finally {
+    if (mediaWriteLease) {
+      await endMediaWriteLease(mediaWriteLease).catch((error) => {
+        console.error("[Media] release video delete write lease:", error);
+      });
+    }
   }
 }

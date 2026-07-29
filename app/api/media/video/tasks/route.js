@@ -15,8 +15,14 @@ import {
 import VideoGenerationTask from "@/models/VideoGenerationTask";
 import {
   createUpstreamVideoTask,
+  deleteUpstreamVideoTask,
 } from "@/lib/media/server/inferera/videos";
 import { serializeVideoTask } from "@/lib/media/server/inferera/taskRecords";
+import {
+  assertMediaWriteLeaseActive,
+  beginMediaWriteLease,
+  endMediaWriteLease,
+} from "@/lib/media/server/userOperationLeases";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -134,6 +140,8 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  let mediaWriteLease = null;
+  let uncommittedUpstreamTaskId = "";
   try {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
@@ -148,6 +156,7 @@ export async function POST(request) {
 
     const formData = await request.formData();
     const input = parseVideoTaskForm(formData);
+    mediaWriteLease = await beginMediaWriteLease(user.userId);
     const upstreamTask = await createUpstreamVideoTask({
       ...input,
       signal: request.signal,
@@ -157,7 +166,9 @@ export async function POST(request) {
     if (!upstreamTaskId) {
       return jsonMessage("视频生成任务提交失败", 500);
     }
+    uncommittedUpstreamTaskId = upstreamTaskId;
 
+    await assertMediaWriteLeaseActive(mediaWriteLease);
     const task = await VideoGenerationTask.create({
       userId: user.userId,
       upstreamTaskId,
@@ -177,15 +188,28 @@ export async function POST(request) {
       },
       upstreamResponse: upstreamTask,
     });
+    uncommittedUpstreamTaskId = "";
 
     return Response.json({
       success: true,
       task: serializeVideoTask(task),
     });
   } catch (error) {
+    if (uncommittedUpstreamTaskId) {
+      await deleteUpstreamVideoTask(uncommittedUpstreamTaskId, { signal: undefined })
+        .catch((cleanupError) => {
+          console.error("[Media] cleanup uncommitted video task:", cleanupError);
+        });
+    }
     console.error("[Media] create video task:", error);
     const message = getPublicErrorMessage(error, "视频任务创建失败");
     const status = Number.isInteger(error?.status) && error.status >= 400 ? error.status : 500;
     return jsonMessage(message, status);
+  } finally {
+    if (mediaWriteLease) {
+      await endMediaWriteLease(mediaWriteLease).catch((error) => {
+        console.error("[Media] release video task write lease:", error);
+      });
+    }
   }
 }

@@ -1,23 +1,34 @@
-const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (globalThis.__vectaixStorageCleanupStarted) return;
   globalThis.__vectaixStorageCleanupStarted = true;
 
-  const [{ default: dbConnect }, { cleanupExpiredTemporaryFiles, ensureStorageReady }] = await Promise.all([
+  const [
+    { default: dbConnect },
+    { cleanupExpiredTemporaryFiles, ensureStorageReady },
+    { cleanupExpiredVoiceSamples },
+  ] = await Promise.all([
     import("@/lib/db"),
     import("@/lib/server/storage/service"),
+    import("@/lib/media/server/voiceSampleCleanup"),
   ]);
   await dbConnect();
   await ensureStorageReady();
-  await cleanupExpiredTemporaryFiles();
+  await Promise.all([
+    cleanupExpiredTemporaryFiles(),
+    cleanupExpiredVoiceSamples(),
+  ]);
 
   const cleanup = async () => {
     try {
       await dbConnect();
       await ensureStorageReady();
-      await cleanupExpiredTemporaryFiles();
+      await Promise.all([
+        cleanupExpiredTemporaryFiles(),
+        cleanupExpiredVoiceSamples(),
+      ]);
     } catch (error) {
       console.error("[Storage] scheduled cleanup:", error);
     }

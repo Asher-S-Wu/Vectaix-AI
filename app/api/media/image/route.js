@@ -2,10 +2,15 @@ import { getAuthPayload } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import { generateAndStoreImage } from "@/lib/media/server/inferera/images";
 import { IMAGE_PROMPT_MAX_LENGTH, IMAGE_SIZE_OPTIONS } from "@/lib/media/shared/models";
+import {
+  beginMediaWriteLease,
+  endMediaWriteLease,
+} from "@/lib/media/server/userOperationLeases";
 
 const ALLOWED_SIZES = new Set(IMAGE_SIZE_OPTIONS.map((item) => item.id));
 
 export async function POST(request) {
+  let mediaWriteLease = null;
   try {
     const auth = await getAuthPayload();
     if (!auth) {
@@ -32,11 +37,13 @@ export async function POST(request) {
       return Response.json({ success: false, message: "不支持的图片尺寸" }, { status: 400 });
     }
 
+    mediaWriteLease = await beginMediaWriteLease(auth.userId);
     const imageUrl = await generateAndStoreImage({
       userId: auth.userId,
       prompt,
       size,
       signal: request.signal,
+      mediaWriteLease,
     });
 
     return Response.json({ success: true, imageUrl });
@@ -44,7 +51,19 @@ export async function POST(request) {
     console.error("[Media] generate image:", error);
     return Response.json(
       { success: false, message: error instanceof Error ? error.message : "图片生成失败" },
-      { status: 500 }
+      {
+        status: Number.isInteger(error?.status)
+          ? error.status
+          : Number.isInteger(error?.statusCode)
+            ? error.statusCode
+            : 500,
+      }
     );
+  } finally {
+    if (mediaWriteLease) {
+      await endMediaWriteLease(mediaWriteLease).catch((error) => {
+        console.error("[Media] release image write lease:", error);
+      });
+    }
   }
 }

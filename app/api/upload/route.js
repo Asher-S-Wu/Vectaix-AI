@@ -14,6 +14,11 @@ import {
   createStoredFile,
   serializeStoredFile,
 } from "@/lib/server/storage/service";
+import {
+  assertMediaWriteLeaseActive,
+  beginMediaWriteLease,
+  endMediaWriteLease,
+} from "@/lib/media/server/userOperationLeases";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +32,7 @@ function jsonError(error, status = 400) {
 export async function POST(request) {
   const user = await getAuthPayload();
   if (!user?.userId) return jsonError("未登录", 401);
+  let mediaWriteLease = null;
 
   const clientIP = getClientIP(request);
   const limited = rateLimit(`upload:${user.userId}:${clientIP}`, UPLOAD_RATE_LIMIT);
@@ -77,6 +83,8 @@ export async function POST(request) {
     }
 
     await dbConnect();
+    mediaWriteLease = await beginMediaWriteLease(user.userId);
+    await assertMediaWriteLeaseActive(mediaWriteLease);
     const stored = await createStoredFile({
       userId: user.userId,
       input,
@@ -85,6 +93,7 @@ export async function POST(request) {
       extension,
       category,
       kind,
+      mediaWriteLease,
     });
     cleanupExpiredTemporaryFiles().catch((error) => {
       console.error("[Storage] cleanup temporary files:", error);
@@ -92,6 +101,17 @@ export async function POST(request) {
     return Response.json(serializeStoredFile(stored), { status: 201 });
   } catch (error) {
     console.error("[Upload] save file:", error);
-    return jsonError(error instanceof Error ? error.message : "文件上传失败", 500);
+    const status = Number.isInteger(error?.status)
+      ? error.status
+      : Number.isInteger(error?.statusCode)
+        ? error.statusCode
+        : 500;
+    return jsonError(error instanceof Error ? error.message : "文件上传失败", status);
+  } finally {
+    if (mediaWriteLease) {
+      await endMediaWriteLease(mediaWriteLease).catch((error) => {
+        console.error("[Upload] release media write lease:", error);
+      });
+    }
   }
 }

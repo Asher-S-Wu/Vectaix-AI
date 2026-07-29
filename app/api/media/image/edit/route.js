@@ -7,11 +7,16 @@ import {
   IMAGE_PROMPT_MAX_LENGTH,
   IMAGE_SIZE_OPTIONS,
 } from "@/lib/media/shared/models";
+import {
+  beginMediaWriteLease,
+  endMediaWriteLease,
+} from "@/lib/media/server/userOperationLeases";
 
 const ALLOWED_SIZES = new Set(IMAGE_SIZE_OPTIONS.map((item) => item.id));
 const ALLOWED_MIME_TYPES = new Set(IMAGE_EDIT_ACCEPTED_MIME_TYPES);
 
 export async function POST(request) {
+  let mediaWriteLease = null;
   try {
     const auth = await getAuthPayload();
     if (!auth) {
@@ -51,12 +56,14 @@ export async function POST(request) {
       return Response.json({ success: false, message: "图片大小不能超过 25MB" }, { status: 400 });
     }
 
+    mediaWriteLease = await beginMediaWriteLease(auth.userId);
     const imageUrl = await editAndStoreImage({
       userId: auth.userId,
       prompt,
       image,
       size,
       signal: request.signal,
+      mediaWriteLease,
     });
 
     return Response.json({ success: true, imageUrl });
@@ -64,7 +71,19 @@ export async function POST(request) {
     console.error("[Media] edit image:", error);
     return Response.json(
       { success: false, message: error instanceof Error ? error.message : "图片编辑失败" },
-      { status: 500 }
+      {
+        status: Number.isInteger(error?.status)
+          ? error.status
+          : Number.isInteger(error?.statusCode)
+            ? error.statusCode
+            : 500,
+      }
     );
+  } finally {
+    if (mediaWriteLease) {
+      await endMediaWriteLease(mediaWriteLease).catch((error) => {
+        console.error("[Media] release image edit write lease:", error);
+      });
+    }
   }
 }

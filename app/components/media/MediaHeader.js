@@ -73,6 +73,7 @@ export default function MediaHeader() {
   const navItems = [
     { href: "/media/image", label: "图片生成" },
     { href: "/media/video", label: "视频生成" },
+    { href: "/media/audio", label: "语音工作台" },
   ];
 
   return (
@@ -80,7 +81,7 @@ export default function MediaHeader() {
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
         <div className="min-w-0">
           <h1 className="text-base sm:text-lg font-semibold leading-tight">媒体工作台</h1>
-          <p className="hidden sm:block text-xs text-zinc-500">图片与视频生成</p>
+          <p className="hidden sm:block text-xs text-zinc-500">图片、视频与语音创作</p>
         </div>
         <nav className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar">
           {navItems.map((item) => {

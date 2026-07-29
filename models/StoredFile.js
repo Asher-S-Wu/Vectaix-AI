@@ -48,12 +48,20 @@ const StoredFileSchema = new mongoose.Schema({
   },
   kind: {
     type: String,
-    enum: ["chat", "avatar", "media-image", "media-video"],
+    enum: ["chat", "avatar", "media-image", "media-video", "media-audio", "voice-sample"],
     required: true,
   },
   ownerType: {
     type: String,
-    enum: ["temporary", "conversation", "avatar", "image-result", "video-task"],
+    enum: [
+      "temporary",
+      "conversation",
+      "avatar",
+      "image-result",
+      "video-task",
+      "audio-generation",
+      "voice-profile",
+    ],
     default: "temporary",
     index: true,
   },
