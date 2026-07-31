@@ -474,6 +474,11 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 3px var(--primary-ring), var(--shadow-soft);
 }
 
+/* Inner textarea relies on the shell's focus glow, not its own outline */
+.composer-shell textarea:focus-visible {
+  outline: none;
+}
+
 /* AI Glow Effect */
 .ai-glow { position: relative; }
 
