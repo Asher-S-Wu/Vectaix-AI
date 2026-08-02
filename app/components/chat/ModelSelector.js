@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Clapperboard, ChevronUp, ImagePlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AudioLines, Clapperboard, ChevronUp, ImagePlus } from "lucide-react";
+import {
+  AUDIO_MODEL,
+  IMAGE_MODEL,
+  VIDEO_MODEL,
+} from "@/lib/media/shared/models";
 import {
   getModelConfig,
   getSelectableChatModels,
@@ -18,8 +24,23 @@ const MODEL_SELECTOR_GROUP_ORDER = Object.freeze([
 ]);
 const MODEL_SELECTOR_GROUP_TITLES = Object.freeze({
   ...MODEL_GROUP_TITLES,
-  media: "媒体模型",
+  media: "Media",
 });
+const MODEL_SELECTOR_WORKSPACE_HREFS = Object.freeze({
+  [IMAGE_MODEL]: "/media/image",
+  [VIDEO_MODEL]: "/media/video",
+  [AUDIO_MODEL]: "/media/audio",
+});
+const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
+  Object.freeze({
+    id: AUDIO_MODEL,
+    name: "Qwen TTS",
+    provider: "audio-gen",
+    group: "media",
+    mediaType: "audio",
+    href: MODEL_SELECTOR_WORKSPACE_HREFS[AUDIO_MODEL],
+  }),
+]);
 
 function SelectorModelIcon({ item }) {
   if (item.mediaType === "image") {
@@ -27,6 +48,9 @@ function SelectorModelIcon({ item }) {
   }
   if (item.mediaType === "video") {
     return <Clapperboard size={16} aria-hidden />;
+  }
+  if (item.mediaType === "audio") {
+    return <AudioLines size={16} aria-hidden />;
   }
   return <ModelGlyph model={item.id} provider={item.provider} size={16} />;
 }
@@ -37,10 +61,17 @@ export default function ModelSelector({
   ready = true,
   fullWidth = false,
 }) {
+  const router = useRouter();
   const [showModelMenu, setShowModelMenu] = useState(false);
   const currentModel = ready ? getModelConfig(model) : null;
   const currentModelLabel = currentModel?.name || "模型";
-  const selectableModels = getSelectableChatModels();
+  const selectableModels = [
+    ...getSelectableChatModels().map((item) => {
+      const href = MODEL_SELECTOR_WORKSPACE_HREFS[item.id];
+      return href ? { ...item, href } : item;
+    }),
+    ...MODEL_SELECTOR_WORKSPACE_ITEMS,
+  ];
 
   useEffect(() => {
     if (!showModelMenu) return;
@@ -119,10 +150,14 @@ export default function ModelSelector({
                           onClick={() => {
                             if (!ready) return;
                             setShowModelMenu(false);
+                            if (item.href) {
+                              router.push(item.href);
+                              return;
+                            }
                             onModelChange(item.id);
                           }}
                           className={`w-full px-3 py-2.5 rounded-lg text-sm md:text-[13px] font-medium flex items-center gap-2.5 transition-all active:scale-[0.98] ${
-                            model === item.id
+                            !item.href && model === item.id
                               ? "bg-primary text-white"
                               : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                           }`}

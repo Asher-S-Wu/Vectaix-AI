@@ -4,6 +4,7 @@ import User from "@/models/User";
 import { getAuthPayload } from "@/lib/auth";
 import { rateLimit, getClientIP } from "@/lib/rateLimit";
 import {
+  ABLITERATED_LARGE_MODEL,
   getModelConfig,
   getModelAttachmentSupport,
   isDirectChatModel,
@@ -25,6 +26,7 @@ import {
   deleteStoredFilesByIds,
   serializeStoredFile,
 } from "@/lib/server/storage/service";
+import { IMAGE_MIME_TYPES } from "@/lib/shared/attachments";
 import {
   buildDirectChatSystemPrompt,
 } from "@/lib/server/chat/systemPromptBuilder";
@@ -50,13 +52,30 @@ import {
 } from "@/app/api/chat/providerMessageHelpers";
 import {
   CHAT_RATE_LIMIT,
-  MAX_REQUEST_BYTES,
+  TEXT_CHAT_MAX_REQUEST_BYTES,
   SSE_PADDING,
   HEARTBEAT_INTERVAL_MS,
 } from "@/lib/server/chat/routeConstants";
+import { parseJsonRequest } from "@/lib/server/api/routeHelpers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function modelSupportsStoredFile(model, file) {
+  const attachmentSupport = getModelAttachmentSupport(model);
+  if (file?.category === "image") {
+    return attachmentSupport.supportsImages && IMAGE_MIME_TYPES.includes(file.mimeType);
+  }
+  if (file?.category === "audio") return attachmentSupport.supportsAudio;
+  if (file?.category === "video") return attachmentSupport.supportsVideo;
+  return false;
+}
+
+function unsupportedAttachmentError() {
+  const error = new Error("当前模型不支持这类文件");
+  error.status = 400;
+  return error;
+}
 
 function pushUniqueCitations(target, items) {
   if (!Array.isArray(target) || !Array.isArray(items)) return false;
@@ -79,16 +98,17 @@ export async function POST(req) {
 
   try {
     const contentLength = req.headers.get("content-length");
-    if (contentLength && Number(contentLength) > MAX_REQUEST_BYTES) {
+    if (contentLength && Number(contentLength) > TEXT_CHAT_MAX_REQUEST_BYTES) {
       return Response.json({ error: "Request too large" }, { status: 413 });
     }
 
-    let body;
-    try {
-      body = await req.json();
-    } catch {
-      return Response.json({ error: "Invalid JSON in request body" }, { status: 400 });
-    }
+    const parsed = await parseJsonRequest(
+      req,
+      "Invalid JSON in request body",
+      TEXT_CHAT_MAX_REQUEST_BYTES
+    );
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.body;
 
     const { prompt, model, config, history, conversationId, mode, messages, settings, userMessageId, modelMessageId } = body;
 
@@ -185,6 +205,15 @@ export async function POST(req) {
       newlyBoundFileIds = reboundFiles
         .filter((file) => file.ownerType === "temporary")
         .map((file) => file.fileId);
+      if (reboundFiles.some((file) => !modelSupportsStoredFile(model, file))) {
+        await deleteStoredFilesByIds({
+          userId: user.userId,
+          fileIds: newlyBoundFileIds,
+          ownerType: "conversation",
+          ownerId: currentConversationId,
+        });
+        throw unsupportedAttachmentError();
+      }
       const regenerateTime = new Date();
       const nextFileIds = new Set(collectStoredFileIds(sanitized));
       removedFileIdsAfterRegenerate = collectStoredFileIds(previousMessages)
@@ -258,23 +287,15 @@ export async function POST(req) {
       newlyBoundFileIds = boundFiles
         .filter((file) => file.ownerType === "temporary")
         .map((file) => file.fileId);
-      const attachmentSupport = getModelAttachmentSupport(model);
       for (const file of boundFiles) {
-        const supported = (
-          (file.category === "image" && attachmentSupport.supportsImages)
-          || (file.category === "audio" && attachmentSupport.supportsAudio)
-          || (file.category === "video" && attachmentSupport.supportsVideo)
-        );
-        if (!supported) {
+        if (!modelSupportsStoredFile(model, file)) {
           await deleteStoredFilesByIds({
             userId: user.userId,
             fileIds: newlyBoundFileIds,
             ownerType: "conversation",
             ownerId: currentConversationId,
           });
-          const unsupportedError = new Error("当前模型不支持这类文件");
-          unsupportedError.status = 400;
-          throw unsupportedError;
+          throw unsupportedAttachmentError();
         }
       }
       const fileMap = new Map(boundFiles.map((file) => [file.fileId, serializeStoredFile(file)]));
@@ -458,7 +479,7 @@ export async function POST(req) {
               content: fullText,
               thought: fullThought,
               type: "text",
-              parts: [{ text: fullText }],
+              parts: model === ABLITERATED_LARGE_MODEL ? [] : [{ text: fullText }],
               ...(toolRecords.length > 0 ? { tools: toolRecords } : {}),
               ...(citations.length > 0 ? { citations } : {}),
               ...(providerState ? { providerState } : {}),

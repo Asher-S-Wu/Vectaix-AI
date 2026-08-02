@@ -101,11 +101,11 @@ function buildHolidayText(holiday, festival) {
 }
 
 const MAX_STORED_MESSAGES = 500;
-const MAX_STORED_MESSAGE_CHARS = 20000;
-const MAX_STORED_PART_TEXT_CHARS = 10000;
+const MAX_STORED_MESSAGE_CHARS = 1_048_576;
+const MAX_STORED_PART_TEXT_CHARS = 1_048_576;
 const MAX_STORED_PARTS_PER_MESSAGE = 20;
 const MAX_STORED_MESSAGE_ID_CHARS = 128;
-const MAX_STORED_TOTAL_TEXT_CHARS = 1_000_000;
+const MAX_STORED_TOTAL_TEXT_CHARS = 8_388_608;
 
 function createValidationError(message) {
     const err = new Error(message);
@@ -182,8 +182,17 @@ export function getStoredPartsFromMessage(msg, { includeThoughtSignature = false
 function sanitizeStoredMessage(msg) {
     if (!msg || typeof msg !== 'object') return null;
     if (msg.role !== 'user' && msg.role !== 'model') return null;
-    const normalizedParts = getStoredPartsFromMessage(msg);
-    if (!normalizedParts || normalizedParts.length === 0) return null;
+    const hasEmptySourceParts = msg.parts === undefined || (Array.isArray(msg.parts) && msg.parts.length === 0);
+    const isContentOnlyModelText = (
+        msg.role === 'model'
+        && msg.type === 'text'
+        && isNonEmptyString(msg.content)
+        && hasEmptySourceParts
+    );
+    const normalizedParts = isContentOnlyModelText
+        ? null
+        : getStoredPartsFromMessage(msg);
+    if (!isContentOnlyModelText && (!normalizedParts || normalizedParts.length === 0)) return null;
     const out = {
         role: msg.role,
         content: typeof msg.content === 'string' ? msg.content : '',
@@ -195,7 +204,7 @@ function sanitizeStoredMessage(msg) {
     if (Array.isArray(msg.tools) && msg.tools.length > 0) out.tools = msg.tools;
     if (Array.isArray(msg.thinkingTimeline) && msg.thinkingTimeline.length > 0) out.thinkingTimeline = msg.thinkingTimeline;
     if (msg.providerState && typeof msg.providerState === 'object') out.providerState = msg.providerState;
-    out.parts = normalizedParts;
+    if (normalizedParts?.length) out.parts = normalizedParts;
     return out;
 }
 
@@ -229,15 +238,22 @@ export function sanitizeStoredMessagesStrict(messages) {
             throw createValidationError(`messages[${i}].thought too long`);
         }
 
-        if (!Array.isArray(normalized.parts) || normalized.parts.length === 0) {
+        const isContentOnlyModelText = (
+            normalized.role === 'model'
+            && normalized.type === 'text'
+            && isNonEmptyString(normalized.content)
+            && !Array.isArray(normalized.parts)
+        );
+
+        if (!isContentOnlyModelText && (!Array.isArray(normalized.parts) || normalized.parts.length === 0)) {
             throw createValidationError(`messages[${i}].parts required`);
         }
 
-        if (normalized.parts.length > MAX_STORED_PARTS_PER_MESSAGE) {
+        if (Array.isArray(normalized.parts) && normalized.parts.length > MAX_STORED_PARTS_PER_MESSAGE) {
             throw createValidationError(`messages[${i}].parts too many`);
         }
 
-        for (let pi = 0; pi < normalized.parts.length; pi++) {
+        for (let pi = 0; pi < (normalized.parts?.length || 0); pi++) {
             const part = normalized.parts[pi];
             if (typeof part?.text === "string") {
                 if (part.text.length > MAX_STORED_PART_TEXT_CHARS) {

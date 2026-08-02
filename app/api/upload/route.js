@@ -7,7 +7,14 @@ import {
   getFileExtension,
   isSupportedUploadExtension,
 } from "@/lib/shared/attachments";
-import { getModelAttachmentSupport } from "@/lib/shared/models";
+import {
+  getModelAttachmentSupport,
+  isImageGenerationModel,
+} from "@/lib/shared/models";
+import {
+  IMAGE_EDIT_ACCEPTED_EXTENSIONS,
+  IMAGE_EDIT_MAX_BYTES,
+} from "@/lib/media/shared/models";
 import { inspectUploadedFile } from "@/lib/server/storage/fileInspection";
 import {
   cleanupExpiredTemporaryFiles,
@@ -24,6 +31,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const UPLOAD_RATE_LIMIT = { limit: 30, windowMs: 10 * 60 * 1000 };
+const QWEN_ONLY_IMAGE_EXTENSIONS = new Set(["bmp", "tif", "tiff"]);
 
 function jsonError(error, status = 400) {
   return Response.json({ error }, { status });
@@ -53,15 +61,26 @@ export async function POST(request) {
     if (!extension || !isSupportedUploadExtension(extension)) {
       return jsonError("不支持该文件类型");
     }
+    if (
+      QWEN_ONLY_IMAGE_EXTENSIONS.has(extension)
+      && (kind !== "chat" || !isImageGenerationModel(model))
+    ) {
+      return jsonError("该图片格式仅支持千问图片模型");
+    }
+    const isImageExtension = IMAGE_EDIT_ACCEPTED_EXTENSIONS.includes(extension);
     const limits = getAttachmentLimits(
-      ["jpg", "jpeg", "png", "gif", "webp"].includes(extension)
+      isImageExtension
         ? "image"
         : ["mp3", "wav", "m4a", "aac", "ogg", "weba"].includes(extension)
           ? "audio"
           : "video"
     );
-    if (file.size <= 0 || file.size > limits.maxBytes) {
-      return jsonError("文件大小不能超过 20MB");
+    const maxBytes = kind === "chat" && isImageGenerationModel(model) && isImageExtension
+      ? IMAGE_EDIT_MAX_BYTES
+      : limits.maxBytes;
+    if (file.size <= 0 || file.size > maxBytes) {
+      const maxMb = Math.round(maxBytes / (1024 * 1024));
+      return jsonError(`文件大小不能超过 ${maxMb}MB`);
     }
     const input = Buffer.from(await file.arrayBuffer());
     const inspected = inspectUploadedFile(input, extension);

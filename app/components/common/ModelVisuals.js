@@ -9,7 +9,6 @@ const PROVIDER_LOGOS = Object.freeze({
   openai: "https://assets.aihubmix.com/logos_svg/logo_GPT.svg",
   anthropic: "https://assets.aihubmix.com/logos_svg/logo_claude2.svg",
   google: "https://assets.aihubmix.com/logos/logo_gemini.svg",
-  qwen: "https://assets.aihubmix.com/logos_svg/logo_qwen.svg",
   xai: "https://assets.aihubmix.com/logos_svg/logo_Grok.svg",
   moonshot: "https://assets.aihubmix.com/logos_svg/logo_kimi.svg",
 });

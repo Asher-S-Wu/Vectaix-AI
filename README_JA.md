@@ -33,8 +33,8 @@
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.5-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.5"/><br/><sub><b>xAI</b></sub></td>
 </tr>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT%20Image%202-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT Image 2"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Seedance%202.0-FF6A00?style=for-the-badge&logoColor=white" alt="Seedance"/><br/><sub><b>ByteDance</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>Alibaba Cloud</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-HappyHorse-615CED?style=for-the-badge&logoColor=white" alt="HappyHorse"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
 </tr>
 </table>
@@ -61,7 +61,7 @@
 
 ### 🤖 マルチモデルインテリジェンス
 
-6つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しいトピックが開始され、各モデルのコンテキストが独立して保たれます。
+7つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しいトピックが開始され、各モデルのコンテキストが独立して保たれます。
 
 | モデル | プロバイダー | コンテキスト | 入力タイプ | 思考 | ウェブ検索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
@@ -69,6 +69,7 @@
 | **GPT-5.6 Sol** | OpenAI | 1.05M | テキスト、画像 | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 1M | テキスト、画像 | ✅ | ✅ |
 | **Gemini 3.6 Flash** | Google | 1M | テキスト、画像、音声、動画 | ✅ | ✅ |
+| **Abliterated Model Large** | Abliteration AI | 1M | テキスト | ✅ | ✅ |
 | **Grok 4.5** | xAI | 500K | テキスト、画像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 1M | テキスト、画像 | ✅ | ✅ |
 
@@ -76,8 +77,8 @@
 
 | モデル | プロバイダー | 機能 |
 |:---:|:---:|:---|
-| **GPT Image 2** | OpenAI | 画像生成と画像編集 |
-| **Seedance 2.0 Standard** | ByteDance | テキストから動画、画像から動画 |
+| **Qwen Image 3.0 Pro** | Alibaba Cloud | 画像生成と1～3枚の参照画像を使った画像編集 |
+| **HappyHorse 1.1 / Video Edit 1.0** | Alibaba Cloud | テキストから動画、先頭フレームから動画、複数参照画像から動画、動画編集 |
 
 <br/>
 
@@ -235,7 +236,7 @@ vectaix-ai/
 | **バックエンド** | Next.js API Routes · Node.js · SSE（Server-Sent Events）ストリーミング |
 | **データベース** | MongoDB + Mongoose ODM |
 | **ストレージ** | Zeabur マウントディスク（プライベートメディア） |
-| **AIプロバイダー** | AIHubMix · Inferera · Google Gemini API |
+| **AIプロバイダー** | AIHubMix · Inferera · Google Gemini API · Alibaba Cloud Model Studio |
 | **認証** | MongoDBサーバーセッション · bcryptjs |
 | **レンダリング** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **デプロイ** | Zeabur ネイティブ Next.js サービス（単一インスタンス） |
@@ -268,8 +269,11 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB接続文字列 |
 | `STORAGE_ROOT` | ✅ | マウントディスクのパス。Zeabur では `/data/vectaix` |
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
-| `AIHUBMIX_API_KEY` | — | AIHubMixの自動ルーティング、Anthropic Messages経由のKimi K3、およびInfereraのGPT、Grok、Claude、画像、動画で共用するAPIキー |
+| `AIHUBMIX_API_KEY` | — | AIHubMixの自動ルーティング、Anthropic Messages経由のKimi K3、およびInfereraのGPT、Grok、Claudeで共用するAPIキー |
+| `ABLIT_KEY` | — | Abliterated Model Large 用の Abliteration APIキー（`ak_...`） |
 | `GEMINI_API_KEY` | — | Geminiチャット用のGoogle Gemini APIキー |
+| `DASHSCOPE_API_KEY` | — | Qwen Image 3.0 Pro、HappyHorse動画、Qwen Audio 3.0 TTS Plus 用のAlibaba Cloud Model Studio APIキー |
+| `PUBLIC_APP_URL` | — | HappyHorseが入力素材を読み取るために使う、デプロイ済みアプリの公開HTTPSアドレス |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search と Scrape 用のAPIキー |
 
 > [!TIP]

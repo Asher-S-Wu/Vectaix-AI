@@ -4,13 +4,16 @@ import {
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
 import VideoGenerationTask from "@/models/VideoGenerationTask";
-import { deleteUpstreamVideoTask } from "@/lib/media/server/inferera/videos";
 import {
   serializeVideoTask,
+  failStaleUnsubmittedTask,
+  failStaleFinalizingTask,
+  isStaleFinalizingTask,
+  isStaleUnsubmittedTask,
   shouldSyncVideoTask,
   syncVideoTaskRecord,
-} from "@/lib/media/server/inferera/taskRecords";
-import { VIDEO_MODEL } from "@/lib/media/shared/models";
+} from "@/lib/media/server/happyhorse/taskRecords";
+import { VIDEO_MODEL_IDS } from "@/lib/media/shared/models";
 import { deleteStoredFilesByOwner } from "@/lib/server/storage/service";
 import {
   assertMediaWriteLeaseActive,
@@ -20,17 +23,15 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const UPSTREAM_QUERY_TIMEOUT_MS = 30 * 1000;
 
 function jsonMessage(message, status = 400) {
   return Response.json({ success: false, message }, { status });
 }
 
-function getPublicErrorMessage(error, fallback) {
+function publicMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
-  if (message.includes("AIHUBMIX_API_KEY")) {
-    return "缺少 AIHUBMIX_API_KEY 环境变量";
-  }
-  return message || fallback;
+  return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
 }
 
 async function getTaskId(context) {
@@ -40,7 +41,11 @@ async function getTaskId(context) {
 
 async function loadOwnedTask(id, userId) {
   if (!mongoose.isValidObjectId(id)) return null;
-  return VideoGenerationTask.findOne({ _id: id, userId, model: VIDEO_MODEL });
+  return VideoGenerationTask.findOne({
+    _id: id,
+    userId,
+    model: { $in: VIDEO_MODEL_IDS },
+  });
 }
 
 export async function GET(request, context) {
@@ -49,36 +54,39 @@ export async function GET(request, context) {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const task = await loadOwnedTask(await getTaskId(context), user.userId);
+    if (!task) return jsonMessage("任务不存在", 404);
 
-    const id = await getTaskId(context);
-    let task = await loadOwnedTask(id, user.userId);
-    if (!task) {
-      return jsonMessage("任务不存在", 404);
-    }
-
-    if (shouldSyncVideoTask(task)) {
+    let current = task;
+    if (isStaleUnsubmittedTask(task)) {
       mediaWriteLease = await beginMediaWriteLease(user.userId);
-      task = await syncVideoTaskRecord(task, {
-        signal: request.signal,
+      current = await failStaleUnsubmittedTask(task, { mediaWriteLease });
+    } else if (isStaleFinalizingTask(task)) {
+      mediaWriteLease = await beginMediaWriteLease(user.userId);
+      current = await failStaleFinalizingTask(task, { mediaWriteLease });
+    } else if (shouldSyncVideoTask(task)) {
+      mediaWriteLease = await beginMediaWriteLease(user.userId);
+      current = await syncVideoTaskRecord(task, {
+        signal: AbortSignal.any([
+          request.signal,
+          AbortSignal.timeout(UPSTREAM_QUERY_TIMEOUT_MS),
+        ]),
         mediaWriteLease,
       });
-    } else {
-      task = task.toObject();
     }
-
-    return Response.json({
-      success: true,
-      task: serializeVideoTask(task),
-    });
+    return Response.json({ success: true, task: serializeVideoTask(current) });
   } catch (error) {
-    console.error("[Media] get video task:", error);
-    const message = getPublicErrorMessage(error, "查询视频任务失败");
-    const status = Number.isInteger(error?.status) && error.status >= 400 ? error.status : 500;
-    return jsonMessage(message, status);
+    console.error("[Media Video] get task:", error);
+    const status = Number.isInteger(error?.status)
+      ? error.status
+      : Number.isInteger(error?.statusCode)
+        ? error.statusCode
+        : 500;
+    return jsonMessage(publicMessage(error, "查询视频任务失败"), status);
   } finally {
     if (mediaWriteLease) {
       await endMediaWriteLease(mediaWriteLease).catch((error) => {
-        console.error("[Media] release video sync write lease:", error);
+        console.error("[Media Video] release sync write lease:", error);
       });
     }
   }
@@ -90,35 +98,33 @@ export async function DELETE(request, context) {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const task = await loadOwnedTask(await getTaskId(context), user.userId);
+    if (!task) return jsonMessage("任务不存在", 404);
+    if (["queued", "in_progress", "finalizing"].includes(task.status)) {
+      return jsonMessage("排队中、生成中或正在保存的任务不能删除", 409);
+    }
+
     mediaWriteLease = await beginMediaWriteLease(user.userId);
-
-    const id = await getTaskId(context);
-    const task = await loadOwnedTask(id, user.userId);
-    if (!task) {
-      return jsonMessage("任务不存在", 404);
-    }
-
-    if (task.status === "in_progress") {
-      return jsonMessage("生成中的任务暂时不能删除", 409);
-    }
-    await deleteUpstreamVideoTask(task.upstreamTaskId, { signal: request.signal });
     await assertMediaWriteLeaseActive(mediaWriteLease);
     await deleteStoredFilesByOwner({
       userId: user.userId,
       ownerType: "video-task",
       ownerId: task._id,
     });
-    await VideoGenerationTask.deleteOne({ _id: task._id, userId: user.userId, model: VIDEO_MODEL });
+    await VideoGenerationTask.deleteOne({ _id: task._id, userId: user.userId });
     return Response.json({ success: true, deleted: true });
   } catch (error) {
-    console.error("[Media] delete video task:", error);
-    const message = getPublicErrorMessage(error, "处理视频任务失败");
-    const status = Number.isInteger(error?.status) && error.status >= 400 ? error.status : 500;
-    return jsonMessage(message, status);
+    console.error("[Media Video] delete task:", error);
+    const status = Number.isInteger(error?.status)
+      ? error.status
+      : Number.isInteger(error?.statusCode)
+        ? error.statusCode
+        : 500;
+    return jsonMessage(publicMessage(error, "删除视频任务失败"), status);
   } finally {
     if (mediaWriteLease) {
       await endMediaWriteLease(mediaWriteLease).catch((error) => {
-        console.error("[Media] release video delete write lease:", error);
+        console.error("[Media Video] release delete write lease:", error);
       });
     }
   }

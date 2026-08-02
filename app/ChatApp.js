@@ -62,8 +62,7 @@ export default function ChatApp() {
   useThemeMode(themeMode);
   const [editingMsgIndex, setEditingMsgIndex] = useState(null);
   const [editingContent, setEditingContent] = useState("");
-  const [editingImageAction, setEditingImageAction] = useState("keep");
-  const [editingImage, setEditingImage] = useState(null);
+  const [editingImages, setEditingImages] = useState([]);
   const [composerPrefill, setComposerPrefill] = useState({ text: "", nonce: 0 });
   const [serverSettingsReady, setServerSettingsReady] = useState(false);
 
@@ -259,12 +258,10 @@ export default function ChatApp() {
     userInterruptedRef,
     editingMsgIndex,
     editingContent,
-    editingImageAction,
-    editingImage,
+    editingImages,
     setEditingMsgIndex,
     setEditingContent,
-    setEditingImageAction,
-    setEditingImage,
+    setEditingImages,
     completionSoundVolume,
     onSensitiveRefusal: handleSensitiveRefusal,
     onAuthExpired: handleAuthExpired,
@@ -524,11 +521,10 @@ export default function ChatApp() {
           onScrollToBottom={scrollToBottom}
           editingMsgIndex={editingMsgIndex}
           editingContent={editingContent}
-          editingImageAction={editingImageAction}
-          editingImage={editingImage}
+          editingImages={editingImages}
           fontSizeClass={FONT_SIZE_CLASSES[fontSize]}
           onEditingContentChange={setEditingContent}
-          onEditingImageSelect={actions.onEditingImageSelect}
+          onEditingImagesSelect={actions.onEditingImagesSelect}
           onEditingImageRemove={actions.onEditingImageRemove}
           onCancelEdit={actions.cancelEdit}
           onSubmitEdit={actions.submitEditAndRegenerate}

@@ -1,6 +1,6 @@
 import { getAuthPayload } from "@/lib/auth";
 import dbConnect from "@/lib/db";
-import { generateAndStoreImage } from "@/lib/media/server/inferera/images";
+import { generateAndStoreImage } from "@/lib/media/server/qwenImage";
 import { IMAGE_PROMPT_MAX_LENGTH, IMAGE_SIZE_OPTIONS } from "@/lib/media/shared/models";
 import {
   beginMediaWriteLease,
@@ -20,7 +20,7 @@ export async function POST(request) {
 
     const body = await request.json();
     const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
-    const size = typeof body?.size === "string" ? body.size : "1024x1024";
+    const size = typeof body?.size === "string" ? body.size : "auto";
 
     if (!prompt) {
       return Response.json({ success: false, message: "请输入图片描述" }, { status: 400 });

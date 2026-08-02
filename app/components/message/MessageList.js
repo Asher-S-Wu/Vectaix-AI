@@ -21,7 +21,6 @@ import BrandMark from "../common/BrandMark";
 import { BarChart3, Code2, Compass, Sparkles } from "lucide-react";
 import { useToast } from "../common/ToastProvider";
 import { exportMessageContent } from "@/lib/client/messageExport";
-import { getMessageImageSrc, isKeepableImageSrc } from "@/lib/shared/messageImage";
 import {
   AttachmentCard,
   AIAvatar,
@@ -36,8 +35,16 @@ import {
 } from "./MessageListHelpers";
 import {
   CHAT_MODELS,
+  isImageGenerationModel,
   modelSupportsAvailableInput,
 } from "@/lib/shared/models";
+import { getFileExtension } from "@/lib/shared/attachments";
+import {
+  IMAGE_EDIT_ACCEPTED_EXTENSIONS,
+  IMAGE_EDIT_ACCEPTED_MIME_TYPES,
+  IMAGE_EDIT_MAX_BYTES,
+  IMAGE_EDIT_MAX_COUNT,
+} from "@/lib/media/shared/models";
 import {
   STARTER_PROMPTS,
   isPendingRunText,
@@ -45,6 +52,15 @@ import {
 } from "./messageListUtils";
 
 const EXPORT_FORMAT_LABELS = { markdown: "Markdown", pdf: "PDF", docx: "Word 文档" };
+
+function readImagePreview(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(event.target?.result || "");
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const STARTER_ICONS = {
   sparkles: Sparkles,
@@ -62,12 +78,11 @@ export default function MessageList({
   onScroll,
   editingMsgIndex,
   editingContent,
-  editingImageAction,
-  editingImage,
+  editingImages,
   fontSizeClass,
   model,
   onEditingContentChange,
-  onEditingImageSelect,
+  onEditingImagesSelect,
   onEditingImageRemove,
   onCancelEdit,
   onSubmitEdit,
@@ -90,6 +105,7 @@ export default function MessageList({
   const [copiedIndex, setCopiedIndex] = useState(null);
   const copyTimerRef = useRef(null);
   const canEditImages = modelSupportsAvailableInput(model, "image");
+  const editingImageLimit = isImageGenerationModel(model) ? IMAGE_EDIT_MAX_COUNT : 1;
   const toast = useToast();
   const hasWaitingFirstChunk = messages.some((message) => message?.isWaitingFirstChunk);
   const hasStreamingContent = messages.some((message) => (message?.isStreaming && !message?.isWaitingFirstChunk) || message?.isSearching);
@@ -149,44 +165,48 @@ export default function MessageList({
     setDeleteConfirm({ open: false, index: null, role: null });
   };
 
-  const handleEditFileSelect = (e) => {
+  const handleEditFileSelect = async (e) => {
     if (!canEditImages) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.warning("请选择图片文件");
-      if (editFileInputRef.current) editFileInputRef.current.value = "";
+    const files = Array.from(e.target.files || []);
+    if (editFileInputRef.current) editFileInputRef.current.value = "";
+    if (files.length === 0) return;
+
+    const remainingSlots = editingImageLimit - editingImages.length;
+    if (files.length > remainingSlots) {
+      toast.warning(`最多保留 ${editingImageLimit} 张参考图片`);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      onEditingImageSelect?.({
+
+    const selected = [];
+    for (const file of files) {
+      const extension = getFileExtension(file.name);
+      const isQwenImage = isImageGenerationModel(model);
+      const hasAllowedType = IMAGE_EDIT_ACCEPTED_MIME_TYPES.includes(file.type)
+        || IMAGE_EDIT_ACCEPTED_EXTENSIONS.includes(extension);
+      if ((isQwenImage && !hasAllowedType) || (!isQwenImage && !file.type.startsWith("image/"))) {
+        toast.warning(`“${file.name}”不是支持的图片格式`);
+        return;
+      }
+      if (isQwenImage && (file.size <= 0 || file.size > IMAGE_EDIT_MAX_BYTES)) {
+        toast.warning(`“${file.name}”不能超过 10MB`);
+        return;
+      }
+      const preview = await readImagePreview(file).catch(() => "");
+      if (!preview) {
+        toast.warning(`无法读取“${file.name}”`);
+        return;
+      }
+      selected.push({
         file,
-        preview: ev.target?.result,
+        preview,
         name: file.name,
         mimeType: file.type,
       });
-      if (editFileInputRef.current) editFileInputRef.current.value = "";
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const hasEditingImage = () => {
-    if (editingImageAction === "new") return Boolean(editingImage?.preview);
-    if (editingImageAction === "keep") {
-      const msg = messages?.[editingMsgIndex];
-      return isKeepableImageSrc(getMessageImageSrc(msg));
     }
-    return false;
+    onEditingImagesSelect?.(selected);
   };
 
-  const isEditingImageUploading = editingImageAction === "new" && editingImage?.uploadStatus === "uploading";
-
-  const getEditingImagePreview = (msg) => {
-    if (editingImageAction === "new") return editingImage?.preview || "";
-    if (editingImageAction === "keep") return getMessageImageSrc(msg) || "";
-    return "";
-  };
+  const isEditingImageUploading = editingImages.some((image) => image?.uploadStatus === "uploading");
 
   const resizeEditTextarea = useCallback(() => {
     const el = editTextareaRef.current;
@@ -336,7 +356,7 @@ export default function MessageList({
             ? msg.thinkingTimeline
             : fallbackThinkingTimeline;
           const hasThinkingTimeline = Array.isArray(resolvedThinkingTimeline)
-            && resolvedThinkingTimeline.some((step) => step?.kind === "search" || step?.kind === "reader" || step?.kind === "thought" || step?.kind === "tool" || step?.kind === "planner" || step?.kind === "writer" || step?.kind === "image_gen" || step?.kind === "video_gen");
+            && resolvedThinkingTimeline.some((step) => step?.kind === "search" || step?.kind === "reader" || step?.kind === "thought" || step?.kind === "tool" || step?.kind === "planner" || step?.kind === "writer" || step?.kind === "image_gen");
           const hasToolRuns = Array.isArray(msg.tools) && msg.tools.length > 0;
           const shouldRenderToolCards = msg.role === "model" && hasToolRuns && !hasThinkingTimeline && msg.tools.some((t) => t?.id);
           const shouldRenderBubble = hasParts || hasVisibleContent || shouldRenderToolCards;
@@ -404,31 +424,51 @@ export default function MessageList({
                             ref={editFileInputRef}
                             onChange={handleEditFileSelect}
                             className="hidden"
-                            accept="image/*"
+                            accept={isImageGenerationModel(model)
+                              ? [
+                                  ...IMAGE_EDIT_ACCEPTED_MIME_TYPES,
+                                  ...IMAGE_EDIT_ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`),
+                                ].join(",")
+                              : "image/*"}
+                            multiple={editingImageLimit > 1}
                           />
-                          <div className="mb-3 flex items-center gap-2">
-                            {getEditingImagePreview(msg) ? (
-                              <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900">
-                                <NextImage src={getEditingImagePreview(msg)} alt="" fill sizes="64px" unoptimized className="object-cover" />
+                          <div className="mb-3 flex flex-wrap items-center gap-2">
+                            {editingImages.map((image, imageIndex) => (
+                              <div key={image.id} className="relative h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900">
+                                {image.preview ? (
+                                  <NextImage
+                                    src={image.preview}
+                                    alt={`第 ${imageIndex + 1} 张参考图片`}
+                                    fill
+                                    sizes="64px"
+                                    unoptimized
+                                    className="object-cover"
+                                  />
+                                ) : null}
+                                <button
+                                  type="button"
+                                  onClick={() => onEditingImageRemove(image.id)}
+                                  className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-white hover:bg-black/80"
+                                  title={`移除第 ${imageIndex + 1} 张参考图片`}
+                                  aria-label={`移除第 ${imageIndex + 1} 张参考图片`}
+                                >
+                                  <X size={11} />
+                                </button>
                               </div>
-                            ) : null}
+                            ))}
                             <button
                               type="button"
                               onClick={() => editFileInputRef.current?.click()}
-                              className="p-2 text-zinc-500 hover:text-primary hover:bg-primary/5 rounded-lg"
-                              title="更换图片"
+                              disabled={editingImages.length >= editingImageLimit}
+                              className="p-2 text-zinc-500 hover:text-primary hover:bg-primary/5 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
+                              title={editingImages.length > 0 ? "添加参考图片" : "选择参考图片"}
                             >
                               <Paperclip size={14} />
                             </button>
-                            {hasEditingImage() ? (
-                              <button
-                                type="button"
-                                onClick={onEditingImageRemove}
-                                className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg"
-                                title="移除图片"
-                              >
-                                <X size={14} />
-                              </button>
+                            {editingImageLimit > 1 ? (
+                              <span className="text-[11px] text-zinc-400">
+                                {editingImages.length}/{editingImageLimit} 张
+                              </span>
                             ) : null}
                           </div>
                         </>

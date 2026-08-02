@@ -4,7 +4,7 @@ import {
   isValidConversationId,
   updateConversationForUser,
 } from "@/lib/server/conversations/service";
-import { MAX_REQUEST_BYTES } from '@/lib/server/chat/routeConstants';
+import { TEXT_CHAT_MAX_REQUEST_BYTES } from '@/lib/server/chat/routeConstants';
 import {
   assertRequestSize,
   parseJsonRequest,
@@ -61,13 +61,13 @@ export async function PUT(req, context) {
     return Response.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  const oversizeResponse = assertRequestSize(req, MAX_REQUEST_BYTES);
+  const oversizeResponse = assertRequestSize(req, TEXT_CHAT_MAX_REQUEST_BYTES);
   if (oversizeResponse) return oversizeResponse;
 
   const user = await requireConversationUser();
   if (!user) return unauthorizedResponse();
 
-  const parsed = await parseJsonRequest(req);
+  const parsed = await parseJsonRequest(req, "Invalid JSON", TEXT_CHAT_MAX_REQUEST_BYTES);
   if (!parsed.ok) return parsed.response;
   const body = parsed.body;
 

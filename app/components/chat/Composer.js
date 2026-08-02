@@ -19,13 +19,13 @@ import {
   getModelAttachmentSupport,
   isImageGenerationModel,
   isMediaGenerationModel,
-  isVideoGenerationModel,
 } from "@/lib/shared/models";
 import {
+  IMAGE_EDIT_ACCEPTED_EXTENSIONS,
+  IMAGE_EDIT_ACCEPTED_MIME_TYPES,
+  IMAGE_EDIT_MAX_BYTES,
+  IMAGE_EDIT_MAX_COUNT,
   IMAGE_SIZE_OPTIONS,
-  VIDEO_ASPECT_RATIO_OPTIONS,
-  VIDEO_DURATION_OPTIONS,
-  VIDEO_RESOLUTION_OPTIONS,
 } from "@/lib/media/shared/models";
 import {
   getAttachmentInputType,
@@ -36,6 +36,8 @@ import {
 } from "@/lib/shared/attachments";
 import { createLocalAttachment, isImageAttachment } from "@/lib/shared/messageAttachments";
 import { convertImageFileToPng, readAsDataUrl } from "./composerFileUtils";
+
+const QWEN_ONLY_IMAGE_EXTENSIONS = new Set(["bmp", "tif", "tiff"]);
 
 export default function Composer({
   loading,
@@ -60,11 +62,7 @@ export default function Composer({
   const [input, setInput] = useState("");
   const [selectedAttachments, setSelectedAttachments] = useState([]);
   const [isMainInputFocused, setIsMainInputFocused] = useState(false);
-  const [imageSize, setImageSize] = useState("1024x1024");
-  const [videoRatio, setVideoRatio] = useState("adaptive");
-  const [videoDuration, setVideoDuration] = useState(5);
-  const [videoResolution, setVideoResolution] = useState("720p");
-  const [videoGenerateAudio, setVideoGenerateAudio] = useState(true);
+  const [imageSize, setImageSize] = useState("auto");
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const mountedRef = useRef(true);
@@ -79,13 +77,21 @@ export default function Composer({
   } = getModelAttachmentSupport(model);
   const isMediaModel = isMediaGenerationModel(model);
   const isImageModel = isImageGenerationModel(model);
-  const isVideoModel = isVideoGenerationModel(model);
-  const attachmentLimit = isMediaModel ? 1 : MAX_CHAT_ATTACHMENTS;
-  const attachmentAccept = getAttachmentAcceptForModel({
-    supportsImages,
-    supportsVideo,
-    supportsAudio,
-  });
+  const attachmentLimit = isImageModel
+    ? IMAGE_EDIT_MAX_COUNT
+    : isMediaModel
+      ? 1
+      : MAX_CHAT_ATTACHMENTS;
+  const attachmentAccept = isImageModel
+    ? [
+        ...IMAGE_EDIT_ACCEPTED_MIME_TYPES,
+        ...IMAGE_EDIT_ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`),
+      ].join(",")
+    : getAttachmentAcceptForModel({
+        supportsImages,
+        supportsVideo,
+        supportsAudio,
+      });
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
@@ -153,7 +159,10 @@ export default function Composer({
     }
     const next = selectedAttachments.filter((item) => {
       const inputType = getAttachmentInputType(item.category);
-      if (inputType === "image") return supportsImages;
+      if (inputType === "image") {
+        const isQwenOnlyImage = QWEN_ONLY_IMAGE_EXTENSIONS.has(item.extension);
+        return supportsImages && (!isQwenOnlyImage || isImageModel);
+      }
       if (inputType === "video") return supportsVideo;
       if (inputType === "audio") return supportsAudio;
       return false;
@@ -170,7 +179,7 @@ export default function Composer({
     }
     }, 0);
     return () => clearTimeout(timer);
-  }, [selectedAttachments, supportsAudio, supportsFilePicker, supportsImages, supportsVideo]);
+  }, [isImageModel, selectedAttachments, supportsAudio, supportsFilePicker, supportsImages, supportsVideo]);
 
   const processFiles = async (files) => {
     if (!supportsFilePicker) return;
@@ -195,17 +204,22 @@ export default function Composer({
       }
 
       const limits = getAttachmentLimits(local.category);
-      if (limits?.maxBytes && file.size > limits.maxBytes) {
+      const maxBytes = isImageModel && local.category === "image"
+        ? IMAGE_EDIT_MAX_BYTES
+        : limits?.maxBytes;
+      if (maxBytes && file.size > maxBytes) {
         oversizedFiles.push(file.name);
         continue;
       }
 
       const inputType = getAttachmentInputType(local.category);
+      const isQwenOnlyImage = inputType === "image"
+        && QWEN_ONLY_IMAGE_EXTENSIONS.has(local.extension);
       const isSupported = (
         (inputType === "image" && supportsImages)
         || (inputType === "video" && supportsVideo)
         || (inputType === "audio" && supportsAudio)
-      );
+      ) && (!isQwenOnlyImage || isImageModel);
 
       if (!isSupported) {
         blockedUnsupported.push(file.name);
@@ -214,7 +228,9 @@ export default function Composer({
 
       if (isImageAttachment(local)) {
         let processedFile = file;
-        if (!IMAGE_MIME_TYPES.includes(file.type)) {
+        const isNativeQwenImage = isImageModel
+          && IMAGE_EDIT_ACCEPTED_EXTENSIONS.includes(local.extension);
+        if (!IMAGE_MIME_TYPES.includes(file.type) && !isNativeQwenImage) {
           const converted = await convertImageFileToPng(file);
           if (!converted) {
             invalidFiles.push(file.name);
@@ -285,7 +301,15 @@ export default function Composer({
       setSelectedAttachments((prev) =>
         prev.map((item) =>
           item.id === att.id
-            ? { ...item, uploadStatus: "ready", fileId: uploaded.fileId, fileUrl: uploaded.url }
+            ? {
+                ...item,
+                uploadStatus: "ready",
+                fileId: uploaded.fileId,
+                fileUrl: uploaded.url,
+                mimeType: uploaded.mimeType || item.mimeType,
+                extension: uploaded.extension || item.extension,
+                category: uploaded.category || item.category,
+              }
             : item
         )
       );
@@ -348,7 +372,7 @@ export default function Composer({
 
   const isUploading = selectedAttachments.some((item) => item.uploadStatus === "uploading");
   const hasReadyAttachment = selectedAttachments.some((item) => item.uploadStatus === "ready");
-  const canSend = Boolean(input.trim()) || hasReadyAttachment;
+  const canSend = isImageModel ? Boolean(input.trim()) : Boolean(input.trim()) || hasReadyAttachment;
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -363,21 +387,16 @@ export default function Composer({
   const handleSend = () => {
     const text = input.trim();
     if ((!text && selectedAttachments.length === 0) || loading || isUploading) return;
+    if (isImageModel && !text) {
+      toast.warning("请输入图片描述");
+      return;
+    }
     const validAttachments = selectedAttachments.filter((item) => item.uploadStatus === "ready");
     if (!text && validAttachments.length === 0) {
       toast.warning("附件未上传成功，请重试或移除后再发送");
       return;
     }
-    const mediaOptions = isImageModel
-      ? { size: imageSize }
-      : isVideoModel
-        ? {
-            ratio: videoRatio,
-            duration: videoDuration,
-            resolution: videoResolution,
-            generateAudio: videoGenerateAudio,
-          }
-        : undefined;
+    const mediaOptions = isImageModel ? { size: imageSize } : undefined;
     onSend({ text, attachments: validAttachments, mediaOptions });
     setInput("");
     setSelectedAttachments([]);
@@ -485,49 +504,6 @@ export default function Composer({
                   ))}
                 </select>
               ) : null}
-              {isVideoModel ? (
-                <>
-                  <select
-                    aria-label="视频比例"
-                    value={videoRatio}
-                    onChange={(event) => setVideoRatio(event.target.value)}
-                    className="h-8 max-w-[120px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
-                  >
-                    {VIDEO_ASPECT_RATIO_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
-                    ))}
-                  </select>
-                  <select
-                    aria-label="视频时长"
-                    value={videoDuration}
-                    onChange={(event) => setVideoDuration(Number(event.target.value))}
-                    className="h-8 max-w-[90px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
-                  >
-                    {VIDEO_DURATION_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
-                    ))}
-                  </select>
-                  <select
-                    aria-label="视频清晰度"
-                    value={videoResolution}
-                    onChange={(event) => setVideoResolution(event.target.value)}
-                    className="h-8 max-w-[84px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
-                  >
-                    {VIDEO_RESOLUTION_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
-                    ))}
-                  </select>
-                  <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-200 px-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
-                    <input
-                      type="checkbox"
-                      checked={videoGenerateAudio}
-                      onChange={(event) => setVideoGenerateAudio(event.target.checked)}
-                      className="accent-primary"
-                    />
-                    音轨
-                  </label>
-                </>
-              ) : null}
             </div>
           ) : (
             <SettingsMenu
@@ -553,7 +529,7 @@ export default function Composer({
                 onChange={handleFileSelect}
                 className="hidden"
                 accept={attachmentAccept}
-                multiple={!isMediaModel}
+                multiple={!isMediaModel || isImageModel}
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -577,7 +553,7 @@ export default function Composer({
             onFocus={() => setIsMainInputFocused(true)}
             onBlur={() => setIsMainInputFocused(false)}
             readOnly={false}
-            placeholder={isImageModel ? "描述你想生成或修改的图片…" : (isVideoModel ? "描述你想生成的视频…" : "给 AI 发送消息…")}
+            placeholder={isImageModel ? "描述你想生成或修改的图片…" : "给 AI 发送消息…"}
             className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base md:text-[15px] text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none py-2 min-h-[44px] transition-all no-scrollbar"
             rows={1}
           />

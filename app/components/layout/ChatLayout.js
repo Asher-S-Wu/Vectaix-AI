@@ -46,11 +46,10 @@ export default function ChatLayout({
   onScrollToBottom,
   editingMsgIndex,
   editingContent,
-  editingImageAction,
-  editingImage,
+  editingImages,
   fontSizeClass,
   onEditingContentChange,
-  onEditingImageSelect,
+  onEditingImagesSelect,
   onEditingImageRemove,
   onCancelEdit,
   onSubmitEdit,
@@ -99,12 +98,11 @@ export default function ChatLayout({
             onScroll={onMessageListScroll}
             editingMsgIndex={editingMsgIndex}
             editingContent={editingContent}
-            editingImageAction={editingImageAction}
-            editingImage={editingImage}
+            editingImages={editingImages}
             fontSizeClass={fontSizeClass}
             model={composerProps?.model}
             onEditingContentChange={onEditingContentChange}
-            onEditingImageSelect={onEditingImageSelect}
+            onEditingImagesSelect={onEditingImagesSelect}
             onEditingImageRemove={onEditingImageRemove}
             onCancelEdit={onCancelEdit}
             onSubmitEdit={onSubmitEdit}

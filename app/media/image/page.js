@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ImagePlus, Loader2, RefreshCw, Sparkles, Upload, Wand2, X } from 'lucide-react';
@@ -8,7 +8,9 @@ import ImageResultCard from '@/app/components/media/image-result-card';
 import { editImage, generateImage } from '@/lib/media/client/media';
 import {
   IMAGE_EDIT_ACCEPTED_MIME_TYPES,
+  IMAGE_EDIT_ACCEPTED_EXTENSIONS,
   IMAGE_EDIT_MAX_BYTES,
+  IMAGE_EDIT_MAX_COUNT,
   IMAGE_MODEL_NAME,
   IMAGE_PROMPT_MAX_LENGTH,
   IMAGE_SIZE_OPTIONS,
@@ -16,21 +18,35 @@ import {
 
 const IMAGE_EDIT_MAX_MB = Math.round(IMAGE_EDIT_MAX_BYTES / (1024 * 1024));
 
+function getSourceImageError(file) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  if (
+    !IMAGE_EDIT_ACCEPTED_MIME_TYPES.includes(file.type)
+    && !IMAGE_EDIT_ACCEPTED_EXTENSIONS.includes(extension)
+  ) {
+    return `“${file.name}”的格式不支持，请选择常见图片格式`;
+  }
+  if (file.size > IMAGE_EDIT_MAX_BYTES) {
+    return `“${file.name}”超过 ${IMAGE_EDIT_MAX_MB}MB，请压缩后再上传`;
+  }
+  return '';
+}
+
 export default function ImageGenerationPage() {
   const [mode, setMode] = useState('generate');
   const [prompt, setPrompt] = useState('');
-  const [size, setSize] = useState('1024x1024');
+  const [size, setSize] = useState('auto');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [resultTitle, setResultTitle] = useState('生成的图片');
-  const [sourceImage, setSourceImage] = useState(null);
-  const [sourcePreviewUrl, setSourcePreviewUrl] = useState('');
+  const [sourceImages, setSourceImages] = useState([]);
+  const sourceImagesRef = useRef([]);
   const [sourceInputKey, setSourceInputKey] = useState(0);
 
   useEffect(() => () => {
-    if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
-  }, [sourcePreviewUrl]);
+    sourceImagesRef.current.forEach(({ previewUrl }) => URL.revokeObjectURL(previewUrl));
+  }, []);
 
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
@@ -39,11 +55,44 @@ export default function ImageGenerationPage() {
     setResultTitle(nextMode === 'edit' ? '编辑后的图片' : '生成的图片');
   };
 
-  const handleSourceImageChange = (file) => {
+  const handleSourceImagesChange = (fileList) => {
     setError('');
-    setSourceImage(file);
-    setSourcePreviewUrl(file ? URL.createObjectURL(file) : '');
-    if (!file) setSourceInputKey((current) => current + 1);
+    setSourceInputKey((current) => current + 1);
+
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
+
+    if (sourceImages.length + files.length > IMAGE_EDIT_MAX_COUNT) {
+      setError(`最多可选择 ${IMAGE_EDIT_MAX_COUNT} 张参考图片`);
+      return;
+    }
+
+    const validationError = files.map(getSourceImageError).find(Boolean);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const addedImages = files.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setSourceImages((current) => {
+      const nextImages = [...current, ...addedImages];
+      sourceImagesRef.current = nextImages;
+      return nextImages;
+    });
+  };
+
+  const handleRemoveSourceImage = (previewUrl) => {
+    setError('');
+    setSourceImages((current) => {
+      const removedImage = current.find((image) => image.previewUrl === previewUrl);
+      if (removedImage) URL.revokeObjectURL(removedImage.previewUrl);
+      const nextImages = current.filter((image) => image.previewUrl !== previewUrl);
+      sourceImagesRef.current = nextImages;
+      return nextImages;
+    });
   };
 
   const handleSubmit = async (event) => {
@@ -61,24 +110,25 @@ export default function ImageGenerationPage() {
     }
 
     if (mode === 'edit') {
-      if (!sourceImage) {
-        setError('请上传需要编辑的图片');
+      if (sourceImages.length === 0) {
+        setError('请至少选择一张参考图片');
         return;
       }
-      if (!IMAGE_EDIT_ACCEPTED_MIME_TYPES.includes(sourceImage.type)) {
-        setError('仅支持 PNG、JPG、WEBP 图片');
+      if (sourceImages.length > IMAGE_EDIT_MAX_COUNT) {
+        setError(`最多可选择 ${IMAGE_EDIT_MAX_COUNT} 张参考图片`);
         return;
       }
-      if (sourceImage.size > IMAGE_EDIT_MAX_BYTES) {
-        setError(`图片大小不能超过 ${IMAGE_EDIT_MAX_MB}MB`);
+      const validationError = sourceImages.map(({ file }) => getSourceImageError(file)).find(Boolean);
+      if (validationError) {
+        setError(validationError);
         return;
       }
     }
 
     setIsGenerating(true);
     try {
-      const url = mode === 'edit' && sourceImage
-        ? await editImage({ prompt: prompt.trim(), size, image: sourceImage })
+      const url = mode === 'edit' && sourceImages.length > 0
+        ? await editImage({ prompt: prompt.trim(), size, images: sourceImages.map(({ file }) => file) })
         : await generateImage({ prompt: prompt.trim(), size });
       setImageUrl(url);
       setResultTitle(mode === 'edit' ? '编辑后的图片' : '生成的图片');
@@ -145,26 +195,48 @@ export default function ImageGenerationPage() {
 
           {mode === 'edit' ? (
             <div className="space-y-2">
-              <label htmlFor="source-image" className="text-sm font-medium">参考图片</label>
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-                <label htmlFor="source-image" className="flex min-h-[132px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-5 text-center text-sm text-zinc-500">
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="source-images" className="text-sm font-medium">参考图片</label>
+                <span className="text-xs text-zinc-500">已选 {sourceImages.length}/{IMAGE_EDIT_MAX_COUNT} 张</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <label
+                  htmlFor="source-images"
+                  className={`flex min-h-[164px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-5 text-center text-sm text-zinc-500 transition-colors ${sourceImages.length >= IMAGE_EDIT_MAX_COUNT ? 'cursor-default opacity-70' : 'cursor-pointer hover:border-primary hover:text-primary'}`}
+                >
                   <Upload className="mb-2 h-6 w-6" />
-                  <span className="font-medium">{sourceImage ? sourceImage.name : '上传 PNG、JPG 或 WEBP'}</span>
-                  <span className="mt-1 text-xs">最大 {IMAGE_EDIT_MAX_MB}MB</span>
-                  <input key={sourceInputKey} id="source-image" type="file" accept={IMAGE_EDIT_ACCEPTED_MIME_TYPES.join(',')} className="sr-only" onChange={(event) => handleSourceImageChange(event.target.files?.[0] || null)} />
+                  <span className="font-medium">
+                    {sourceImages.length >= IMAGE_EDIT_MAX_COUNT ? '已选满，移除后可继续添加' : (sourceImages.length > 0 ? '继续添加参考图片' : '选择参考图片')}
+                  </span>
+                  <span className="mt-1 text-xs">可一次选择多张，最多 {IMAGE_EDIT_MAX_COUNT} 张</span>
+                  <span className="mt-1 text-xs">每张不超过 {IMAGE_EDIT_MAX_MB}MB</span>
+                  <input
+                    key={sourceInputKey}
+                    id="source-images"
+                    type="file"
+                    accept={[
+                      ...IMAGE_EDIT_ACCEPTED_MIME_TYPES,
+                      ...IMAGE_EDIT_ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`),
+                    ].join(',')}
+                    multiple
+                    disabled={sourceImages.length >= IMAGE_EDIT_MAX_COUNT}
+                    className="sr-only"
+                    onChange={(event) => handleSourceImagesChange(event.target.files)}
+                  />
                 </label>
-                <div className="relative overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
-                  {sourcePreviewUrl ? (
-                    <>
-                      <NextImage src={sourcePreviewUrl} alt="参考图片" width={512} height={132} unoptimized className="h-[132px] w-full object-contain" />
-                      <button type="button" onClick={() => handleSourceImageChange(null)} className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white" aria-label="移除图片">
+
+                {sourceImages.map(({ file, previewUrl }, index) => (
+                  <div key={previewUrl} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
+                    <div className="relative">
+                      <NextImage src={previewUrl} alt={`第 ${index + 1} 张参考图片：${file.name}`} width={512} height={132} unoptimized className="h-[132px] w-full object-contain" />
+                      <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs text-white">第 {index + 1} 张</span>
+                      <button type="button" onClick={() => handleRemoveSourceImage(previewUrl)} className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label={`移除第 ${index + 1} 张参考图片`}>
                         <X className="h-4 w-4" />
                       </button>
-                    </>
-                  ) : (
-                    <div className="flex h-[132px] items-center justify-center text-sm text-zinc-500">未选择图片</div>
-                  )}
-                </div>
+                    </div>
+                    <p className="truncate px-3 py-2 text-xs text-zinc-500" title={file.name}>{file.name}</p>
+                  </div>
+                ))}
               </div>
             </div>
           ) : null}
