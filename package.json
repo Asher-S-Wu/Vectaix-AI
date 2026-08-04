@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
-    "@google/genai": "^2.11.0",
     "bcryptjs": "^2.4.3",
     "firecrawl": "^4.30.0",
     "framer-motion": "^11.0.0",
@@ -40,7 +39,6 @@
     "postcss": "8.5.23"
   },
   "allowScripts": {
-    "@google/genai@2.11.0": true,
     "protobufjs@7.6.5": true,
     "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true

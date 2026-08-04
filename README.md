@@ -36,6 +36,7 @@
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-HappyHorse-615CED?style=for-the-badge&logoColor=white" alt="HappyHorse"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 </tr>
 </table>
 
@@ -61,17 +62,18 @@
 
 ### 🤖 Multi-Model Intelligence
 
-Access 7 chat models through a unified interface. Switching models starts a new topic so each model keeps a clean, independent context.
+Access 8 chat models through a unified interface. Switching models starts a new topic so each model keeps a clean, independent context.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **Auto Router (Balanced)** | AIHubMix | Dynamic | Text, Image | ✅ | ✅ |
+| **Auto Router (Balanced)** | Vectaix | Dynamic | Text, Image | ✅ | ✅ |
 | **GPT-5.6 Sol** | OpenAI | 1.05M | Text, Image | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 1M | Text, Image | ✅ | ✅ |
 | **Gemini 3.6 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
 | **Abliterated Model Large** | Abliteration AI | 1M | Text | ✅ | ✅ |
 | **Grok 4.5** | xAI | 500K | Text, Image | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 1M | Text, Image | ✅ | ✅ |
+| **Qwen 3.8 Max** | Alibaba Cloud | 1M | Text, Image | ✅ | ✅ |
 
 Dedicated media models:
 
@@ -237,7 +239,7 @@ vectaix-ai/
 | **Backend** | Next.js API Routes · Node.js · SSE (Server-Sent Events) Streaming |
 | **Database** | MongoDB with Mongoose ODM |
 | **Storage** | Zeabur mounted disk (private media files) |
-| **AI Providers** | AIHubMix · Inferera · Google Gemini API · Alibaba Cloud Model Studio |
+| **AI Providers** | OpenRouter · Abliteration · Alibaba Cloud Model Studio |
 | **Auth** | MongoDB server sessions · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **Deployment** | Zeabur native Next.js service (single instance) |
@@ -270,9 +272,8 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB connection string |
 | `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
-| `AIHUBMIX_API_KEY` | — | Shared API key for AIHubMix Auto Router, Kimi K3 via Anthropic Messages, and Inferera GPT, Grok, and Claude APIs |
+| `OPENROUTER_API_KEY` | — | Shared OpenRouter API key for the Auto router and the GPT, Grok, Claude, Gemini, Kimi K3, and Qwen 3.8 Max chat models |
 | `ABLIT_KEY` | — | Abliteration API key (`ak_...`) for Abliterated Model Large |
-| `GEMINI_API_KEY` | — | Google Gemini API key for Gemini chat |
 | `DASHSCOPE_API_KEY` | — | Alibaba Cloud Model Studio API key for Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
 | `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app, used by HappyHorse to read input media |
 | `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |

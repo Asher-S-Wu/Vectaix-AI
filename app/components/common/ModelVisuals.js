@@ -5,12 +5,13 @@ import { Clapperboard, ImagePlus } from "lucide-react";
 import { getModelProvider } from "@/lib/shared/models";
 
 const PROVIDER_LOGOS = Object.freeze({
-  aihubmix: "https://assets.aihubmix.com/logos/logo.png",
-  openai: "https://assets.aihubmix.com/logos_svg/logo_GPT.svg",
-  anthropic: "https://assets.aihubmix.com/logos_svg/logo_claude2.svg",
-  google: "https://assets.aihubmix.com/logos/logo_gemini.svg",
-  xai: "https://assets.aihubmix.com/logos_svg/logo_Grok.svg",
-  moonshot: "https://assets.aihubmix.com/logos_svg/logo_kimi.svg",
+  vectaix: "/favicon.ico",
+  openai: "https://openrouter.ai/images/icons/OpenAI.svg",
+  anthropic: "https://openrouter.ai/images/icons/Anthropic.svg",
+  google: "https://openrouter.ai/images/icons/GoogleGemini.svg",
+  xai: "https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://x.ai/&size=256",
+  moonshot: "https://openrouter.ai/images/icons/MoonshotAI.png",
+  qwen: "https://openrouter.ai/images/icons/Qwen.png",
 });
 
 // Logos that are solid black and invisible on dark backgrounds

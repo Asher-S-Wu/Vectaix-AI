@@ -1,11 +1,5 @@
 import mongoose from "mongoose";
 
-const GeminiFileSchema = new mongoose.Schema({
-  uri: { type: String, default: null },
-  mimeType: { type: String, default: null },
-  expiresAt: { type: Date, default: null },
-}, { _id: false });
-
 const StoredFileSchema = new mongoose.Schema({
   fileId: {
     type: String,
@@ -69,10 +63,6 @@ const StoredFileSchema = new mongoose.Schema({
     type: String,
     default: null,
     index: true,
-  },
-  geminiFile: {
-    type: GeminiFileSchema,
-    default: () => ({}),
   },
 }, { timestamps: true });
 

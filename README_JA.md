@@ -36,6 +36,7 @@
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-HappyHorse-615CED?style=for-the-badge&logoColor=white" alt="HappyHorse"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 </tr>
 </table>
 
@@ -61,17 +62,18 @@
 
 ### 🤖 マルチモデルインテリジェンス
 
-7つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しいトピックが開始され、各モデルのコンテキストが独立して保たれます。
+8つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しいトピックが開始され、各モデルのコンテキストが独立して保たれます。
 
 | モデル | プロバイダー | コンテキスト | 入力タイプ | 思考 | ウェブ検索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **自動ルーティング（バランス）** | AIHubMix | 動的 | テキスト、画像 | ✅ | ✅ |
+| **自動ルーティング（バランス）** | Vectaix | 動的 | テキスト、画像 | ✅ | ✅ |
 | **GPT-5.6 Sol** | OpenAI | 1.05M | テキスト、画像 | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 1M | テキスト、画像 | ✅ | ✅ |
 | **Gemini 3.6 Flash** | Google | 1M | テキスト、画像、音声、動画 | ✅ | ✅ |
 | **Abliterated Model Large** | Abliteration AI | 1M | テキスト | ✅ | ✅ |
 | **Grok 4.5** | xAI | 500K | テキスト、画像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 1M | テキスト、画像 | ✅ | ✅ |
+| **Qwen 3.8 Max** | Alibaba Cloud | 1M | テキスト、画像 | ✅ | ✅ |
 
 専用メディアモデル：
 
@@ -236,7 +238,7 @@ vectaix-ai/
 | **バックエンド** | Next.js API Routes · Node.js · SSE（Server-Sent Events）ストリーミング |
 | **データベース** | MongoDB + Mongoose ODM |
 | **ストレージ** | Zeabur マウントディスク（プライベートメディア） |
-| **AIプロバイダー** | AIHubMix · Inferera · Google Gemini API · Alibaba Cloud Model Studio |
+| **AIプロバイダー** | OpenRouter · Abliteration · Alibaba Cloud Model Studio |
 | **認証** | MongoDBサーバーセッション · bcryptjs |
 | **レンダリング** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **デプロイ** | Zeabur ネイティブ Next.js サービス（単一インスタンス） |
@@ -269,9 +271,8 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB接続文字列 |
 | `STORAGE_ROOT` | ✅ | マウントディスクのパス。Zeabur では `/data/vectaix` |
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
-| `AIHUBMIX_API_KEY` | — | AIHubMixの自動ルーティング、Anthropic Messages経由のKimi K3、およびInfereraのGPT、Grok、Claudeで共用するAPIキー |
+| `OPENROUTER_API_KEY` | — | AutoルーターおよびGPT、Grok、Claude、Gemini、Kimi K3、Qwen 3.8 Maxの各チャットモデルで共用するOpenRouter APIキー |
 | `ABLIT_KEY` | — | Abliterated Model Large 用の Abliteration APIキー（`ak_...`） |
-| `GEMINI_API_KEY` | — | Geminiチャット用のGoogle Gemini APIキー |
 | `DASHSCOPE_API_KEY` | — | Qwen Image 3.0 Pro、HappyHorse動画、Qwen Audio 3.0 TTS Plus 用のAlibaba Cloud Model Studio APIキー |
 | `PUBLIC_APP_URL` | — | HappyHorseが入力素材を読み取るために使う、デプロイ済みアプリの公開HTTPSアドレス |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search と Scrape 用のAPIキー |
