@@ -91,17 +91,15 @@ function SliderField({ id, label, valueLabel, icon: Icon, ...inputProps }) {
 
 function GenerationsSkeleton() {
   return (
-    <div className="space-y-3" aria-label="正在读取语音记录" aria-busy="true">
-      {[0, 1].map((item) => (
-        <div key={item} className="rounded-2xl border border-zinc-200/70 bg-white/80 p-5 dark:border-zinc-800/70 dark:bg-zinc-950/70">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 animate-pulse rounded-xl bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-4 w-28 animate-pulse rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
-              <div className="h-3 w-3/4 animate-pulse rounded bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />
-            </div>
+    <div className="space-y-2" aria-label="正在读取语音记录" aria-busy="true">
+      {[0, 1, 2, 3].map((item) => (
+        <div key={item} className="flex items-center gap-3 rounded-xl border border-zinc-200/70 bg-white/80 px-3.5 py-3 dark:border-zinc-800/70 dark:bg-zinc-950/70">
+          <div className="h-9 w-9 animate-pulse rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="h-3.5 w-24 animate-pulse rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
+            <div className="h-3 w-1/2 animate-pulse rounded bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />
           </div>
-          <div className="mt-4 h-11 animate-pulse rounded-xl bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />
+          <div className="h-4 w-4 animate-pulse rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
         </div>
       ))}
     </div>
@@ -537,10 +535,9 @@ export default function AudioWorkspacePage() {
                           key={tag.value}
                           type="button"
                           onClick={() => insertExpressiveTag(tag.value)}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-600 transition-[border-color,background-color,transform] hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-[0.97] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                          className="inline-flex h-8 items-center rounded-lg border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-600 transition-[border-color,background-color,transform] hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-[0.97] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
                           title={`插入 ${tag.value}（${tag.kind}标签）`}
                         >
-                          <span className="h-1.5 w-1.5 rounded-full bg-primary/70" aria-hidden="true" />
                           {tag.label}
                         </button>
                       ))}
@@ -777,14 +774,19 @@ export default function AudioWorkspacePage() {
             </section>
           ) : null}
 
-          <section className="space-y-4" aria-labelledby="audio-history-title">
-            <div className="flex items-center justify-between gap-3">
+          <section className="glass-effect overflow-hidden rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60" aria-labelledby="audio-history-title">
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-200/60 px-5 py-4 dark:border-zinc-800/60 sm:px-6">
               <div>
                 <h2 id="audio-history-title" className="flex items-center gap-2 text-base font-semibold">
                   <History className="h-4 w-4 text-primary" />
                   语音记录
+                  {!generationsLoading && generations.length > 0 ? (
+                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                      {generations.length}
+                    </span>
+                  ) : null}
                 </h2>
-                <p className="mt-1 text-sm text-zinc-500">最多保留最近 100 条，刷新页面后仍可播放。</p>
+                <p className="mt-1 text-sm text-zinc-500">最多保留最近 100 条，点击单条记录展开播放。</p>
               </div>
               <button
                 type="button"
@@ -797,41 +799,43 @@ export default function AudioWorkspacePage() {
               </button>
             </div>
 
-            {generationsError ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600" role="alert">
-                {generationsError}
-              </div>
-            ) : null}
+            <div className="p-3 sm:p-4">
+              {generationsError ? (
+                <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600" role="alert">
+                  {generationsError}
+                </div>
+              ) : null}
 
-            {generationsLoading ? (
-              <GenerationsSkeleton />
-            ) : generations.length === 0 ? (
-              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200/80 bg-white/60 px-6 text-center dark:border-zinc-800 dark:bg-zinc-950/50">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <AudioLines className="h-6 w-6" />
-                </span>
-                <p className="mt-4 text-sm font-medium text-zinc-700 dark:text-zinc-200">还没有语音记录</p>
-                <p className="mt-1 max-w-sm text-xs leading-5 text-zinc-500">在上方输入文字并生成语音，结果会安全保存在这里。</p>
-              </div>
-            ) : historyGenerations.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-zinc-200/80 bg-white/60 px-5 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/50">
-                当前只有上方这条新记录。
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <AnimatePresence initial={false}>
-                  {historyGenerations.map((generation) => (
-                    <AudioGenerationCard
-                      key={generation.id}
-                      generation={generation}
-                      deleting={deletingGenerationId === generation.id}
-                      deleteDisabled={Boolean(deletingGenerationId)}
-                      onDelete={setDeleteTarget}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
+              {generationsLoading ? (
+                <GenerationsSkeleton />
+              ) : generations.length === 0 ? (
+                <div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200/80 bg-white/60 px-6 text-center dark:border-zinc-800 dark:bg-zinc-950/50">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <AudioLines className="h-6 w-6" />
+                  </span>
+                  <p className="mt-4 text-sm font-medium text-zinc-700 dark:text-zinc-200">还没有语音记录</p>
+                  <p className="mt-1 max-w-sm text-xs leading-5 text-zinc-500">在上方输入文字并生成语音，结果会安全保存在这里。</p>
+                </div>
+              ) : historyGenerations.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-zinc-200/80 bg-white/60 px-5 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/50">
+                  当前只有上方这条新记录。
+                </div>
+              ) : (
+                <div className="fade-scrollbar max-h-[480px] space-y-2 overflow-y-auto overscroll-contain pr-1">
+                  <AnimatePresence initial={false}>
+                    {historyGenerations.map((generation) => (
+                      <AudioGenerationCard
+                        key={generation.id}
+                        generation={generation}
+                        deleting={deletingGenerationId === generation.id}
+                        deleteDisabled={Boolean(deletingGenerationId)}
+                        onDelete={setDeleteTarget}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
           </section>
         </div>
       ) : (
