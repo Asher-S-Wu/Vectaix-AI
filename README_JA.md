@@ -62,11 +62,10 @@
 
 ### 🤖 マルチモデルインテリジェンス
 
-8つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しいトピックが開始され、各モデルのコンテキストが独立して保たれます。
+7つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しいトピックが開始され、各モデルのコンテキストが独立して保たれます。
 
 | モデル | プロバイダー | コンテキスト | 入力タイプ | 思考 | ウェブ検索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **自動ルーティング（バランス）** | Vectaix | 動的 | テキスト、画像 | ✅ | ✅ |
 | **GPT-5.6 Sol** | OpenAI | 1.05M | テキスト、画像 | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 1M | テキスト、画像 | ✅ | ✅ |
 | **Gemini 3.6 Flash** | Google | 1M | テキスト、画像、音声、動画 | ✅ | ✅ |
@@ -271,9 +270,9 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB接続文字列 |
 | `STORAGE_ROOT` | ✅ | マウントディスクのパス。Zeabur では `/data/vectaix` |
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
-| `OPENROUTER_API_KEY` | — | AutoルーターおよびGPT、Grok、Claude、Gemini、Kimi K3、Qwen 3.8 Maxの各チャットモデルで共用するOpenRouter APIキー |
+| `OPENROUTER_API_KEY` | — | GPT、Grok、Claude、Gemini、Kimi K3の各チャットモデルで共用するOpenRouter APIキー |
 | `ABLIT_KEY` | — | Abliterated Model Large 用の Abliteration APIキー（`ak_...`） |
-| `DASHSCOPE_API_KEY` | — | Qwen Image 3.0 Pro、HappyHorse動画、Qwen Audio 3.0 TTS Plus 用のAlibaba Cloud Model Studio APIキー |
+| `DASHSCOPE_API_KEY` | — | Qwen 3.8 Max、Qwen Image 3.0 Pro、HappyHorse動画、Qwen Audio 3.0 TTS Plus 用のAlibaba Cloud Model Studio APIキー |
 | `PUBLIC_APP_URL` | — | HappyHorseが入力素材を読み取るために使う、デプロイ済みアプリの公開HTTPSアドレス |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search と Scrape 用のAPIキー |
 

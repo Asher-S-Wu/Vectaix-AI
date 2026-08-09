@@ -5,7 +5,6 @@ import { Clapperboard, ImagePlus } from "lucide-react";
 import { getModelProvider } from "@/lib/shared/models";
 
 const PROVIDER_LOGOS = Object.freeze({
-  vectaix: "/favicon.ico",
   openai: "https://openrouter.ai/images/icons/OpenAI.svg",
   anthropic: "https://openrouter.ai/images/icons/Anthropic.svg",
   google: "https://openrouter.ai/images/icons/GoogleGemini.svg",

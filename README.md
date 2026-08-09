@@ -62,11 +62,10 @@
 
 ### 🤖 Multi-Model Intelligence
 
-Access 8 chat models through a unified interface. Switching models starts a new topic so each model keeps a clean, independent context.
+Access 7 chat models through a unified interface. Switching models starts a new topic so each model keeps a clean, independent context.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **Auto Router (Balanced)** | Vectaix | Dynamic | Text, Image | ✅ | ✅ |
 | **GPT-5.6 Sol** | OpenAI | 1.05M | Text, Image | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 1M | Text, Image | ✅ | ✅ |
 | **Gemini 3.6 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
@@ -272,9 +271,9 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB connection string |
 | `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
-| `OPENROUTER_API_KEY` | — | Shared OpenRouter API key for the Auto router and the GPT, Grok, Claude, Gemini, Kimi K3, and Qwen 3.8 Max chat models |
+| `OPENROUTER_API_KEY` | — | Shared OpenRouter API key for the GPT, Grok, Claude, Gemini, and Kimi K3 chat models |
 | `ABLIT_KEY` | — | Abliteration API key (`ak_...`) for Abliterated Model Large |
-| `DASHSCOPE_API_KEY` | — | Alibaba Cloud Model Studio API key for Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
+| `DASHSCOPE_API_KEY` | — | Alibaba Cloud Model Studio API key for Qwen 3.8 Max, Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
 | `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app, used by HappyHorse to read input media |
 | `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |
 

@@ -18,9 +18,8 @@ import {
 import { ModelGlyph } from "../common/ModelVisuals";
 
 const MODEL_SELECTOR_GROUP_ORDER = Object.freeze([
-  MODEL_GROUP_ORDER[0],
   "media",
-  ...MODEL_GROUP_ORDER.slice(1),
+  ...MODEL_GROUP_ORDER,
 ]);
 const MODEL_SELECTOR_GROUP_TITLES = Object.freeze({
   ...MODEL_GROUP_TITLES,

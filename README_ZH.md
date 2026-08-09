@@ -62,11 +62,10 @@
 
 ### 🤖 多模型智能
 
-支持 8 个聊天模型，通过统一界面访问。对话中切换模型时会新建话题，避免不同模型的上下文相互混淆。
+支持 7 个聊天模型，通过统一界面访问。对话中切换模型时会新建话题，避免不同模型的上下文相互混淆。
 
 | 模型 | 供应商 | 上下文窗口 | 输入类型 | 深度思考 | 联网搜索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **自动路由（均衡）** | Vectaix | 动态 | 文本、图像 | ✅ | ✅ |
 | **GPT-5.6 Sol** | OpenAI | 105 万 | 文本、图像 | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 100 万 | 文本、图像 | ✅ | ✅ |
 | **Gemini 3.6 Flash** | Google | 100 万 | 文本、图像、音频、视频 | ✅ | ✅ |
@@ -271,9 +270,9 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB 连接字符串 |
 | `STORAGE_ROOT` | ✅ | 挂载硬盘目录，Zeabur 使用 `/data/vectaix` |
 | `ADMIN_EMAILS` | — | 管理员邮箱，多个邮箱使用英文逗号分隔 |
-| `OPENROUTER_API_KEY` | — | Auto 自动路由以及 GPT、Grok、Claude、Gemini、Kimi K3、Qwen 3.8 Max 等聊天模型共用的 OpenRouter API 密钥 |
+| `OPENROUTER_API_KEY` | — | GPT、Grok、Claude、Gemini、Kimi K3 等聊天模型共用的 OpenRouter API 密钥 |
 | `ABLIT_KEY` | — | Abliterated Model Large 使用的 Abliteration API 密钥（`ak_...`） |
-| `DASHSCOPE_API_KEY` | — | Qwen Image 3.0 Pro、HappyHorse 视频和 Qwen Audio 3.0 TTS Plus 使用的阿里云百炼 API 密钥 |
+| `DASHSCOPE_API_KEY` | — | Qwen 3.8 Max、Qwen Image 3.0 Pro、HappyHorse 视频和 Qwen Audio 3.0 TTS Plus 使用的阿里云百炼 API 密钥 |
 | `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址，供 HappyHorse 读取输入素材 |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search 与 Scrape 使用的 API 密钥 |
 
