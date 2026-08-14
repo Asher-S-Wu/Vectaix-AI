@@ -68,7 +68,7 @@
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-5.6 Sol** | OpenAI | 105 万 | 文本、图像 | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 100 万 | 文本、图像 | ✅ | ✅ |
-| **Gemini 3.6 Flash** | Google | 100 万 | 文本、图像、音频、视频 | ✅ | ✅ |
+| **Gemini 3.7 Flash** | Google | 100 万 | 文本、图像、音频、视频 | ✅ | ✅ |
 | **Abliterated Model Large** | Abliteration AI | 100 万 | 文本 | ✅ | ✅ |
 | **Grok 4.5** | xAI | 50 万 | 文本、图像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 100 万 | 文本、图像 | ✅ | ✅ |

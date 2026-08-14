@@ -68,7 +68,7 @@ Access 7 chat models through a unified interface. Switching models starts a new 
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-5.6 Sol** | OpenAI | 1.05M | Text, Image | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 1M | Text, Image | ✅ | ✅ |
-| **Gemini 3.6 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
+| **Gemini 3.7 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
 | **Abliterated Model Large** | Abliteration AI | 1M | Text | ✅ | ✅ |
 | **Grok 4.5** | xAI | 500K | Text, Image | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 1M | Text, Image | ✅ | ✅ |
