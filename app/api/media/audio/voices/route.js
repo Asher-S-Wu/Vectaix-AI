@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
+  parseJsonRequest,
   requireUserRecord,
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
@@ -13,8 +14,15 @@ import {
   deleteCustomVoice,
 } from "@/lib/media/server/qwenAudio";
 import { serializeCustomVoice } from "@/lib/media/server/audioRecords";
-import { inspectVoiceSample } from "@/lib/media/server/audioSampleInspection";
 import { cleanupExpiredVoiceSamples } from "@/lib/media/server/voiceSampleCleanup";
+import { AUDIO_UPLOAD_PURPOSES } from "@/lib/media/shared/audioUploads";
+import { transcodeAudioClip } from "@/lib/media/server/audioTranscoding";
+import {
+  claimAudioSources,
+  cleanupExpiredAudioSourceUploads,
+  deleteClaimedAudioSources,
+  getAudioSourceAbsolutePath,
+} from "@/lib/media/server/audioSourceUploads";
 import {
   acquireVoiceCreationLease,
   assertMediaWriteLeaseActive,
@@ -34,8 +42,7 @@ export const dynamic = "force-dynamic";
 
 const VOICE_MUTATION_RATE_LIMIT = Object.freeze({ limit: 5, windowMs: 10 * 60 * 1000 });
 const CUSTOM_VOICE_LIMIT = 20;
-const SAMPLE_MAX_BYTES = 10 * 1024 * 1024;
-const MULTIPART_MAX_BYTES = SAMPLE_MAX_BYTES + 1024 * 1024;
+const MAX_JSON_BYTES = 32 * 1024;
 const SAMPLE_TOKEN_TTL_MS = 15 * 60 * 1000;
 const SAMPLE_FILE_TTL_MS = (24 * 60 - 15) * 60 * 1000;
 const ALLOWED_LANGUAGE_HINTS = new Set(AUDIO_LANGUAGE_HINTS.map((item) => item.id).filter(Boolean));
@@ -80,30 +87,28 @@ function createVoicePrefix() {
   return `vx${randomPart}`;
 }
 
-function getFileExtension(name) {
-  const match = /\.([a-z0-9]+)$/i.exec(String(name || "").trim());
-  return match ? match[1].toLowerCase() : "";
+function normalizedSampleName(originalName) {
+  const name = String(originalName || "声音样本").replace(/\.[^.]+$/u, "").trim() || "声音样本";
+  return `${name.slice(0, 196)}.wav`;
 }
 
-function inspectUploadedSample(buffer, extension) {
-  try {
-    return inspectVoiceSample(buffer, extension);
-  } catch (error) {
-    if (error instanceof Error) error.status = 400;
-    throw error;
+function readCreateVoiceInput(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw Object.assign(new Error("请求内容格式错误"), { status: 400 });
   }
-}
-
-function readCreateVoiceForm(formData) {
-  const displayName = typeof formData.get("displayName") === "string"
-    ? formData.get("displayName").trim()
+  const displayName = typeof body.displayName === "string"
+    ? body.displayName.trim()
     : "";
-  const languageHint = typeof formData.get("languageHint") === "string"
-    ? formData.get("languageHint").trim()
+  const languageHint = typeof body.languageHint === "string"
+    ? body.languageHint.trim()
     : "zh";
-  const enablePreprocess = formData.get("enablePreprocess") === "true";
-  const consent = formData.get("consent") === "true";
-  const audio = formData.get("audio");
+  const enablePreprocess = body.enablePreprocess === true;
+  const consent = body.consent === true;
+  const sampleUploadId = typeof body.sampleUploadId === "string"
+    ? body.sampleUploadId.trim()
+    : "";
+  const clipStart = Number(body.clipStart);
+  const clipEnd = Number(body.clipEnd);
 
   if (!displayName || displayName.length > 40) {
     throw Object.assign(new Error("音色名称需为 1 到 40 个字符"), { status: 400 });
@@ -114,18 +119,20 @@ function readCreateVoiceForm(formData) {
   if (!consent) {
     throw Object.assign(new Error("请先确认已获得声音使用授权"), { status: 400 });
   }
-  if (!(audio instanceof File) || audio.size <= 0) {
+  if (!sampleUploadId) {
     throw Object.assign(new Error("请选择声音样本"), { status: 400 });
   }
-  if (audio.size > SAMPLE_MAX_BYTES) {
-    throw Object.assign(new Error("声音样本不能超过 10MB"), { status: 413 });
+  if (!Number.isFinite(clipStart) || !Number.isFinite(clipEnd)) {
+    throw Object.assign(new Error("声音样本片段参数无效"), { status: 400 });
   }
 
   return {
     displayName,
     languageHint,
     enablePreprocess,
-    audio,
+    sampleUploadId,
+    clipStart,
+    clipEnd,
   };
 }
 
@@ -138,6 +145,7 @@ export async function GET() {
     mediaWriteLease = await beginMediaWriteLease(user.userId);
 
     await assertMediaWriteLeaseActive(mediaWriteLease);
+    await cleanupExpiredAudioSourceUploads();
     await cleanupExpiredVoiceSamples(new Date(), user.userId);
     const voices = await CustomVoice.find({
       userId: user.userId,
@@ -171,6 +179,7 @@ export async function POST(request) {
   let preserveLocalRecord = false;
   let mediaWriteLease = null;
   let voiceCreationLease = null;
+  let sourceOperationId = "";
   try {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
@@ -178,15 +187,6 @@ export async function POST(request) {
     userId = user.userId;
     mediaWriteLease = await beginMediaWriteLease(user.userId);
     voiceCreationLease = await acquireVoiceCreationLease(user.userId);
-
-    const rawContentLength = request.headers.get("content-length");
-    if (!rawContentLength || !/^\d+$/.test(rawContentLength)) {
-      return jsonMessage("上传请求缺少有效的大小信息", 411);
-    }
-    const contentLength = Number(rawContentLength);
-    if (contentLength > MULTIPART_MAX_BYTES) {
-      return jsonMessage("上传内容不能超过 11MB", 413);
-    }
 
     const clientIP = getClientIP(request);
     const limited = rateLimit(
@@ -205,16 +205,29 @@ export async function POST(request) {
       return jsonMessage(`每位用户最多保存 ${CUSTOM_VOICE_LIMIT} 个复刻音色`, 409);
     }
 
-    let formData;
-    try {
-      formData = await request.formData();
-    } catch {
-      return jsonMessage("上传内容格式错误", 400);
-    }
-    const input = readCreateVoiceForm(formData);
-    const extension = getFileExtension(input.audio.name);
-    const buffer = Buffer.from(await input.audio.arrayBuffer());
-    const inspected = inspectUploadedSample(buffer, extension);
+    const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
+    if (!parsed.ok) return parsed.response;
+    const input = readCreateVoiceInput(parsed.body);
+
+    sourceOperationId = crypto.randomUUID();
+    const [source] = await claimAudioSources({
+      userId: user.userId,
+      fileIds: [input.sampleUploadId],
+      purpose: AUDIO_UPLOAD_PURPOSES.VOICE_CLONE,
+      operationId: sourceOperationId,
+    });
+    const normalized = await transcodeAudioClip({
+      inputPath: getAudioSourceAbsolutePath(source),
+      purpose: AUDIO_UPLOAD_PURPOSES.VOICE_CLONE,
+      clipStart: input.clipStart,
+      clipEnd: input.clipEnd,
+      sourceMetadata: {
+        duration: source.audioDuration,
+        channels: source.audioChannels,
+        sampleRate: source.audioSampleRate,
+      },
+      signal: request.signal,
+    });
 
     profileId = crypto.randomUUID();
     const token = crypto.randomBytes(32).toString("base64url");
@@ -225,10 +238,10 @@ export async function POST(request) {
     await assertMediaWriteLeaseActive(mediaWriteLease);
     const saved = await createStoredFile({
       userId: user.userId,
-      input: buffer,
-      originalName: input.audio.name,
-      mimeType: inspected.mimeType,
-      extension: inspected.extension,
+      input: normalized.buffer,
+      originalName: normalizedSampleName(source.originalName),
+      mimeType: normalized.mimeType,
+      extension: normalized.extension,
       category: "audio",
       kind: "voice-sample",
       ownerType: "voice-profile",
@@ -251,7 +264,7 @@ export async function POST(request) {
         languageHint: input.languageHint,
         enablePreprocess: input.enablePreprocess,
         sampleFileId: saved.fileId,
-        sampleFileName: input.audio.name,
+        sampleFileName: source.originalName,
         sampleTokenHash: hashSampleToken(token),
         sampleTokenExpiresAt,
         sampleExpiresAt,
@@ -482,6 +495,14 @@ export async function POST(request) {
     console.error("[Media Audio] create custom voice:", error);
     return jsonMessage(getPublicErrorMessage(error, "声音复刻失败"), getErrorStatus(error));
   } finally {
+    if (sourceOperationId && userId) {
+      await deleteClaimedAudioSources({
+        userId,
+        operationId: sourceOperationId,
+      }).catch((error) => {
+        console.error("[Media Audio] cleanup voice source upload:", error);
+      });
+    }
     if (voiceCreationLease) {
       await releaseVoiceCreationLease(voiceCreationLease).catch((error) => {
         console.error("[Media Audio] release voice creation lease:", error);

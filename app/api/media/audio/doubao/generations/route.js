@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
-import { getFileExtension } from "@/lib/shared/attachments";
 import {
+  parseJsonRequest,
   requireUserRecord,
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
@@ -12,9 +12,16 @@ import {
   DOUBAO_AUDIO_REFERENCE_MAX_COUNT,
   DOUBAO_AUDIO_TEXT_MAX_LENGTH,
 } from "@/lib/media/shared/doubaoAudio";
-import { inspectDoubaoReferenceAudio } from "@/lib/media/server/doubaoAudioReferenceInspection";
+import { AUDIO_UPLOAD_PURPOSES } from "@/lib/media/shared/audioUploads";
 import { generateDoubaoAudio } from "@/lib/media/server/doubaoAudio";
 import { serializeDoubaoAudioGeneration } from "@/lib/media/server/doubaoAudioRecords";
+import { transcodeAudioClip } from "@/lib/media/server/audioTranscoding";
+import {
+  claimAudioSources,
+  cleanupExpiredAudioSourceUploads,
+  deleteClaimedAudioSources,
+  getAudioSourceAbsolutePath,
+} from "@/lib/media/server/audioSourceUploads";
 import {
   assertMediaWriteLeaseActive,
   beginMediaWriteLease,
@@ -28,7 +35,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const GENERATION_RATE_LIMIT = Object.freeze({ limit: 10, windowMs: 60 * 1000 });
-const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
+const MAX_JSON_BYTES = 128 * 1024;
 const MODE_SET = new Set(DOUBAO_AUDIO_MODE_IDS);
 const FORMAT_SET = new Set(DOUBAO_AUDIO_FORMAT_IDS);
 
@@ -47,32 +54,20 @@ function publicMessage(error, fallback) {
 }
 
 function readInteger(value, label, min, max, defaultValue) {
-  const normalized = String(value ?? "").trim();
-  if (!normalized && defaultValue !== undefined) return defaultValue;
-  if (!/^-?\d+$/.test(normalized)) {
+  if ((value === undefined || value === null) && defaultValue !== undefined) return defaultValue;
+  if (!Number.isInteger(value)) {
     throw Object.assign(new Error(`${label}必须是整数`), { status: 400 });
   }
-  const number = Number(normalized);
-  if (!Number.isSafeInteger(number) || number < min || number > max) {
+  if (!Number.isSafeInteger(value) || value < min || value > max) {
     throw Object.assign(new Error(`${label}不在允许范围内`), { status: 400 });
   }
-  return number;
+  return value;
 }
 
 function readBoolean(value, label) {
-  const normalized = String(value ?? "false").trim().toLowerCase();
-  if (normalized === "true") return true;
-  if (normalized === "false") return false;
+  if (value === undefined) return false;
+  if (typeof value === "boolean") return value;
   throw Object.assign(new Error(`${label}参数无效`), { status: 400 });
-}
-
-function getFormDataSize(formData) {
-  let size = 0;
-  for (const [, value] of formData.entries()) {
-    size += value instanceof File ? value.size : Buffer.byteLength(String(value), "utf8");
-    if (size > MAX_REQUEST_BYTES) return size;
-  }
-  return size;
 }
 
 function validateAudioReferencesInPrompt(textPrompt, referenceCount) {
@@ -84,11 +79,14 @@ function validateAudioReferencesInPrompt(textPrompt, referenceCount) {
   }
 }
 
-async function parseGenerationInput(formData) {
-  const mode = String(formData.get("mode") || "").trim();
-  const textPrompt = String(formData.get("textPrompt") || "").trim();
-  const format = String(formData.get("format") || "mp3").trim().toLowerCase();
-  const audioFiles = formData.getAll("referenceAudio").filter((item) => item instanceof File && item.size > 0);
+function parseGenerationInput(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw Object.assign(new Error("请求内容格式错误"), { status: 400 });
+  }
+  const mode = String(body.mode || "").trim();
+  const textPrompt = String(body.textPrompt || "").trim();
+  const format = String(body.format || "mp3").trim().toLowerCase();
+  const referenceAudios = Array.isArray(body.referenceAudios) ? body.referenceAudios : [];
 
   if (!MODE_SET.has(mode)) throw Object.assign(new Error("请选择音频生成方式"), { status: 400 });
   if (!textPrompt) throw Object.assign(new Error("请输入音频描述或待合成文本"), { status: 400 });
@@ -97,28 +95,36 @@ async function parseGenerationInput(formData) {
   }
   if (!FORMAT_SET.has(format)) throw Object.assign(new Error("不支持的输出音频格式"), { status: 400 });
 
-  const speechRate = readInteger(formData.get("speechRate"), "语速", -50, 100, 0);
-  const enableSubtitle = readBoolean(formData.get("enableSubtitle"), "字幕");
+  const speechRate = readInteger(body.speechRate, "语速", -50, 100, 0);
+  const enableSubtitle = readBoolean(body.enableSubtitle, "字幕");
 
-  if (mode === "text" && audioFiles.length) {
+  if (mode === "text" && referenceAudios.length) {
     throw Object.assign(new Error("纯文本生成不能携带参考文件"), { status: 400 });
   }
   if (mode === "audio-reference") {
-    if (audioFiles.length < 1 || audioFiles.length > DOUBAO_AUDIO_REFERENCE_MAX_COUNT) {
+    if (referenceAudios.length < 1 || referenceAudios.length > DOUBAO_AUDIO_REFERENCE_MAX_COUNT) {
       throw Object.assign(new Error("请上传 1 至 3 段参考音频"), { status: 400 });
     }
   }
   validateAudioReferencesInPrompt(
     textPrompt,
-    mode === "audio-reference" ? audioFiles.length : 0,
+    mode === "audio-reference" ? referenceAudios.length : 0,
   );
 
-  const audioReferences = [];
-  for (const file of audioFiles) {
-    const extension = getFileExtension(file.name);
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const metadata = inspectDoubaoReferenceAudio(buffer, extension);
-    audioReferences.push({ buffer, extension, metadata });
+  const normalizedReferences = referenceAudios.map((reference) => {
+    if (!reference || typeof reference !== "object" || Array.isArray(reference)) {
+      throw Object.assign(new Error("参考音频参数无效"), { status: 400 });
+    }
+    const fileId = typeof reference.fileId === "string" ? reference.fileId.trim() : "";
+    const clipStart = Number(reference.clipStart);
+    const clipEnd = Number(reference.clipEnd);
+    if (!fileId || !Number.isFinite(clipStart) || !Number.isFinite(clipEnd)) {
+      throw Object.assign(new Error("参考音频片段参数无效"), { status: 400 });
+    }
+    return { fileId, clipStart, clipEnd };
+  });
+  if (new Set(normalizedReferences.map((item) => item.fileId)).size !== normalizedReferences.length) {
+    throw Object.assign(new Error("不能重复使用同一段参考音频"), { status: 400 });
   }
 
   return {
@@ -127,8 +133,8 @@ async function parseGenerationInput(formData) {
     format,
     speechRate,
     enableSubtitle,
-    audioReferences,
-    referenceCount: mode === "audio-reference" ? audioReferences.length : 0,
+    referenceAudios: normalizedReferences,
+    referenceCount: mode === "audio-reference" ? normalizedReferences.length : 0,
   };
 }
 
@@ -153,6 +159,9 @@ export async function GET() {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    cleanupExpiredAudioSourceUploads().catch((error) => {
+      console.error("[Doubao Audio] cleanup expired uploads:", error);
+    });
     const generations = await DoubaoAudioGeneration.find({
       userId: user.userId,
       model: DOUBAO_AUDIO_MODEL,
@@ -172,13 +181,11 @@ export async function GET() {
 
 export async function POST(request) {
   let mediaWriteLease = null;
+  let sourceOperationId = "";
   try {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-
-    const contentLength = Number(request.headers.get("content-length") || 0);
-    if (contentLength > MAX_REQUEST_BYTES) return jsonMessage("请求内容不能超过 32MB", 413);
 
     const limited = rateLimit(
       `media-doubao-audio-generation:${user.userId}:${getClientIP(request)}`,
@@ -186,18 +193,39 @@ export async function POST(request) {
     );
     if (!limited.success) return jsonMessage("音频生成请求过于频繁，请稍后再试", 429);
 
-    let formData;
-    try {
-      formData = await request.formData();
-    } catch {
-      return jsonMessage("上传内容格式错误", 400);
-    }
-    if (getFormDataSize(formData) > MAX_REQUEST_BYTES) {
-      return jsonMessage("请求内容不能超过 32MB", 413);
-    }
-    const input = await parseGenerationInput(formData);
+    const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
+    if (!parsed.ok) return parsed.response;
+    const input = parseGenerationInput(parsed.body);
     input.requestId = crypto.randomUUID();
     mediaWriteLease = await beginMediaWriteLease(user.userId);
+
+    input.audioReferences = [];
+    if (input.mode === "audio-reference") {
+      sourceOperationId = crypto.randomUUID();
+      const sources = await claimAudioSources({
+        userId: user.userId,
+        fileIds: input.referenceAudios.map((item) => item.fileId),
+        purpose: AUDIO_UPLOAD_PURPOSES.DOUBAO_REFERENCE,
+        operationId: sourceOperationId,
+      });
+      for (let index = 0; index < sources.length; index += 1) {
+        const reference = input.referenceAudios[index];
+        const source = sources[index];
+        const normalized = await transcodeAudioClip({
+          inputPath: getAudioSourceAbsolutePath(source),
+          purpose: AUDIO_UPLOAD_PURPOSES.DOUBAO_REFERENCE,
+          clipStart: reference.clipStart,
+          clipEnd: reference.clipEnd,
+          sourceMetadata: {
+            duration: source.audioDuration,
+            channels: source.audioChannels,
+            sampleRate: source.audioSampleRate,
+          },
+          signal: request.signal,
+        });
+        input.audioReferences.push({ buffer: normalized.buffer });
+      }
+    }
 
     const upstream = await generateDoubaoAudio(input, { signal: request.signal });
     const generationId = crypto.randomUUID();
@@ -261,6 +289,14 @@ export async function POST(request) {
     });
     return jsonMessage(publicMessage(error, "Doubao 音频生成失败"), getErrorStatus(error));
   } finally {
+    if (sourceOperationId) {
+      await deleteClaimedAudioSources({
+        userId: mediaWriteLease?.userId,
+        operationId: sourceOperationId,
+      }).catch((error) => {
+        console.error("[Doubao Audio] cleanup reference uploads:", error);
+      });
+    }
     if (mediaWriteLease) {
       await endMediaWriteLease(mediaWriteLease).catch((error) => {
         console.error("[Doubao Audio] release media write lease:", error);

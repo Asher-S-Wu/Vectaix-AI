@@ -245,22 +245,34 @@ async function validateEditVideo(file) {
 }
 
 function PreviewImage({ file, alt }) {
-  const [src, setSrc] = useState('');
+  const [src, setSrc] = useState("");
   useEffect(() => {
-    const objectUrl = URL.createObjectURL(file);
-    setSrc(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
+    let objectUrl = "";
+    const timer = window.setTimeout(() => {
+      objectUrl = URL.createObjectURL(file);
+      setSrc(objectUrl);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [file]);
   if (!src) return null;
   return <NextImage src={src} alt={alt} fill sizes="180px" unoptimized className="object-cover" />;
 }
 
 function PreviewVideo({ file }) {
-  const [src, setSrc] = useState('');
+  const [src, setSrc] = useState("");
   useEffect(() => {
-    const objectUrl = URL.createObjectURL(file);
-    setSrc(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
+    let objectUrl = "";
+    const timer = window.setTimeout(() => {
+      objectUrl = URL.createObjectURL(file);
+      setSrc(objectUrl);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [file]);
   if (!src) return null;
   return <video src={src} muted controls playsInline className="h-48 w-full bg-black object-contain" />;

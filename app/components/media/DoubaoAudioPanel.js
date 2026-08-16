@@ -13,12 +13,12 @@ import {
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
-  Trash2,
   Upload,
   WandSparkles,
   Waves,
 } from "lucide-react";
 import DoubaoAudioGenerationCard from "@/app/components/media/DoubaoAudioGenerationCard";
+import AudioSourceClipField from "@/app/components/media/AudioSourceClipField";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
 import {
   createDoubaoAudioGeneration,
@@ -26,15 +26,19 @@ import {
   listDoubaoAudioGenerations,
 } from "@/lib/media/client/media";
 import {
+  AUDIO_UPLOAD_ACCEPT,
+  AUDIO_UPLOAD_EXTENSIONS,
+  AUDIO_UPLOAD_MAX_BYTES,
+  AUDIO_UPLOAD_PURPOSES,
+} from "@/lib/media/shared/audioUploads";
+import {
   DOUBAO_AUDIO_FORMAT_OPTIONS,
   DOUBAO_AUDIO_MODES,
-  DOUBAO_AUDIO_REFERENCE_MAX_BYTES,
   DOUBAO_AUDIO_REFERENCE_MAX_COUNT,
-  DOUBAO_AUDIO_REFERENCE_MAX_DURATION_SECONDS,
   DOUBAO_AUDIO_TEXT_MAX_LENGTH,
 } from "@/lib/media/shared/doubaoAudio";
 
-const AUDIO_ACCEPT = ".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg";
+const AUDIO_EXTENSION_SET = new Set(AUDIO_UPLOAD_EXTENSIONS);
 
 function mergeGeneration(items, nextGeneration) {
   return [nextGeneration, ...items.filter((item) => item.id !== nextGeneration.id)].slice(0, 100);
@@ -45,48 +49,6 @@ function fileExtension(name) {
   return match ? match[1] : "";
 }
 
-function inspectAudioDuration(file) {
-  return new Promise((resolve, reject) => {
-    const audio = document.createElement("audio");
-    const url = URL.createObjectURL(file);
-    const cleanup = () => {
-      audio.removeAttribute("src");
-      audio.load();
-      URL.revokeObjectURL(url);
-    };
-    audio.preload = "metadata";
-    audio.onloadedmetadata = () => {
-      const duration = audio.duration;
-      cleanup();
-      if (!Number.isFinite(duration) || duration <= 0) {
-        reject(new Error(`无法读取 ${file.name} 的音频时长`));
-        return;
-      }
-      if (duration > DOUBAO_AUDIO_REFERENCE_MAX_DURATION_SECONDS) {
-        reject(new Error(`${file.name} 超过 30 秒`));
-        return;
-      }
-      resolve(Math.round(duration * 10) / 10);
-    };
-    audio.onerror = () => {
-      cleanup();
-      reject(new Error(`${file.name} 不是可读取的 MP3、WAV 或 OGG Opus 音频`));
-    };
-    audio.src = url;
-  });
-}
-
-function useObjectUrl(file) {
-  const [url, setUrl] = useState("");
-  useEffect(() => {
-    if (!file) return undefined;
-    const nextUrl = URL.createObjectURL(file);
-    setUrl(nextUrl);
-    return () => URL.revokeObjectURL(nextUrl);
-  }, [file]);
-  return url;
-}
-
 function SliderField({ id, label, value, min, max, icon: Icon, onChange }) {
   return (
     <div className="space-y-2 rounded-xl border border-zinc-200 bg-white/60 p-3 dark:border-zinc-800 dark:bg-zinc-950/40">
@@ -95,23 +57,6 @@ function SliderField({ id, label, value, min, max, icon: Icon, onChange }) {
         <output htmlFor={id} className="text-xs font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">{value}</output>
       </div>
       <input id={id} type="range" min={min} max={max} step={1} value={value} onChange={(event) => onChange(Number(event.target.value))} className="h-2 w-full cursor-pointer accent-primary" />
-    </div>
-  );
-}
-
-function AudioReferenceItem({ item, index, onRemove }) {
-  const url = useObjectUrl(item.file);
-  return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-      <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileAudio2 className="h-4 w-4" /></span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">@音频{index + 1} · {item.file.name}</p>
-          <p className="mt-0.5 text-[11px] text-zinc-400">{item.duration.toFixed(1)} 秒 · {(item.file.size / 1024 / 1024).toFixed(1)} MB</p>
-        </div>
-        <button type="button" onClick={() => onRemove(index)} aria-label={`移除 @音频${index + 1}`} className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-      </div>
-      {url ? <audio controls preload="metadata" src={url} className="mt-2 h-9 w-full" /> : null}
     </div>
   );
 }
@@ -152,34 +97,47 @@ export default function DoubaoAudioPanel() {
     }
   }, []);
 
-  useEffect(() => { loadGenerations(); }, [loadGenerations]);
+  useEffect(() => {
+    const timer = window.setTimeout(loadGenerations, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadGenerations]);
 
   const changeMode = (nextMode) => {
+    if (generating) return;
     setMode(nextMode);
     setAudioReferences([]);
     setGenerationError("");
     if (audioInputRef.current) audioInputRef.current.value = "";
   };
 
-  const addAudioReferences = async (files) => {
+  const addAudioReferences = (files) => {
     const incoming = Array.from(files || []);
     if (!incoming.length) return;
     if (audioReferences.length + incoming.length > DOUBAO_AUDIO_REFERENCE_MAX_COUNT) {
       setGenerationError("最多只能上传 3 段参考音频");
       return;
     }
-    const next = [];
-    try {
-      for (const file of incoming) {
-        if (!["mp3", "wav", "ogg"].includes(fileExtension(file.name))) throw new Error(`${file.name} 的格式不受支持`);
-        if (file.size <= 0 || file.size > DOUBAO_AUDIO_REFERENCE_MAX_BYTES) throw new Error(`${file.name} 不能超过 10MB`);
-        next.push({ file, duration: await inspectAudioDuration(file) });
+    for (const file of incoming) {
+      if (!AUDIO_EXTENSION_SET.has(fileExtension(file.name))) {
+        setGenerationError(`${file.name} 的格式不受支持`);
+        return;
       }
-      setAudioReferences((current) => [...current, ...next]);
-      setGenerationError("");
-    } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : "参考音频无法读取");
+      if (file.size <= 0) {
+        setGenerationError(`${file.name} 的内容为空`);
+        return;
+      }
+      if (file.size > AUDIO_UPLOAD_MAX_BYTES) {
+        setGenerationError(`${file.name} 不能超过 100MB`);
+        return;
+      }
     }
+    const next = incoming.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      source: null,
+    }));
+    setAudioReferences((current) => [...current, ...next]);
+    setGenerationError("");
   };
 
   const removeAudioReference = (index) => {
@@ -222,6 +180,10 @@ export default function DoubaoAudioPanel() {
       setGenerationError("请上传至少一段参考音频");
       return;
     }
+    if (mode === "audio-reference" && audioReferences.some((item) => item.source?.status !== "ready")) {
+      setGenerationError("请等待所有参考音频上传和识别完成");
+      return;
+    }
     const availableAudioReferences = mode === "audio-reference" ? audioReferences.length : 0;
     for (const match of normalizedPrompt.matchAll(/@音频(\d+)/gu)) {
       const referenceNumber = Number(match[1]);
@@ -236,7 +198,13 @@ export default function DoubaoAudioPanel() {
       const generation = await createDoubaoAudioGeneration({
         mode,
         textPrompt: normalizedPrompt,
-        audioReferences,
+        referenceAudios: mode === "audio-reference"
+          ? audioReferences.map((item) => ({
+              fileId: item.source.upload.fileId,
+              clipStart: item.source.clipStart,
+              clipEnd: item.source.clipEnd,
+            }))
+          : [],
         format,
         speechRate,
         enableSubtitle,
@@ -244,8 +212,16 @@ export default function DoubaoAudioPanel() {
       setGenerations((current) => mergeGeneration(current, generation));
       setLatestGenerationId(generation.id);
       setGenerationsError("");
+      setAudioReferences([]);
+      setTextPrompt((current) => current.replace(/@音频\d+/gu, "").replace(/ {2,}/gu, " ").trim());
+      if (audioInputRef.current) audioInputRef.current.value = "";
     } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : "Doubao 音频生成失败");
+      const message = error instanceof Error ? error.message : "Doubao 音频生成失败";
+      setGenerationError(mode === "audio-reference"
+        ? `${message}。临时参考音频已清理，请重新选择`
+        : message);
+      if (mode === "audio-reference") setAudioReferences([]);
+      if (audioInputRef.current) audioInputRef.current.value = "";
     } finally {
       setGenerating(false);
     }
@@ -306,9 +282,23 @@ export default function DoubaoAudioPanel() {
                 <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/70 px-5 text-center dark:border-zinc-800 dark:bg-zinc-900/40"><Waves className="h-8 w-8 text-primary" /><p className="mt-3 text-sm font-medium">无需参考素材</p><p className="mt-1 text-xs leading-5 text-zinc-500">直接描述声音、时长、情绪和时间轴即可。</p></div>
               ) : (
                 <div className="space-y-2">
-                  {audioReferences.map((item, index) => <AudioReferenceItem key={`${item.file.name}-${item.file.lastModified}-${index}`} item={item} index={index} onRemove={removeAudioReference} />)}
-                  {audioReferences.length < DOUBAO_AUDIO_REFERENCE_MAX_COUNT ? <button type="button" onClick={() => audioInputRef.current?.click()} className="flex min-h-24 w-full flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 text-sm text-zinc-500 hover:border-primary hover:text-primary dark:border-zinc-700"><Upload className="mb-2 h-5 w-5" />上传参考音频<span className="mt-1 text-[11px] text-zinc-400">MP3 / WAV / OGG，单个不超过 30 秒、10MB</span></button> : null}
-                  <input ref={audioInputRef} type="file" accept={AUDIO_ACCEPT} multiple className="sr-only" onChange={(event) => { addAudioReferences(event.target.files); event.target.value = ""; }} />
+                  {audioReferences.map((item, index) => (
+                    <AudioSourceClipField
+                      key={item.id}
+                      file={item.file}
+                      purpose={AUDIO_UPLOAD_PURPOSES.DOUBAO_REFERENCE}
+                      label={`@音频${index + 1}`}
+                      disabled={generating}
+                      onStateChange={(source) => {
+                        setAudioReferences((current) => current.map((candidate) => (
+                          candidate.id === item.id ? { ...candidate, source } : candidate
+                        )));
+                      }}
+                      onRemove={() => removeAudioReference(index)}
+                    />
+                  ))}
+                  {audioReferences.length < DOUBAO_AUDIO_REFERENCE_MAX_COUNT ? <button type="button" disabled={generating} onClick={() => audioInputRef.current?.click()} className="flex min-h-24 w-full flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 text-sm text-zinc-500 hover:border-primary hover:text-primary disabled:opacity-50 dark:border-zinc-700"><Upload className="mb-2 h-5 w-5" />上传参考音频<span className="mt-1 text-[11px] text-zinc-400">常见音频格式，单个最大 100MB、最长 30 分钟</span></button> : null}
+                  <input ref={audioInputRef} type="file" accept={AUDIO_UPLOAD_ACCEPT} multiple disabled={generating} className="sr-only" onChange={(event) => { addAudioReferences(event.target.files); event.target.value = ""; }} />
                 </div>
               )}
             </div>
@@ -330,7 +320,7 @@ export default function DoubaoAudioPanel() {
           </div>
 
           {generationError ? <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600" role="alert"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />{generationError}</div> : null}
-          <button type="submit" disabled={generating} className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">{generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <WandSparkles className="h-5 w-5" />}{generating ? "正在生成并保存音频…" : "生成音频"}</button>
+          <button type="submit" disabled={generating || (mode === "audio-reference" && audioReferences.some((item) => item.source?.status !== "ready"))} className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">{generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <WandSparkles className="h-5 w-5" />}{generating ? "正在转换参考并生成音频…" : "生成音频"}</button>
         </form>
       </section>
 

@@ -105,6 +105,15 @@ export async function DELETE(request, context) {
   if (owned.file.ownerType !== "temporary") {
     return Response.json({ error: "已使用的文件不能直接删除" }, { status: 409 });
   }
-  await deleteOwnedTemporaryFile({ userId: owned.auth.userId, fileId: owned.file.fileId });
+  if (owned.file.kind === "audio-source") {
+    return Response.json({ error: "请在音频工作台中移除这段临时音频" }, { status: 409 });
+  }
+  const deleted = await deleteOwnedTemporaryFile({
+    userId: owned.auth.userId,
+    fileId: owned.file.fileId,
+  });
+  if (!deleted) {
+    return Response.json({ error: "文件不存在或正在使用" }, { status: 409 });
+  }
   return Response.json({ success: true });
 }

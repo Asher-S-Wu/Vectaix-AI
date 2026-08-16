@@ -10,12 +10,14 @@ export async function register() {
     const [
       { default: dbConnect },
       { cleanupExpiredTemporaryFiles, ensureStorageReady },
+      { cleanupExpiredAudioSourceUploads },
       { cleanupExpiredVoiceSamples },
       { reconcileHappyHorseVideoTasks },
       { ensureHappyHorseVideoTaskIndexes },
     ] = await Promise.all([
       import("@/lib/db"),
       import("@/lib/server/storage/service"),
+      import("@/lib/media/server/audioSourceUploads"),
       import("@/lib/media/server/voiceSampleCleanup"),
       import("@/lib/media/server/happyhorse/reconciler"),
       import("@/models/VideoGenerationTask"),
@@ -25,6 +27,7 @@ export async function register() {
     await ensureStorageReady();
     await Promise.all([
       cleanupExpiredTemporaryFiles(),
+      cleanupExpiredAudioSourceUploads(),
       cleanupExpiredVoiceSamples(),
     ]);
 
@@ -34,6 +37,7 @@ export async function register() {
         await ensureStorageReady();
         await Promise.all([
           cleanupExpiredTemporaryFiles(),
+          cleanupExpiredAudioSourceUploads(),
           cleanupExpiredVoiceSamples(),
         ]);
       } catch (error) {

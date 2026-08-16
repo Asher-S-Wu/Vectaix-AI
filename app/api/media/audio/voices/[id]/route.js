@@ -1,10 +1,12 @@
 import crypto from "node:crypto";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
+  parseJsonRequest,
   requireUserRecord,
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
 import { AUDIO_MODEL } from "@/lib/media/shared/models";
+import { AUDIO_UPLOAD_PURPOSES } from "@/lib/media/shared/audioUploads";
 import {
   deleteCustomVoice,
   isMissingCustomVoiceError,
@@ -12,7 +14,12 @@ import {
   updateCustomVoice,
 } from "@/lib/media/server/qwenAudio";
 import { serializeCustomVoice } from "@/lib/media/server/audioRecords";
-import { inspectVoiceSample } from "@/lib/media/server/audioSampleInspection";
+import { transcodeAudioClip } from "@/lib/media/server/audioTranscoding";
+import {
+  claimAudioSources,
+  deleteClaimedAudioSources,
+  getAudioSourceAbsolutePath,
+} from "@/lib/media/server/audioSourceUploads";
 import { resolvePublicAppUrl } from "@/lib/modelRoutes";
 import {
   assertMediaWriteLeaseActive,
@@ -31,8 +38,7 @@ export const dynamic = "force-dynamic";
 
 const VOICE_QUERY_RATE_LIMIT = Object.freeze({ limit: 30, windowMs: 60 * 1000 });
 const VOICE_MUTATION_RATE_LIMIT = Object.freeze({ limit: 5, windowMs: 10 * 60 * 1000 });
-const SAMPLE_MAX_BYTES = 10 * 1024 * 1024;
-const MULTIPART_MAX_BYTES = SAMPLE_MAX_BYTES + 1024 * 1024;
+const MAX_JSON_BYTES = 32 * 1024;
 const SAMPLE_TOKEN_TTL_MS = 15 * 60 * 1000;
 const SAMPLE_FILE_TTL_MS = (24 * 60 - 15) * 60 * 1000;
 const MUTATION_LEASE_MS = 15 * 60 * 1000;
@@ -121,18 +127,9 @@ async function getProfileId(context) {
   return PROFILE_ID_PATTERN.test(profileId) ? profileId : "";
 }
 
-function getFileExtension(name) {
-  const match = /\.([a-z0-9]+)$/i.exec(String(name || "").trim());
-  return match ? match[1].toLowerCase() : "";
-}
-
-function inspectUploadedSample(buffer, extension) {
-  try {
-    return inspectVoiceSample(buffer, extension);
-  } catch (error) {
-    if (error instanceof Error) error.status = 400;
-    throw error;
-  }
+function normalizedSampleName(originalName) {
+  const name = String(originalName || "声音样本").replace(/\.[^.]+$/u, "").trim() || "声音样本";
+  return `${name.slice(0, 196)}.wav`;
 }
 
 function validateDisplayName(value, { required }) {
@@ -187,42 +184,34 @@ async function findOwnedVoice(userId, profileId) {
 }
 
 async function parsePatchInput(request) {
-  const contentType = request.headers.get("content-type") || "";
-  if (!contentType.includes("multipart/form-data")) {
-    throw Object.assign(new Error("请求格式不受支持"), { status: 415 });
+  const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
+  if (!parsed.ok) {
+    throw Object.assign(new Error("请求内容格式错误"), { status: parsed.response.status });
   }
+  const body = parsed.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw Object.assign(new Error("请求内容格式错误"), { status: 400 });
+  }
+  const displayName = validateDisplayName(body.displayName, { required: false });
+  const sampleUploadId = typeof body.sampleUploadId === "string"
+    ? body.sampleUploadId.trim()
+    : "";
 
-  const rawContentLength = request.headers.get("content-length");
-  if (!rawContentLength || !/^\d+$/.test(rawContentLength)) {
-    throw Object.assign(new Error("上传请求缺少有效的大小信息"), { status: 411 });
-  }
-  const contentLength = Number(rawContentLength);
-  if (contentLength > MULTIPART_MAX_BYTES) {
-    throw Object.assign(new Error("上传内容不能超过 11MB"), { status: 413 });
-  }
-  let formData;
-  try {
-    formData = await request.formData();
-  } catch {
-    throw Object.assign(new Error("上传内容格式错误"), { status: 400 });
-  }
-  const displayName = validateDisplayName(formData.get("displayName"), { required: false });
-  const audioValue = formData.get("audio");
-  const audio = audioValue instanceof File && audioValue.size > 0 ? audioValue : null;
-
-  if (!audio) {
+  if (!sampleUploadId) {
     if (!displayName) {
       throw Object.assign(new Error("请填写新的音色名称或上传新的声音样本"), { status: 400 });
     }
-    return { displayName, audio: null };
+    return { displayName, sampleUploadId: "", clipStart: null, clipEnd: null };
   }
-  if (audio.size > SAMPLE_MAX_BYTES) {
-    throw Object.assign(new Error("声音样本不能超过 10MB"), { status: 413 });
-  }
-  if (formData.get("consent") !== "true") {
+  if (body.consent !== true) {
     throw Object.assign(new Error("请先确认已获得声音使用授权"), { status: 400 });
   }
-  return { displayName, audio };
+  const clipStart = Number(body.clipStart);
+  const clipEnd = Number(body.clipEnd);
+  if (!Number.isFinite(clipStart) || !Number.isFinite(clipEnd)) {
+    throw Object.assign(new Error("声音样本片段参数无效"), { status: 400 });
+  }
+  return { displayName, sampleUploadId, clipStart, clipEnd };
 }
 
 export async function GET(request, context) {
@@ -396,6 +385,7 @@ export async function PATCH(request, context) {
   let replacementLocked = false;
   let upstreamAccepted = false;
   let mediaWriteLease = null;
+  let sourceOperationId = "";
   try {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
@@ -409,7 +399,7 @@ export async function PATCH(request, context) {
 
     rateLimitVoiceRequest(request, user.userId, profileId, true);
     const input = await parsePatchInput(request);
-    if (!input.audio) {
+    if (!input.sampleUploadId) {
       await assertMediaWriteLeaseActive(mediaWriteLease);
       const renamed = await CustomVoice.findOneAndUpdate(
         {
@@ -439,17 +429,34 @@ export async function PATCH(request, context) {
       );
     }
 
-    const buffer = Buffer.from(await input.audio.arrayBuffer());
-    const inspected = inspectUploadedSample(buffer, getFileExtension(input.audio.name));
+    sourceOperationId = crypto.randomUUID();
+    const [source] = await claimAudioSources({
+      userId: user.userId,
+      fileIds: [input.sampleUploadId],
+      purpose: AUDIO_UPLOAD_PURPOSES.VOICE_CLONE,
+      operationId: sourceOperationId,
+    });
+    const normalized = await transcodeAudioClip({
+      inputPath: getAudioSourceAbsolutePath(source),
+      purpose: AUDIO_UPLOAD_PURPOSES.VOICE_CLONE,
+      clipStart: input.clipStart,
+      clipEnd: input.clipEnd,
+      sourceMetadata: {
+        duration: source.audioDuration,
+        channels: source.audioChannels,
+        sampleRate: source.audioSampleRate,
+      },
+      signal: request.signal,
+    });
     const token = crypto.randomBytes(32).toString("base64url");
     const now = Date.now();
     await assertMediaWriteLeaseActive(mediaWriteLease);
     newSample = await createStoredFile({
       userId: user.userId,
-      input: buffer,
-      originalName: input.audio.name,
-      mimeType: inspected.mimeType,
-      extension: inspected.extension,
+      input: normalized.buffer,
+      originalName: normalizedSampleName(source.originalName),
+      mimeType: normalized.mimeType,
+      extension: normalized.extension,
       category: "audio",
       kind: "voice-sample",
       ownerType: "voice-profile",
@@ -492,7 +499,7 @@ export async function PATCH(request, context) {
         $set: {
           ...(input.displayName ? { displayName: input.displayName } : {}),
           sampleFileId: newSample.fileId,
-          sampleFileName: input.audio.name,
+          sampleFileName: source.originalName,
           sampleTokenHash: hashSampleToken(token),
           sampleTokenExpiresAt: new Date(now + SAMPLE_TOKEN_TTL_MS),
           sampleExpiresAt: new Date(now + SAMPLE_FILE_TTL_MS),
@@ -653,6 +660,14 @@ export async function PATCH(request, context) {
       getErrorStatus(error),
     );
   } finally {
+    if (sourceOperationId && userId) {
+      await deleteClaimedAudioSources({
+        userId,
+        operationId: sourceOperationId,
+      }).catch((error) => {
+        console.error("[Media Audio] cleanup replacement source upload:", error);
+      });
+    }
     if (mediaWriteLease) {
       await endMediaWriteLease(mediaWriteLease).catch((leaseError) => {
         console.error("[Media Audio] release media write lease:", leaseError);

@@ -197,8 +197,11 @@ export default function AudioWorkspacePage() {
   }, []);
 
   useEffect(() => {
-    loadGenerations();
-    loadVoices();
+    const timer = window.setTimeout(() => {
+      loadGenerations();
+      loadVoices();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadGenerations, loadVoices]);
 
   const deployingVoiceKey = useMemo(

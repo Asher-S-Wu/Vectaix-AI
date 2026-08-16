@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock3,
-  FileAudio2,
   Loader2,
   Mic2,
   Pencil,
@@ -18,15 +17,20 @@ import {
   UserRoundPlus,
   X,
 } from "lucide-react";
+import AudioSourceClipField from "@/app/components/media/AudioSourceClipField";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
 import {
   AUDIO_LANGUAGE_HINTS,
   CUSTOM_VOICE_MAX_COUNT,
-  VOICE_SAMPLE_MAX_BYTES,
 } from "@/lib/media/shared/models";
+import {
+  AUDIO_UPLOAD_ACCEPT,
+  AUDIO_UPLOAD_EXTENSIONS,
+  AUDIO_UPLOAD_MAX_BYTES,
+  AUDIO_UPLOAD_PURPOSES,
+} from "@/lib/media/shared/audioUploads";
 
-const ACCEPTED_AUDIO_EXTENSIONS = new Set(["wav", "mp3", "m4a"]);
-const AUDIO_ACCEPT = ".wav,.mp3,.m4a,audio/wav,audio/mpeg,audio/mp4,audio/x-m4a";
+const ACCEPTED_AUDIO_EXTENSIONS = new Set(AUDIO_UPLOAD_EXTENSIONS);
 
 const LANGUAGE_OPTIONS = AUDIO_LANGUAGE_HINTS
   .filter((item) => item.id)
@@ -75,12 +79,13 @@ const STATUS_META = {
 
 function getFileError(file) {
   if (!file) return "请选择声音样本";
+  if (file.size <= 0) return "声音样本内容为空";
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   if (!ACCEPTED_AUDIO_EXTENSIONS.has(extension)) {
-    return "仅支持 WAV、MP3 或 M4A 音频";
+    return "支持 WAV、MP3、M4A、AAC、FLAC、OGG、Opus 或 WebM 音频";
   }
-  if (file.size > VOICE_SAMPLE_MAX_BYTES) {
-    return "声音样本不能超过 10MB";
+  if (file.size > AUDIO_UPLOAD_MAX_BYTES) {
+    return "单个声音样本不能超过 100MB";
   }
   return "";
 }
@@ -100,7 +105,7 @@ function VoiceStatus({ status }) {
   );
 }
 
-function AudioFilePicker({ id, file, inputKey, onChange, compact = false }) {
+function AudioFilePicker({ id, inputKey, onChange, compact = false, disabled = false }) {
   return (
     <label
       htmlFor={id}
@@ -109,21 +114,26 @@ function AudioFilePicker({ id, file, inputKey, onChange, compact = false }) {
       }`}
     >
       <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        {file ? <FileAudio2 className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
+        <Upload className="h-5 w-5" />
       </span>
       <span className="max-w-full truncate text-sm font-medium text-zinc-700 dark:text-zinc-200">
-        {file ? file.name : "选择声音样本"}
+        选择声音样本
       </span>
       <span className="mt-1 text-xs text-zinc-500">
-        {file ? `${(file.size / (1024 * 1024)).toFixed(2)}MB` : "WAV、MP3 或 M4A，最大 10MB"}
+        常见音频格式，最大 100MB、最长 30 分钟
       </span>
       <input
         key={inputKey}
         id={id}
         type="file"
-        accept={AUDIO_ACCEPT}
+        accept={AUDIO_UPLOAD_ACCEPT}
+        disabled={disabled}
         className="sr-only"
-        onChange={(event) => onChange(event.target.files?.[0] || null)}
+        onChange={(event) => {
+          const selected = event.target.files?.[0] || null;
+          event.target.value = "";
+          onChange(selected);
+        }}
       />
     </label>
   );
@@ -143,6 +153,8 @@ function VoiceEditDialog({
   const firstInputRef = useRef(null);
   const [displayName, setDisplayName] = useState(dialog.voice.displayName);
   const [audio, setAudio] = useState(null);
+  const [audioSource, setAudioSource] = useState(null);
+  const [selectionError, setSelectionError] = useState("");
   const [consent, setConsent] = useState(false);
 
   useEffect(() => {
@@ -202,6 +214,7 @@ function VoiceEditDialog({
     onSubmit({
       displayName: displayName.trim(),
       audio,
+      audioSource,
       consent,
     });
   };
@@ -271,13 +284,38 @@ function VoiceEditDialog({
                 <>
                   <div className="space-y-2">
                     <span className="text-sm font-medium">新声音样本</span>
-                    <AudioFilePicker
-                      id="replacement-audio"
-                      file={audio}
-                      inputKey={`${dialog.kind}-${dialog.voice.id}`}
-                      onChange={setAudio}
-                      compact
-                    />
+                    {audio ? (
+                      <AudioSourceClipField
+                        key={`replacement-source-${dialog.uploadRevision || 0}`}
+                        file={audio}
+                        purpose={AUDIO_UPLOAD_PURPOSES.VOICE_CLONE}
+                        label="新声音样本"
+                        disabled={submitting}
+                        onStateChange={setAudioSource}
+                        onRemove={() => {
+                          setAudio(null);
+                          setAudioSource(null);
+                          setSelectionError("");
+                        }}
+                      />
+                    ) : (
+                      <AudioFilePicker
+                        id="replacement-audio"
+                        inputKey={`${dialog.kind}-${dialog.voice.id}`}
+                        disabled={submitting}
+                        onChange={(file) => {
+                          const fileError = getFileError(file);
+                          if (fileError) {
+                            setSelectionError(fileError);
+                            return;
+                          }
+                          setAudio(file);
+                          setAudioSource(null);
+                          setSelectionError("");
+                        }}
+                        compact
+                      />
+                    )}
                   </div>
                   <label className="flex items-start gap-3 rounded-xl border border-zinc-200 p-3 text-sm leading-6 dark:border-zinc-700">
                     <input
@@ -290,6 +328,7 @@ function VoiceEditDialog({
                       我确认已获得该声音本人明确授权，并同意将样本用于创建复刻音色。
                     </span>
                   </label>
+                  {selectionError ? <p className="text-xs text-red-600" role="alert">{selectionError}</p> : null}
                 </>
               ) : null}
 
@@ -311,7 +350,7 @@ function VoiceEditDialog({
               </button>
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || (dialog.kind === "replace" && audioSource?.status !== "ready")}
                 className="btn-primary inline-flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-medium disabled:opacity-60"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : null}
@@ -337,6 +376,7 @@ export default function VoiceClonePanel({
   const reduceMotion = useReducedMotion();
   const [displayName, setDisplayName] = useState("");
   const [audio, setAudio] = useState(null);
+  const [audioSource, setAudioSource] = useState(null);
   const [languageHint, setLanguageHint] = useState("zh");
   const [enablePreprocess, setEnablePreprocess] = useState(true);
   const [consent, setConsent] = useState(false);
@@ -366,6 +406,10 @@ export default function VoiceClonePanel({
       setFormError(fileError);
       return;
     }
+    if (audioSource?.status !== "ready" || !audioSource.upload?.fileId) {
+      setFormError(audioSource?.error || "请等待声音样本上传和识别完成");
+      return;
+    }
     if (!consent) {
       setFormError("请先确认声音授权");
       return;
@@ -379,19 +423,26 @@ export default function VoiceClonePanel({
     try {
       await onCreate({
         displayName: trimmedName,
-        audio,
+        sampleUploadId: audioSource.upload.fileId,
+        clipStart: audioSource.clipStart,
+        clipEnd: audioSource.clipEnd,
         languageHint,
         enablePreprocess,
         consent: true,
       });
       setDisplayName("");
       setAudio(null);
+      setAudioSource(null);
       setLanguageHint("zh");
       setEnablePreprocess(true);
       setConsent(false);
       setAudioInputKey((current) => current + 1);
     } catch (createError) {
-      setFormError(createError instanceof Error ? createError.message : "创建复刻音色失败");
+      const message = createError instanceof Error ? createError.message : "创建复刻音色失败";
+      setFormError(`${message}。临时样本已清理，请重新选择声音样本`);
+      setAudio(null);
+      setAudioSource(null);
+      setAudioInputKey((current) => current + 1);
       try {
         await onRefreshList();
       } catch {
@@ -424,6 +475,10 @@ export default function VoiceClonePanel({
         setDialogError("请先确认声音授权");
         return;
       }
+      if (input.audioSource?.status !== "ready" || !input.audioSource.upload?.fileId) {
+        setDialogError(input.audioSource?.error || "请等待新样本上传和识别完成");
+        return;
+      }
     }
 
     setDialogSubmitting(true);
@@ -433,13 +488,21 @@ export default function VoiceClonePanel({
       } else {
         await onReplace(dialog.voice, {
           ...(input.displayName !== dialog.voice.displayName ? { displayName: input.displayName } : {}),
-          audio: input.audio,
+          sampleUploadId: input.audioSource.upload.fileId,
+          clipStart: input.audioSource.clipStart,
+          clipEnd: input.audioSource.clipEnd,
           consent: true,
         });
       }
       setDialog(null);
     } catch (updateError) {
       setDialogError(updateError instanceof Error ? updateError.message : "更新复刻音色失败");
+      if (dialog.kind === "replace") {
+        setDialog((current) => current ? {
+          ...current,
+          uploadRevision: (current.uploadRevision || 0) + 1,
+        } : current);
+      }
       try {
         await onRefreshList();
       } catch {
@@ -510,15 +573,38 @@ export default function VoiceClonePanel({
 
               <div className="space-y-2">
                 <span className="text-sm font-medium">声音样本</span>
-                <AudioFilePicker
-                  id="voice-sample-audio"
-                  file={audio}
-                  inputKey={audioInputKey}
-                  onChange={(file) => {
-                    setAudio(file);
-                    setFormError("");
-                  }}
-                />
+                {audio ? (
+                  <AudioSourceClipField
+                    key={`voice-source-${audioInputKey}`}
+                    file={audio}
+                    purpose={AUDIO_UPLOAD_PURPOSES.VOICE_CLONE}
+                    label="声音样本"
+                    disabled={creating || atLimit}
+                    onStateChange={setAudioSource}
+                    onRemove={() => {
+                      setAudio(null);
+                      setAudioSource(null);
+                      setAudioInputKey((current) => current + 1);
+                    }}
+                  />
+                ) : (
+                  <AudioFilePicker
+                    id="voice-sample-audio"
+                    inputKey={audioInputKey}
+                    disabled={creating || atLimit}
+                    onChange={(file) => {
+                      const fileError = getFileError(file);
+                      if (fileError) {
+                        setFormError(fileError);
+                        setAudioInputKey((current) => current + 1);
+                        return;
+                      }
+                      setAudio(file);
+                      setAudioSource(null);
+                      setFormError("");
+                    }}
+                  />
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -578,11 +664,11 @@ export default function VoiceClonePanel({
 
               <button
                 type="submit"
-                disabled={creating || atLimit}
+                disabled={creating || atLimit || (audio && audioSource?.status !== "ready")}
                 className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60"
               >
                 {creating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <Mic2 className="h-5 w-5" />}
-                {creating ? "正在提交样本…" : "创建复刻音色"}
+                {creating ? "正在转换并提交样本…" : "创建复刻音色"}
               </button>
               <div className="sr-only" aria-live="polite">
                 {creating ? "正在提交声音样本" : ""}
@@ -603,7 +689,7 @@ export default function VoiceClonePanel({
                 只保留一个人的正常说话声，不要上传歌曲、背景音乐或多人对话。
               </li>
               <li className="border-l-2 border-primary/30 pl-3">
-                支持 16bit WAV、MP3、M4A，采样率至少 16kHz，单声道或双声道。
+                支持 WAV、MP3、M4A、AAC、FLAC、OGG、Opus 和 WebM，上传后会自动转换。
               </li>
               <li className="border-l-2 border-primary/30 pl-3">
                 创建后通常先显示“制作中”，完成后会自动变为“可用”。
@@ -762,7 +848,7 @@ export default function VoiceClonePanel({
       <AnimatePresence>
         {dialog ? (
           <VoiceEditDialog
-            key={`${dialog.kind}-${dialog.voice.id}`}
+            key={`${dialog.kind}-${dialog.voice.id}-${dialog.uploadRevision || 0}`}
             dialog={dialog}
             submitting={dialogSubmitting}
             error={dialogError}
