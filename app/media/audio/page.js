@@ -18,7 +18,6 @@ import {
   WandSparkles,
 } from "lucide-react";
 import AudioGenerationCard from "@/app/components/media/AudioGenerationCard";
-import DoubaoAudioPanel from "@/app/components/media/DoubaoAudioPanel";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
 import VoiceClonePanel from "@/app/components/media/VoiceClonePanel";
 import VoicePicker, {
@@ -428,32 +427,31 @@ export default function AudioWorkspacePage() {
               </span>
               <div>
                 <div className="mb-1 flex items-center gap-2">
-                  <h1 className="text-xl font-semibold tracking-tight">AI 音频工作台</h1>
+                  <h1 className="text-xl font-semibold tracking-tight">Qwen 语音工作台</h1>
                   <span className="hidden rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary sm:inline">
-                    多模型
+                    Plus
                   </span>
                 </div>
                 <p className="max-w-2xl text-sm leading-6 text-zinc-500">
-                  合成自然语音、创作音效，也可以用自己的声音创建专属音色。
+                  把文字变成自然语音，也可以用自己的声音创建专属音色。
                 </p>
               </div>
             </div>
             <span className="w-fit rounded-full border border-zinc-200 bg-white/60 px-3 py-1.5 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/50">
-              Qwen Audio · Doubao Audio
+              qwen-audio-3.0-tts-plus
             </span>
           </div>
         </div>
 
         <div className="p-3 sm:p-4">
           <div
-            className="relative grid grid-cols-3 gap-2 rounded-2xl border border-zinc-200 bg-zinc-100/70 p-1 dark:border-zinc-800 dark:bg-zinc-900/70"
+            className="relative grid grid-cols-2 gap-2 rounded-2xl border border-zinc-200 bg-zinc-100/70 p-1 dark:border-zinc-800 dark:bg-zinc-900/70"
             role="tablist"
             aria-label="语音工作台功能"
             onKeyDown={handleWorkspaceTabKeyDown}
           >
             {[
               { id: "synthesis", label: "语音合成", icon: WandSparkles },
-              { id: "doubao", label: "音频生成（Doubao）", compactLabel: "Doubao 音频", icon: Sparkles },
               { id: "cloning", label: "声音复刻", icon: Mic2 },
             ].map((tab) => {
               const active = activeTab === tab.id;
@@ -482,9 +480,7 @@ export default function AudioWorkspacePage() {
                   ) : null}
                   <span className="relative flex items-center gap-2">
                     <Icon className="h-4 w-4" />
-                    {tab.compactLabel ? (
-                      <><span className="sm:hidden">{tab.compactLabel}</span><span className="hidden sm:inline">{tab.label}</span></>
-                    ) : tab.label}
+                    {tab.label}
                   </span>
                 </button>
               );
@@ -842,8 +838,6 @@ export default function AudioWorkspacePage() {
             </div>
           </section>
         </div>
-      ) : activeTab === "doubao" ? (
-        <DoubaoAudioPanel />
       ) : (
         <div id="audio-panel-cloning" role="tabpanel" aria-labelledby="audio-tab-cloning">
           <VoiceClonePanel

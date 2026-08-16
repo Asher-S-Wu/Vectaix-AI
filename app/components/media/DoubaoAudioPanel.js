@@ -271,7 +271,7 @@ export default function DoubaoAudioPanel() {
   const history = latestGeneration ? generations.filter((item) => item.id !== latestGeneration.id) : generations;
 
   return (
-    <div id="audio-panel-doubao" role="tabpanel" aria-labelledby="audio-tab-doubao" className="space-y-6">
+    <div className="space-y-6">
       <section className="glass-effect rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60 sm:p-6">
         <div className="mb-5 flex items-start justify-between gap-3">
           <div><h2 className="text-lg font-semibold">创作音频</h2><p className="mt-1 text-sm text-zinc-500">用文字描述音效、配音或场景，也可以加入参考音频。</p></div>

@@ -10,6 +10,10 @@ import {
   VIDEO_MODEL,
 } from "@/lib/media/shared/models";
 import {
+  DOUBAO_AUDIO_MODEL,
+  DOUBAO_AUDIO_MODEL_NAME,
+} from "@/lib/media/shared/doubaoAudio";
+import {
   getModelConfig,
   getSelectableChatModels,
   MODEL_GROUP_ORDER,
@@ -29,6 +33,7 @@ const MODEL_SELECTOR_WORKSPACE_HREFS = Object.freeze({
   [IMAGE_MODEL]: "/media/image",
   [VIDEO_MODEL]: "/media/video",
   [AUDIO_MODEL]: "/media/audio",
+  [DOUBAO_AUDIO_MODEL]: "/media/doubao-audio",
 });
 const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
   Object.freeze({
@@ -38,6 +43,14 @@ const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
     group: "media",
     mediaType: "audio",
     href: MODEL_SELECTOR_WORKSPACE_HREFS[AUDIO_MODEL],
+  }),
+  Object.freeze({
+    id: DOUBAO_AUDIO_MODEL,
+    name: DOUBAO_AUDIO_MODEL_NAME,
+    provider: "doubao-audio-gen",
+    group: "media",
+    mediaType: "audio",
+    href: MODEL_SELECTOR_WORKSPACE_HREFS[DOUBAO_AUDIO_MODEL],
   }),
 ]);
 
