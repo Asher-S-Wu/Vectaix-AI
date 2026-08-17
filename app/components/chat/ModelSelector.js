@@ -14,6 +14,9 @@ import {
   DOUBAO_AUDIO_MODEL_NAME,
 } from "@/lib/media/shared/doubaoAudio";
 import {
+  MINIMAX_AUDIO_DEFAULT_MODEL,
+} from "@/lib/media/shared/minimaxAudio";
+import {
   getModelConfig,
   getSelectableChatModels,
   MODEL_GROUP_ORDER,
@@ -34,6 +37,7 @@ const MODEL_SELECTOR_WORKSPACE_HREFS = Object.freeze({
   [VIDEO_MODEL]: "/media/video",
   [AUDIO_MODEL]: "/media/audio",
   [DOUBAO_AUDIO_MODEL]: "/media/doubao-audio",
+  [MINIMAX_AUDIO_DEFAULT_MODEL]: "/media/minimax-audio",
 });
 const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
   Object.freeze({
@@ -51,6 +55,14 @@ const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
     group: "media",
     mediaType: "audio",
     href: MODEL_SELECTOR_WORKSPACE_HREFS[DOUBAO_AUDIO_MODEL],
+  }),
+  Object.freeze({
+    id: MINIMAX_AUDIO_DEFAULT_MODEL,
+    name: "MiniMax Speech 2.8",
+    provider: "minimax-audio-gen",
+    group: "media",
+    mediaType: "audio",
+    href: MODEL_SELECTOR_WORKSPACE_HREFS[MINIMAX_AUDIO_DEFAULT_MODEL],
   }),
 ]);
 

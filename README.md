@@ -82,6 +82,7 @@ Dedicated media models:
 | **HappyHorse 1.1 / Video Edit 1.0** | Alibaba Cloud | Text-to-video, first-frame-to-video, multi-reference-to-video, and video editing |
 | **Doubao Audio Generation 1.0** | Volcengine | Generate up to 120 seconds of speech, sound effects, or scene audio from text or reference audio |
 | **Qwen Audio 3.0 TTS Plus** | Alibaba Cloud | Multilingual speech synthesis, expression control, and voice cloning |
+| **MiniMax Speech 2.8 HD / Turbo** | Alibaba Cloud | Emotional speech synthesis, system voices, and private voice cloning |
 
 <br/>
 
@@ -275,9 +276,10 @@ vectaix-ai/
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
 | `OPENROUTER_API_KEY` | — | Shared OpenRouter API key for the GPT, Grok, Claude, Gemini, and Kimi K3 chat models |
 | `ABLIT_KEY` | — | Abliteration API key (`ak_...`) for Abliterated Model Large |
-| `DASHSCOPE_API_KEY` | — | Alibaba Cloud Model Studio API key for Qwen 3.8 Max, Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
+| `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen 3.8 Max, Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
+| `DASHSCOPE_BEIJING_API_KEY` | — | Beijing-region Alibaba Cloud Model Studio API key for MiniMax Speech 2.8 HD / Turbo |
 | `DOUBAO_AUDIO_API_KEY` | — | Volcengine new-console API key for Doubao Audio Generation 1.0 |
-| `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app, used by HappyHorse to read input media |
+| `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app, used by HappyHorse and MiniMax voice cloning to read input media |
 | `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |
 
 > [!TIP]

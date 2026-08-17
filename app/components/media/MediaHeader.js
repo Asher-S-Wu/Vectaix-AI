@@ -74,6 +74,7 @@ export default function MediaHeader() {
     { href: "/media/image", label: "图片生成" },
     { href: "/media/video", label: "视频生成" },
     { href: "/media/audio", label: "Qwen 语音" },
+    { href: "/media/minimax-audio", label: "MiniMax 语音" },
     { href: "/media/doubao-audio", label: "Doubao 音频" },
   ];
 

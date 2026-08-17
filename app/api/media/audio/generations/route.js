@@ -45,7 +45,7 @@ function getErrorStatus(error, fallback = 500) {
 
 function getPublicErrorMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
-  if (message.includes("DASHSCOPE_API_KEY")) {
+  if (message.includes("DASHSCOPE_SINGAPORE_API_KEY")) {
     return "语音服务密钥尚未配置";
   }
   return /[\u3400-\u9fff]/u.test(message) ? message : fallback;

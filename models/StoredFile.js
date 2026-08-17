@@ -75,7 +75,7 @@ const StoredFileSchema = new mongoose.Schema({
   },
   audioPurpose: {
     type: String,
-    enum: ["voice-clone", "doubao-reference", null],
+    enum: ["voice-clone", "doubao-reference", "minimax-voice-clone", null],
     default: null,
   },
   audioDuration: {

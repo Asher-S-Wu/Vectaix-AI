@@ -6,6 +6,9 @@ import UserSettings from '@/models/UserSettings';
 import VideoGenerationTask from '@/models/VideoGenerationTask';
 import AudioGeneration from '@/models/AudioGeneration';
 import CustomVoice from '@/models/CustomVoice';
+import DoubaoAudioGeneration from '@/models/DoubaoAudioGeneration';
+import MinimaxAudioGeneration from '@/models/MinimaxAudioGeneration';
+import MinimaxVoice from '@/models/MinimaxVoice';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
@@ -19,6 +22,10 @@ import {
     deleteCustomVoice,
     isMissingCustomVoiceError,
 } from '@/lib/media/server/qwenAudio';
+import {
+    deleteMinimaxVoice,
+    isMissingMinimaxVoiceError,
+} from '@/lib/media/server/minimaxAudio';
 import {
     acquireUserDeletionFence,
     assertUserDeletionFenceActive,
@@ -191,6 +198,24 @@ export async function DELETE(req, context) {
             await CustomVoice.deleteOne({ _id: voice._id, userId });
         }
 
+        const minimaxVoices = await MinimaxVoice.find({ userId }).lean();
+        for (const voice of minimaxVoices) {
+            await assertUserDeletionFenceActive(deletionLease);
+            try {
+                await deleteMinimaxVoice(voice.voiceId);
+            } catch (error) {
+                if (!isMissingMinimaxVoiceError(error)) {
+                    throw error;
+                }
+            }
+            await deleteStoredFilesByOwner({
+                userId,
+                ownerType: 'voice-profile',
+                ownerId: voice.profileId,
+            });
+            await MinimaxVoice.deleteOne({ _id: voice._id, userId });
+        }
+
         // 必须先清理挂载硬盘；失败时保留用户与删除围栏，避免产生失联文件。
         await assertUserDeletionFenceActive(deletionLease);
         await deleteAllStoredFilesForUser(userId);
@@ -203,6 +228,9 @@ export async function DELETE(req, context) {
             VideoGenerationTask.deleteMany({ userId }),
             AudioGeneration.deleteMany({ userId }),
             CustomVoice.deleteMany({ userId }),
+            DoubaoAudioGeneration.deleteMany({ userId }),
+            MinimaxAudioGeneration.deleteMany({ userId }),
+            MinimaxVoice.deleteMany({ userId }),
         ]);
         await assertUserDeletionFenceActive(deletionLease);
         const deleted = await User.deleteOne({

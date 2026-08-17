@@ -82,6 +82,7 @@
 | **HappyHorse 1.1 / Video Edit 1.0** | Alibaba Cloud | テキストから動画、先頭フレームから動画、複数参照画像から動画、動画編集 |
 | **Doubao Audio Generation 1.0** | Volcengine | テキストまたは参照音声から最長120秒のナレーション、効果音、環境音を生成 |
 | **Qwen Audio 3.0 TTS Plus** | Alibaba Cloud | 多言語音声合成、表現制御、音声クローン |
+| **MiniMax Speech 2.8 HD / Turbo** | Alibaba Cloud | 感情音声合成、システム音声、ユーザー専用音声クローン |
 
 <br/>
 
@@ -274,9 +275,10 @@ vectaix-ai/
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
 | `OPENROUTER_API_KEY` | — | GPT、Grok、Claude、Gemini、Kimi K3の各チャットモデルで共用するOpenRouter APIキー |
 | `ABLIT_KEY` | — | Abliterated Model Large 用の Abliteration APIキー（`ak_...`） |
-| `DASHSCOPE_API_KEY` | — | Qwen 3.8 Max、Qwen Image 3.0 Pro、HappyHorse動画、Qwen Audio 3.0 TTS Plus 用のAlibaba Cloud Model Studio APIキー |
+| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max、Qwen Image 3.0 Pro、HappyHorse動画、Qwen Audio 3.0 TTS Plus 用のシンガポール地域Alibaba Cloud Model Studio APIキー |
+| `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 用の北京地域Alibaba Cloud Model Studio APIキー |
 | `DOUBAO_AUDIO_API_KEY` | — | Doubao Audio Generation 1.0 用のVolcengine新版コンソールAPIキー |
-| `PUBLIC_APP_URL` | — | HappyHorseが入力素材を読み取るために使う、デプロイ済みアプリの公開HTTPSアドレス |
+| `PUBLIC_APP_URL` | — | HappyHorseとMiniMax音声クローンが入力素材を読み取るために使う、デプロイ済みアプリの公開HTTPSアドレス |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search と Scrape 用のAPIキー |
 
 > [!TIP]
