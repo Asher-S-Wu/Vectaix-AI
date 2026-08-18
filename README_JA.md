@@ -304,11 +304,11 @@ vectaix-ai/
 
 ### ⭐ Star 推移
 
-<a href="https://star-history.com/#Noah-Wu66/Vectaix-AI&Date">
+<a href="https://star-history.dera.page/#Noah-Wu66/Vectaix-AI&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Noah-Wu66/Vectaix-AI&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Noah-Wu66/Vectaix-AI&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Noah-Wu66/Vectaix-AI&type=Date" width="600" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=Noah-Wu66/Vectaix-AI&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=Noah-Wu66/Vectaix-AI&type=Date" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=Noah-Wu66/Vectaix-AI&type=Date" width="600" />
   </picture>
 </a>
 
