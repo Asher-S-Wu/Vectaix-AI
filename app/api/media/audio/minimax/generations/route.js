@@ -34,8 +34,8 @@ export const dynamic = "force-dynamic";
 const GENERATION_RATE_LIMIT = Object.freeze({ limit: 10, windowMs: 60 * 1000 });
 const MAX_JSON_BYTES = 128 * 1024;
 const ALLOWED_MODELS = new Set(MINIMAX_AUDIO_MODEL_IDS);
-const ALLOWED_EMOTIONS = new Set(MINIMAX_AUDIO_EMOTION_IDS);
-const ALLOWED_LANGUAGES = new Set(MINIMAX_AUDIO_LANGUAGE_IDS);
+const ALLOWED_EMOTIONS = new Set(MINIMAX_AUDIO_EMOTION_IDS.filter(Boolean));
+const ALLOWED_LANGUAGES = new Set(MINIMAX_AUDIO_LANGUAGE_IDS.filter(Boolean));
 const ALLOWED_FORMATS = new Set(MINIMAX_AUDIO_FORMAT_IDS);
 const ALLOWED_SAMPLE_RATES = new Set(MINIMAX_AUDIO_SAMPLE_RATE_IDS);
 
@@ -65,11 +65,11 @@ function parseInput(body) {
     text: typeof body?.text === "string" ? body.text.trim() : "",
     model: typeof body?.model === "string" ? body.model.trim() : "",
     voiceId: typeof body?.voiceId === "string" ? body.voiceId.trim() : "",
-    emotion: typeof body?.emotion === "string" ? body.emotion.trim() : "",
+    emotion: typeof body?.emotion === "string" && body.emotion.trim() ? body.emotion.trim() : null,
     speed: readNumber(body?.speed, 1),
     volume: readNumber(body?.volume, 1),
     pitch: readNumber(body?.pitch, 0),
-    languageBoost: typeof body?.languageBoost === "string" ? body.languageBoost.trim() : "",
+    languageBoost: typeof body?.languageBoost === "string" && body.languageBoost.trim() ? body.languageBoost.trim() : null,
     format: typeof body?.format === "string" ? body.format.trim().toLowerCase() : "mp3",
     sampleRate: readNumber(body?.sampleRate, 32000),
   };
@@ -79,7 +79,9 @@ function parseInput(body) {
   }
   if (!ALLOWED_MODELS.has(input.model)) throw Object.assign(new Error("不支持的 MiniMax 模型"), { status: 400 });
   if (!input.voiceId) throw Object.assign(new Error("请选择音色"), { status: 400 });
-  if (!ALLOWED_EMOTIONS.has(input.emotion)) throw Object.assign(new Error("不支持的情感"), { status: 400 });
+  if (input.emotion !== null && !ALLOWED_EMOTIONS.has(input.emotion)) {
+    throw Object.assign(new Error("不支持的情感"), { status: 400 });
+  }
   if (!Number.isFinite(input.speed) || input.speed < 0.5 || input.speed > 2) {
     throw Object.assign(new Error("语速必须在 0.5 到 2.0 之间"), { status: 400 });
   }
@@ -89,7 +91,9 @@ function parseInput(body) {
   if (!Number.isInteger(input.pitch) || input.pitch < -12 || input.pitch > 12) {
     throw Object.assign(new Error("音高必须是 -12 到 12 之间的整数"), { status: 400 });
   }
-  if (!ALLOWED_LANGUAGES.has(input.languageBoost)) throw Object.assign(new Error("不支持的语言增强选项"), { status: 400 });
+  if (input.languageBoost !== null && !ALLOWED_LANGUAGES.has(input.languageBoost)) {
+    throw Object.assign(new Error("不支持的语言增强选项"), { status: 400 });
+  }
   if (!ALLOWED_FORMATS.has(input.format)) throw Object.assign(new Error("不支持的音频格式"), { status: 400 });
   if (!ALLOWED_SAMPLE_RATES.has(input.sampleRate)) throw Object.assign(new Error("不支持的采样率"), { status: 400 });
   return input;
