@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ChevronDown, Download, FileAudio2, Loader2, Trash2, Waves } from "lucide-react";
+import { ChevronDown, FileAudio2, Waves } from "lucide-react";
+import {
+  AudioDeleteButton,
+  AudioDownloadButton,
+} from "@/app/components/media/AudioCardButtons";
 import { AUDIO_LANGUAGE_HINTS } from "@/lib/media/shared/models";
 
 const LANGUAGE_LABELS = Object.fromEntries(
@@ -47,31 +51,22 @@ function GenerationMeta({ generation, language }) {
   );
 }
 
-function DeleteButton({ generation, deleting, deleteDisabled, onDelete }) {
+function CardActions({ generation, deleting, deleteDisabled, onDelete, className = "" }) {
   return (
-    <button
-      type="button"
-      onClick={() => onDelete(generation)}
-      disabled={deleting || deleteDisabled}
-      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-[background-color,color,transform] hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-[0.98] disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400"
-      aria-label={`删除 ${generation.voiceName} 的语音记录`}
-      title="删除语音"
-    >
-      {deleting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Trash2 className="h-4 w-4" />}
-    </button>
-  );
-}
-
-function DownloadButton({ generation, className = "" }) {
-  return (
-    <a
-      href={`${generation.audioUrl}?download=1`}
-      download={formatFileName(generation)}
-      className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-3 text-sm font-medium text-zinc-700 transition-[background-color,transform] hover:bg-zinc-100 active:scale-[0.98] dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800 ${className}`}
-    >
-      <Download className="h-4 w-4" />
-      下载
-    </a>
+    <>
+      <AudioDownloadButton
+        href={`${generation.audioUrl}?download=1`}
+        fileName={formatFileName(generation)}
+        className={className}
+      />
+      <AudioDeleteButton
+        deleting={deleting}
+        disabled={deleteDisabled}
+        onClick={() => onDelete(generation)}
+        label={`删除 ${generation.voiceName} 的语音记录`}
+        title="删除语音"
+      />
+    </>
   );
 }
 
@@ -117,8 +112,7 @@ export default function AudioGenerationCard({
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:pl-3">
-            <DownloadButton generation={generation} />
-            <DeleteButton
+            <CardActions
               generation={generation}
               deleting={deleting}
               deleteDisabled={deleteDisabled}
@@ -214,12 +208,12 @@ export default function AudioGenerationCard({
                   你的浏览器不支持音频播放。
                 </audio>
                 <div className="flex shrink-0 items-center gap-2">
-                  <DownloadButton generation={generation} className="flex-1 sm:flex-none" />
-                  <DeleteButton
+                  <CardActions
                     generation={generation}
                     deleting={deleting}
                     deleteDisabled={deleteDisabled}
                     onDelete={onDelete}
+                    className="flex-1 sm:flex-none"
                   />
                 </div>
               </div>

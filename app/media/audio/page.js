@@ -5,22 +5,27 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AudioLines,
   ChevronDown,
-  CircleAlert,
   Gauge,
-  History,
   Languages,
   Loader2,
   Mic2,
-  RefreshCw,
   SlidersHorizontal,
   Sparkles,
   Volume2,
   WandSparkles,
 } from "lucide-react";
+import AudioFormError from "@/app/components/media/AudioFormError";
+import AudioGeneratingBanner from "@/app/components/media/AudioGeneratingBanner";
 import AudioGenerationCard from "@/app/components/media/AudioGenerationCard";
+import AudioHistorySection from "@/app/components/media/AudioHistorySection";
+import AudioSliderField from "@/app/components/media/AudioSliderField";
+import AudioWorkspaceHero from "@/app/components/media/AudioWorkspaceHero";
+import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
 import VoiceClonePanel from "@/app/components/media/VoiceClonePanel";
 import VoicePicker, {
+  mapQwenCustomVoice,
+  mapRecommendedVoice,
   RECOMMENDED_AUDIO_VOICES,
 } from "@/app/components/media/VoicePicker";
 import {
@@ -58,6 +63,8 @@ const DEFAULT_VOICE = {
   languages: RECOMMENDED_AUDIO_VOICES[0].languageIds,
 };
 
+const PRESET_VOICE_ITEMS = RECOMMENDED_AUDIO_VOICES.map(mapRecommendedVoice);
+
 function mergeGeneration(items, nextGeneration) {
   const withoutCurrent = items.filter((item) => item.id !== nextGeneration.id);
   return [nextGeneration, ...withoutCurrent].slice(0, 100);
@@ -67,43 +74,6 @@ function mergeVoice(items, nextVoice) {
   const exists = items.some((item) => item.id === nextVoice.id);
   if (!exists) return [nextVoice, ...items];
   return items.map((item) => (item.id === nextVoice.id ? nextVoice : item));
-}
-
-function SliderField({ id, label, valueLabel, icon: Icon, ...inputProps }) {
-  return (
-    <div className="space-y-2 rounded-xl border border-zinc-200 bg-white/60 p-3 dark:border-zinc-800 dark:bg-zinc-950/40">
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor={id} className="flex items-center gap-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">
-          <Icon className="h-3.5 w-3.5 text-primary" />
-          {label}
-        </label>
-        <output htmlFor={id} className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">{valueLabel}</output>
-      </div>
-      <input
-        id={id}
-        type="range"
-        className="h-2 w-full cursor-pointer accent-primary"
-        {...inputProps}
-      />
-    </div>
-  );
-}
-
-function GenerationsSkeleton() {
-  return (
-    <div className="space-y-2" aria-label="正在读取语音记录" aria-busy="true">
-      {[0, 1, 2, 3].map((item) => (
-        <div key={item} className="flex items-center gap-3 rounded-xl border border-zinc-200/70 bg-white/80 px-3.5 py-3 dark:border-zinc-800/70 dark:bg-zinc-950/70">
-          <div className="h-9 w-9 animate-pulse rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="h-3.5 w-24 animate-pulse rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
-            <div className="h-3 w-1/2 animate-pulse rounded bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />
-          </div>
-          <div className="h-4 w-4 animate-pulse rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
-        </div>
-      ))}
-    </div>
-  );
 }
 
 export default function AudioWorkspacePage() {
@@ -400,97 +370,26 @@ export default function AudioWorkspacePage() {
     && !selectedVoice.languages.includes(languageHint),
   );
 
-  const handleWorkspaceTabKeyDown = (event) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    const tabs = Array.from(event.currentTarget.querySelectorAll('[role="tab"]'));
-    const currentTab = event.target.closest('[role="tab"]');
-    const currentIndex = tabs.indexOf(currentTab);
-    if (currentIndex < 0) return;
-
-    event.preventDefault();
-    let nextIndex = currentIndex;
-    if (event.key === "Home") nextIndex = 0;
-    if (event.key === "End") nextIndex = tabs.length - 1;
-    if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
-    const nextTab = tabs[nextIndex];
-    setActiveTab(nextTab.dataset.tabId);
-    nextTab.focus();
-  };
-
   return (
     <div className="space-y-6">
-      <section className="glass-effect overflow-hidden rounded-[28px] border border-zinc-200/60 dark:border-zinc-800/60">
-        <div className="relative overflow-hidden border-b border-zinc-200/60 px-5 py-5 dark:border-zinc-800/60 sm:px-6">
-          <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 h-52 w-52 rounded-full bg-primary/10 blur-3xl" />
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <AudioLines className="h-6 w-6" />
-              </span>
-              <div>
-                <div className="mb-1 flex items-center gap-2">
-                  <h1 className="text-xl font-semibold tracking-tight">Qwen 语音工作台</h1>
-                  <span className="hidden rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary sm:inline">
-                    Plus
-                  </span>
-                </div>
-                <p className="max-w-2xl text-sm leading-6 text-zinc-500">
-                  把文字变成自然语音，也可以用自己的声音创建专属音色。
-                </p>
-              </div>
-            </div>
-            <span className="w-fit rounded-full border border-zinc-200 bg-white/60 px-3 py-1.5 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/50">
-              qwen-audio-3.0-tts-plus
-            </span>
-          </div>
-        </div>
-
-        <div className="p-3 sm:p-4">
-          <div
-            className="relative grid grid-cols-2 gap-2 rounded-2xl border border-zinc-200 bg-zinc-100/70 p-1 dark:border-zinc-800 dark:bg-zinc-900/70"
-            role="tablist"
-            aria-label="语音工作台功能"
-            onKeyDown={handleWorkspaceTabKeyDown}
-          >
-            {[
-              { id: "synthesis", label: "语音合成", icon: WandSparkles },
-              { id: "cloning", label: "声音复刻", icon: Mic2 },
-            ].map((tab) => {
-              const active = activeTab === tab.id;
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  id={`audio-tab-${tab.id}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  aria-controls={`audio-panel-${tab.id}`}
-                  data-tab-id={tab.id}
-                  tabIndex={active ? 0 : -1}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`relative flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors ${
-                    active ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-                  }`}
-                >
-                  {active ? (
-                    <motion.span
-                      layoutId="audio-workspace-tab"
-                      transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 28 }}
-                      className="absolute inset-0 rounded-xl bg-white shadow-sm dark:bg-zinc-800"
-                    />
-                  ) : null}
-                  <span className="relative flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
-                    {tab.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      <AudioWorkspaceHero
+        icon={AudioLines}
+        title="Qwen 语音工作台"
+        badge="Plus"
+        description="把文字变成自然语音，也可以用自己的声音创建专属音色。"
+        modelLabel="qwen-audio-3.0-tts-plus"
+      >
+        <AudioWorkspaceTabs
+          idPrefix="audio"
+          tabs={[
+            { id: "synthesis", label: "语音合成", icon: WandSparkles },
+            { id: "cloning", label: "声音复刻", icon: Mic2 },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          ariaLabel="语音工作台功能"
+        />
+      </AudioWorkspaceHero>
 
       {activeTab === "synthesis" ? (
         <div id="audio-panel-synthesis" role="tabpanel" aria-labelledby="audio-tab-synthesis" className="space-y-6">
@@ -682,7 +581,7 @@ export default function AudioWorkspacePage() {
                         </div>
 
                         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                          <SliderField
+                          <AudioSliderField
                             id="audio-rate"
                             label="语速"
                             value={rate}
@@ -693,7 +592,7 @@ export default function AudioWorkspacePage() {
                             onChange={(event) => setRate(Number(event.target.value))}
                             icon={Gauge}
                           />
-                          <SliderField
+                          <AudioSliderField
                             id="audio-pitch"
                             label="音调"
                             value={pitch}
@@ -704,7 +603,7 @@ export default function AudioWorkspacePage() {
                             onChange={(event) => setPitch(Number(event.target.value))}
                             icon={AudioLines}
                           />
-                          <SliderField
+                          <AudioSliderField
                             id="audio-volume"
                             label="音量"
                             value={volume}
@@ -722,12 +621,7 @@ export default function AudioWorkspacePage() {
                 </AnimatePresence>
               </div>
 
-              {generationError ? (
-                <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600" role="alert">
-                  <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{generationError}</span>
-                </div>
-              ) : null}
+              <AudioFormError message={generationError} />
 
               <button
                 type="submit"
@@ -744,23 +638,7 @@ export default function AudioWorkspacePage() {
           </section>
 
           {generating ? (
-            <motion.section
-              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-effect rounded-2xl border border-primary/20 p-5"
-              aria-live="polite"
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-semibold">正在合成并保存音频</h3>
-                  <p className="mt-1 text-xs text-zinc-500">长文本需要更多时间，请保持页面打开。</p>
-                </div>
-              </div>
-              <div className="mt-4 h-11 animate-pulse rounded-xl bg-primary/10 motion-reduce:animate-none" aria-hidden="true" />
-            </motion.section>
+            <AudioGeneratingBanner />
           ) : latestGeneration ? (
             <section className="space-y-3" aria-labelledby="latest-audio-title">
               <div>
@@ -777,69 +655,23 @@ export default function AudioWorkspacePage() {
             </section>
           ) : null}
 
-          <section className="glass-effect overflow-hidden rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60" aria-labelledby="audio-history-title">
-            <div className="flex items-center justify-between gap-3 border-b border-zinc-200/60 px-5 py-4 dark:border-zinc-800/60 sm:px-6">
-              <div>
-                <h2 id="audio-history-title" className="flex items-center gap-2 text-base font-semibold">
-                  <History className="h-4 w-4 text-primary" />
-                  语音记录
-                  {!generationsLoading && generations.length > 0 ? (
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                      {generations.length}
-                    </span>
-                  ) : null}
-                </h2>
-                <p className="mt-1 text-sm text-zinc-500">最多保留最近 100 条，点击单条记录展开播放。</p>
-              </div>
-              <button
-                type="button"
-                onClick={loadGenerations}
-                disabled={generationsLoading}
-                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm font-medium text-zinc-700 transition-[background-color,transform] hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-              >
-                <RefreshCw className={`h-4 w-4 ${generationsLoading ? "animate-spin motion-reduce:animate-none" : ""}`} />
-                刷新
-              </button>
-            </div>
-
-            <div className="p-3 sm:p-4">
-              {generationsError ? (
-                <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600" role="alert">
-                  {generationsError}
-                </div>
-              ) : null}
-
-              {generationsLoading ? (
-                <GenerationsSkeleton />
-              ) : generations.length === 0 ? (
-                <div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200/80 bg-white/60 px-6 text-center dark:border-zinc-800 dark:bg-zinc-950/50">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <AudioLines className="h-6 w-6" />
-                  </span>
-                  <p className="mt-4 text-sm font-medium text-zinc-700 dark:text-zinc-200">还没有语音记录</p>
-                  <p className="mt-1 max-w-sm text-xs leading-5 text-zinc-500">在上方输入文字并生成语音，结果会安全保存在这里。</p>
-                </div>
-              ) : historyGenerations.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-zinc-200/80 bg-white/60 px-5 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/50">
-                  当前只有上方这条新记录。
-                </div>
-              ) : (
-                <div className="fade-scrollbar max-h-[480px] space-y-2 overflow-y-auto overscroll-contain pr-1">
-                  <AnimatePresence initial={false}>
-                    {historyGenerations.map((generation) => (
-                      <AudioGenerationCard
-                        key={generation.id}
-                        generation={generation}
-                        deleting={deletingGenerationId === generation.id}
-                        deleteDisabled={Boolean(deletingGenerationId)}
-                        onDelete={setDeleteTarget}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
-          </section>
+          <AudioHistorySection
+            totalCount={generations.length}
+            items={historyGenerations}
+            loading={generationsLoading}
+            error={generationsError}
+            onRefresh={loadGenerations}
+            emptyDescription="在上方输入文字并生成语音，结果会安全保存在这里。"
+            renderItem={(generation) => (
+              <AudioGenerationCard
+                key={generation.id}
+                generation={generation}
+                deleting={deletingGenerationId === generation.id}
+                deleteDisabled={Boolean(deletingGenerationId)}
+                onDelete={setDeleteTarget}
+              />
+            )}
+          />
         </div>
       ) : (
         <div id="audio-panel-cloning" role="tabpanel" aria-labelledby="audio-tab-cloning">
@@ -859,10 +691,22 @@ export default function AudioWorkspacePage() {
 
       <VoicePicker
         open={voicePickerOpen}
+        brandLabel="Qwen Audio"
         selectedVoiceId={selectedVoice?.voiceId || ""}
-        customVoices={voices}
-        customVoicesLoading={voicesLoading}
-        customVoicesError={voicesError}
+        presetSection={{
+          title: "推荐音色",
+          description: "精选 10 个覆盖陪伴、播报、阅读与配音场景的音色。",
+          voices: PRESET_VOICE_ITEMS,
+        }}
+        customSection={{
+          title: "我的音色",
+          description: "在“声音复刻”中创建的专属声音。",
+          voices: voices.map(mapQwenCustomVoice),
+          loading: voicesLoading,
+          error: voicesError,
+          emptyTitle: "还没有复刻音色",
+          emptyDescription: "关闭面板后切换到“声音复刻”即可创建。",
+        }}
         onClose={closeVoicePicker}
         onSelect={selectVoice}
       />

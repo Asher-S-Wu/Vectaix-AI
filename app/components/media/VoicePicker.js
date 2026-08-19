@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Check,
@@ -31,7 +31,7 @@ export const RECOMMENDED_AUDIO_VOICES = PRESET_AUDIO_VOICES.map((voice) => ({
   tier: voice.source === "system" ? "旗舰系统音色" : "精选基础音色",
 }));
 
-const STATUS_META = {
+export const VOICE_STATUS_META = {
   SUBMITTING: {
     label: "提交中",
     className: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
@@ -58,17 +58,100 @@ const STATUS_META = {
   },
 };
 
-function VoiceCard({ voice, selected, custom = false, onSelect }) {
-  const available = !custom || (voice.status === "OK" && !voice.requiresAttention);
-  const status = custom
-    ? STATUS_META[voice.requiresAttention ? "RECONCILING" : voice.status]
-    : null;
-  const name = custom ? voice.displayName : voice.name;
+export function mapRecommendedVoice(voice) {
+  return {
+    voiceId: voice.voiceId,
+    name: voice.name,
+    subtitle: `${voice.gender} · ${voice.age} · ${voice.languages}`,
+    tier: voice.tier,
+    badges: [voice.trait, voice.scene],
+    icon: "preset",
+    disabled: false,
+    payload: {
+      voiceId: voice.voiceId,
+      name: voice.name,
+      kind: "preset",
+      description: `${voice.trait} · ${voice.scene}`,
+      languages: voice.languageIds,
+    },
+  };
+}
 
+export function mapQwenCustomVoice(voice) {
+  const disabled = voice.status !== "OK" || Boolean(voice.requiresAttention);
+  const status = VOICE_STATUS_META[voice.requiresAttention ? "RECONCILING" : voice.status] || null;
+  const badges = [`${LANGUAGE_LABELS[voice.languageHint] || "自动"}样本`];
+  if (voice.enablePreprocess) badges.push("已启用音频优化");
+  return {
+    voiceId: voice.voiceId,
+    name: voice.displayName,
+    subtitle: "我的复刻音色",
+    statusBadge: status,
+    badges,
+    icon: "custom",
+    disabled,
+    disabledHint: disabled
+      ? (voice.requiresAttention
+        ? (voice.reconciliationKind === "update"
+          ? "新样本结果正在自动核对，完成前不会启用"
+          : "创建结果暂时无法确认，记录已保留")
+        : voice.status === "SUBMITTING"
+        ? "样本提交完成后会继续制作"
+        : voice.status === "DEPLOYING"
+          ? "完成制作后即可用于合成"
+          : voice.status === "DELETING"
+            ? "正在删除并释放云端音色"
+            : "样本审核未通过，可以更换更清晰的声音样本")
+      : "",
+    payload: {
+      voiceId: voice.voiceId,
+      name: voice.displayName,
+      kind: "custom",
+      description: "我的复刻音色",
+    },
+  };
+}
+
+export function mapMinimaxSystemVoice(voice) {
+  return {
+    voiceId: voice.voiceId,
+    name: voice.name,
+    subtitle: "系统音色",
+    tier: "系统音色",
+    badges: Array.isArray(voice.description) ? voice.description.slice(0, 3) : [],
+    icon: "preset",
+    disabled: false,
+    payload: {
+      voiceId: voice.voiceId,
+      name: voice.name,
+      kind: "system",
+      description: Array.isArray(voice.description) ? voice.description.join(" · ") : "",
+    },
+  };
+}
+
+export function mapMinimaxCustomVoice(voice) {
+  return {
+    voiceId: voice.voiceId,
+    name: voice.displayName,
+    subtitle: "我的复刻音色",
+    badges: [],
+    icon: "custom",
+    disabled: false,
+    payload: {
+      voiceId: voice.voiceId,
+      name: voice.displayName,
+      kind: "custom",
+      description: "我的复刻音色",
+    },
+  };
+}
+
+function VoiceCard({ voice, selected, onSelect }) {
   return (
     <button
       type="button"
-      disabled={!available}
+      disabled={voice.disabled}
       onClick={() => onSelect(voice)}
       aria-pressed={selected}
       className={`group relative w-full rounded-2xl border p-4 text-left transition-[border-color,background-color,transform] motion-reduce:transition-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
@@ -90,72 +173,115 @@ function VoiceCard({ voice, selected, custom = false, onSelect }) {
 
       <div className="flex items-start gap-3 pr-7">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          {custom ? <CircleUserRound className="h-5 w-5" /> : <Mic2 className="h-5 w-5" />}
+          {voice.icon === "custom" ? <CircleUserRound className="h-5 w-5" /> : <Mic2 className="h-5 w-5" />}
         </span>
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{name}</span>
-            {status ? (
-              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${status.className}`}>
-                {status.label}
+            <span className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{voice.name}</span>
+            {voice.statusBadge ? (
+              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${voice.statusBadge.className}`}>
+                {voice.statusBadge.label}
               </span>
-            ) : (
+            ) : voice.tier ? (
               <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-medium text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900">
                 {voice.tier}
               </span>
-            )}
-          </span>
-          <span className="mt-1 block text-xs text-zinc-500">
-            {custom ? "我的复刻音色" : `${voice.gender} · ${voice.age} · ${voice.languages}`}
-          </span>
-        </span>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {custom ? (
-          <>
-            <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              {LANGUAGE_LABELS[voice.languageHint]}样本
-            </span>
-            {voice.enablePreprocess ? (
-              <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                已启用音频优化
-              </span>
             ) : null}
-          </>
-        ) : (
-          <>
-            <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{voice.trait}</span>
-            <span className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{voice.scene}</span>
-          </>
-        )}
+          </span>
+          <span className="mt-1 block text-xs text-zinc-500">{voice.subtitle}</span>
+        </span>
       </div>
 
-      {!available ? (
-        <span className="mt-3 block text-xs text-zinc-500">
-          {voice.requiresAttention
-            ? (voice.reconciliationKind === "update"
-              ? "新样本结果正在自动核对，完成前不会启用"
-              : "创建结果暂时无法确认，记录已保留")
-            : voice.status === "SUBMITTING"
-            ? "样本提交完成后会继续制作"
-            : voice.status === "DEPLOYING"
-              ? "完成制作后即可用于合成"
-              : voice.status === "DELETING"
-                ? "正在删除并释放云端音色"
-                : "样本审核未通过，可以更换更清晰的声音样本"}
-        </span>
+      {voice.badges?.length ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {voice.badges.map((badge) => (
+            <span key={badge} className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              {badge}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {voice.disabled && voice.disabledHint ? (
+        <span className="mt-3 block text-xs text-zinc-500">{voice.disabledHint}</span>
       ) : null}
     </button>
   );
 }
 
+function PickerSection({
+  title,
+  description,
+  voices,
+  loading = false,
+  error = "",
+  selectedVoiceId,
+  onSelect,
+  emptyTitle = "暂无可用音色",
+  emptyDescription = "",
+  className = "",
+}) {
+  const titleId = useId();
+  return (
+    <section aria-labelledby={titleId} className={className}>
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div>
+          <h3 id={titleId} className="text-sm font-semibold">{title}</h3>
+          <p className="mt-1 text-xs text-zinc-500">{description}</p>
+        </div>
+        <span className="shrink-0 text-xs text-zinc-400">
+          {loading ? "读取中" : `${voices.length} 个`}
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="grid gap-3 sm:grid-cols-2" aria-label={`正在读取${title}`} aria-busy="true">
+          {[0, 1].map((item) => (
+            <div key={item} className="rounded-2xl border border-zinc-200/80 bg-white/70 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 animate-pulse rounded-xl bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-28 animate-pulse rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
+                  <div className="h-3 w-20 animate-pulse rounded bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600" role="alert">
+          {error}
+        </div>
+      ) : voices.length === 0 ? (
+        <div className="flex min-h-[128px] flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 px-5 text-center dark:border-zinc-800">
+          <UserRound className="mb-2 h-6 w-6 text-zinc-400" />
+          <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{emptyTitle}</p>
+          {emptyDescription ? <p className="mt-1 text-xs text-zinc-500">{emptyDescription}</p> : null}
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {voices.map((voice) => (
+            <VoiceCard
+              key={voice.voiceId}
+              voice={voice}
+              selected={selectedVoiceId === voice.voiceId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function VoicePicker({
   open,
+  brandLabel = "Qwen Audio",
+  title = "选择音色",
+  description = "为这段内容选择合适的声音角色。",
+  presetSection,
+  customSection,
   selectedVoiceId,
-  customVoices,
-  customVoicesLoading,
-  customVoicesError,
   onClose,
   onSelect,
 }) {
@@ -211,24 +337,8 @@ export default function VoicePicker({
     };
   }, [open, onClose]);
 
-  const chooseRecommended = (voice) => {
-    onSelect({
-      voiceId: voice.voiceId,
-      name: voice.name,
-      kind: "preset",
-      description: `${voice.trait} · ${voice.scene}`,
-      languages: voice.languageIds,
-    });
-    onClose();
-  };
-
-  const chooseCustom = (voice) => {
-    onSelect({
-      voiceId: voice.voiceId,
-      name: voice.displayName,
-      kind: "custom",
-      description: "我的复刻音色",
-    });
+  const chooseVoice = (voice) => {
+    onSelect(voice.payload);
     onClose();
   };
 
@@ -264,10 +374,10 @@ export default function VoicePicker({
               <div>
                 <div className="mb-1 flex items-center gap-2 text-primary">
                   <Sparkles className="h-4 w-4" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em]">Qwen Audio</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em]">{brandLabel}</span>
                 </div>
-                <h2 id="voice-picker-title" className="text-lg font-semibold">选择音色</h2>
-                <p className="mt-1 text-sm text-zinc-500">为这段内容选择合适的声音角色。</p>
+                <h2 id="voice-picker-title" className="text-lg font-semibold">{title}</h2>
+                <p className="mt-1 text-sm text-zinc-500">{description}</p>
               </div>
               <button
                 ref={closeButtonRef}
@@ -281,75 +391,34 @@ export default function VoicePicker({
             </div>
 
             <div className="fade-scrollbar overflow-y-auto px-5 py-5 sm:px-6">
-              <section aria-labelledby="recommended-voices-title">
-                <div className="mb-3 flex items-end justify-between gap-3">
-                  <div>
-                    <h3 id="recommended-voices-title" className="text-sm font-semibold">推荐音色</h3>
-                    <p className="mt-1 text-xs text-zinc-500">精选 10 个覆盖陪伴、播报、阅读与配音场景的音色。</p>
-                  </div>
-                  <span className="shrink-0 text-xs text-zinc-400">10 个</span>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {RECOMMENDED_AUDIO_VOICES.map((voice) => (
-                    <VoiceCard
-                      key={voice.voiceId}
-                      voice={voice}
-                      selected={selectedVoiceId === voice.voiceId}
-                      onSelect={chooseRecommended}
-                    />
-                  ))}
-                </div>
-              </section>
+              {presetSection ? (
+                <PickerSection
+                  title={presetSection.title}
+                  description={presetSection.description}
+                  voices={presetSection.voices}
+                  loading={presetSection.loading}
+                  error={presetSection.error}
+                  selectedVoiceId={selectedVoiceId}
+                  onSelect={chooseVoice}
+                  emptyTitle={presetSection.emptyTitle}
+                  emptyDescription={presetSection.emptyDescription}
+                />
+              ) : null}
 
-              <section className="mt-7 border-t border-zinc-200 pt-6 dark:border-zinc-800" aria-labelledby="custom-voices-picker-title">
-                <div className="mb-3 flex items-end justify-between gap-3">
-                  <div>
-                    <h3 id="custom-voices-picker-title" className="text-sm font-semibold">我的音色</h3>
-                    <p className="mt-1 text-xs text-zinc-500">在“声音复刻”中创建的专属声音。</p>
-                  </div>
-                  <span className="shrink-0 text-xs text-zinc-400">
-                    {customVoicesLoading ? "读取中" : `${customVoices.length} 个`}
-                  </span>
-                </div>
-
-                {customVoicesLoading ? (
-                  <div className="grid gap-3 sm:grid-cols-2" aria-label="正在读取我的音色" aria-busy="true">
-                    {[0, 1].map((item) => (
-                      <div key={item} className="rounded-2xl border border-zinc-200/80 bg-white/70 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 animate-pulse rounded-xl bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
-                          <div className="flex-1 space-y-2">
-                            <div className="h-4 w-28 animate-pulse rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
-                            <div className="h-3 w-20 animate-pulse rounded bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : customVoicesError ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600" role="alert">
-                    {customVoicesError}
-                  </div>
-                ) : customVoices.length === 0 ? (
-                  <div className="flex min-h-[128px] flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 px-5 text-center dark:border-zinc-800">
-                    <UserRound className="mb-2 h-6 w-6 text-zinc-400" />
-                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">还没有复刻音色</p>
-                    <p className="mt-1 text-xs text-zinc-500">关闭面板后切换到“声音复刻”即可创建。</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {customVoices.map((voice) => (
-                      <VoiceCard
-                        key={voice.id}
-                        voice={voice}
-                        custom
-                        selected={selectedVoiceId === voice.voiceId}
-                        onSelect={chooseCustom}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
+              {customSection ? (
+                <PickerSection
+                  title={customSection.title}
+                  description={customSection.description}
+                  voices={customSection.voices}
+                  loading={customSection.loading}
+                  error={customSection.error}
+                  selectedVoiceId={selectedVoiceId}
+                  onSelect={chooseVoice}
+                  emptyTitle={customSection.emptyTitle}
+                  emptyDescription={customSection.emptyDescription}
+                  className={presetSection ? "mt-7 border-t border-zinc-200 pt-6 dark:border-zinc-800" : ""}
+                />
+              ) : null}
             </div>
           </motion.section>
         </motion.div>

@@ -5,12 +5,14 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Captions,
   ChevronDown,
-  Download,
   FileAudio2,
   Loader2,
-  Trash2,
   Waves,
 } from "lucide-react";
+import {
+  AudioDeleteButton,
+  AudioDownloadButton,
+} from "@/app/components/media/AudioCardButtons";
 import { getDoubaoAudioGeneration } from "@/lib/media/client/media";
 
 const MODE_LABELS = Object.freeze({
@@ -48,7 +50,7 @@ function formatFileName(generation) {
   return `vectaix-doubao-audio-${timestamp}.${generation.format}`;
 }
 
-function Meta({ generation }) {
+function GenerationMeta({ generation }) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
       <span>{MODE_LABELS[generation.mode] || generation.mode}</span>
@@ -99,12 +101,12 @@ function SubtitlePanel({ generation }) {
         className="flex h-10 w-full items-center justify-between gap-3 px-3 text-xs font-medium text-zinc-700 dark:text-zinc-200"
       >
         <span className="flex items-center gap-2"><Captions className="h-4 w-4 text-primary" />字幕</span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
       </button>
       {open ? (
         <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
           {loading ? (
-            <p className="flex items-center gap-2 text-xs text-zinc-500"><Loader2 className="h-3.5 w-3.5 animate-spin" />正在读取字幕…</p>
+            <p className="flex items-center gap-2 text-xs text-zinc-500"><Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />正在读取字幕…</p>
           ) : error ? (
             <p className="text-xs text-red-600" role="alert">{error}</p>
           ) : subtitle ? (
@@ -132,16 +134,22 @@ function SubtitlePanel({ generation }) {
   );
 }
 
-function Actions({ generation, deleting, deleteDisabled, onDelete }) {
+function CardActions({ generation, deleting, deleteDisabled, onDelete, className = "" }) {
   return (
-    <div className="flex shrink-0 items-center gap-2">
-      <a href={`${generation.audioUrl}?download=1`} download={formatFileName(generation)} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">
-        <Download className="h-4 w-4" />下载
-      </a>
-      <button type="button" onClick={() => onDelete(generation)} disabled={deleting || deleteDisabled} aria-label="删除 Doubao 音频记录" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:border-zinc-700">
-        {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-      </button>
-    </div>
+    <>
+      <AudioDownloadButton
+        href={`${generation.audioUrl}?download=1`}
+        fileName={formatFileName(generation)}
+        className={className}
+      />
+      <AudioDeleteButton
+        deleting={deleting}
+        disabled={deleteDisabled}
+        onClick={() => onDelete(generation)}
+        label="删除这条音频记录"
+        title="删除音频"
+      />
+    </>
   );
 }
 
@@ -153,52 +161,147 @@ export default function DoubaoAudioGenerationCard({
   onDelete,
 }) {
   const reduceMotion = useReducedMotion();
-  const [expanded, setExpanded] = useState(featured);
+  const [expanded, setExpanded] = useState(false);
+  const modeLabel = MODE_LABELS[generation.mode] || "Doubao 音频";
+
+  if (featured) {
+    return (
+      <motion.article
+        layout={reduceMotion ? false : "position"}
+        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
+        className="rounded-2xl border border-primary/30 bg-primary/[0.04] p-4 shadow-sm sm:p-5"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Waves className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                  {modeLabel}
+                </h4>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  刚刚生成
+                </span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                {generation.textPrompt}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2 sm:pl-3">
+            <CardActions
+              generation={generation}
+              deleting={deleting}
+              deleteDisabled={deleteDisabled}
+              onDelete={onDelete}
+            />
+          </div>
+        </div>
+
+        <audio
+          className="mt-4 h-11 w-full"
+          controls
+          preload="metadata"
+          src={generation.audioUrl}
+          aria-label="Doubao 生成音频"
+        >
+          你的浏览器不支持音频播放。
+        </audio>
+
+        <div className="mt-3">
+          <GenerationMeta generation={generation} />
+        </div>
+        {generation.referenceCount ? (
+          <p className="mt-2 text-xs text-zinc-500">使用了 {generation.referenceCount} 个参考资源</p>
+        ) : null}
+        <SubtitlePanel generation={generation} />
+      </motion.article>
+    );
+  }
+
   const contentId = `doubao-audio-generation-${generation.id}`;
 
   return (
     <motion.article
       layout={reduceMotion ? false : "position"}
-      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
-      className={`overflow-hidden border ${featured ? "rounded-2xl border-primary/30 bg-primary/[0.04] shadow-sm" : "rounded-xl border-zinc-200/70 bg-white/80 dark:border-zinc-800/70 dark:bg-zinc-950/70"}`}
+      transition={{ duration: 0.22, ease: "easeOut" }}
+      className={`overflow-hidden rounded-xl border transition-colors ${
+        expanded
+          ? "border-zinc-300/80 bg-white dark:border-zinc-700 dark:bg-zinc-950"
+          : "border-zinc-200/70 bg-white/80 dark:border-zinc-800/70 dark:bg-zinc-950/70"
+      }`}
     >
       <button
         type="button"
-        onClick={() => !featured && setExpanded((current) => !current)}
+        onClick={() => setExpanded((current) => !current)}
         aria-expanded={expanded}
         aria-controls={contentId}
-        className={`flex w-full items-center gap-3 text-left ${featured ? "cursor-default px-4 pt-4 sm:px-5 sm:pt-5" : "px-3.5 py-3 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/60"}`}
+        className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-zinc-50/80 dark:hover:bg-zinc-900/60"
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          {featured ? <Waves className="h-4 w-4" /> : <FileAudio2 className="h-4 w-4" />}
+          <FileAudio2 className="h-4 w-4" />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-            {MODE_LABELS[generation.mode] || "Doubao 音频"}
-          </span>
-          <span className="mt-0.5 block truncate text-xs text-zinc-500">{generation.textPrompt}</span>
+        <span className="block min-w-0 flex-1 truncate text-sm">
+          <span className="font-semibold text-zinc-800 dark:text-zinc-100">{modeLabel}</span>
+          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600" aria-hidden="true">·</span>
+          <span className="text-zinc-500 dark:text-zinc-400">{generation.textPrompt}</span>
         </span>
-        {featured ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">刚刚生成</span> : (
-          <>
-            <span className="hidden text-xs tabular-nums text-zinc-400 md:inline">{formatShortDate(generation.createdAt)}</span>
-            <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
-          </>
-        )}
+        <span className="hidden shrink-0 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 sm:inline">
+          {generation.format.toUpperCase()}
+        </span>
+        <span className="hidden shrink-0 text-xs tabular-nums text-zinc-400 md:inline">
+          {formatShortDate(generation.createdAt)}
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`} />
       </button>
 
       <AnimatePresence initial={false}>
         {expanded ? (
-          <motion.div id={contentId} initial={featured || reduceMotion ? false : { opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className={`${featured ? "px-4 pb-4 pt-3 sm:px-5 sm:pb-5" : "border-t border-zinc-200/60 px-3.5 py-3.5 dark:border-zinc-800/60"}`}>
+          <motion.div
+            id={contentId}
+            initial={reduceMotion ? false : { opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-zinc-200/60 px-3.5 py-3.5 dark:border-zinc-800/60">
               <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-300">{generation.textPrompt}</p>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <audio controls preload="metadata" src={generation.audioUrl} className="h-10 w-full min-w-0 sm:flex-1" aria-label="Doubao 生成音频">你的浏览器不支持音频播放。</audio>
-                <Actions generation={generation} deleting={deleting} deleteDisabled={deleteDisabled} onDelete={onDelete} />
+                <audio
+                  controls
+                  preload="metadata"
+                  src={generation.audioUrl}
+                  className="h-10 w-full min-w-0 sm:flex-1"
+                  aria-label="Doubao 生成音频"
+                >
+                  你的浏览器不支持音频播放。
+                </audio>
+                <div className="flex shrink-0 items-center gap-2">
+                  <CardActions
+                    generation={generation}
+                    deleting={deleting}
+                    deleteDisabled={deleteDisabled}
+                    onDelete={onDelete}
+                    className="flex-1 sm:flex-none"
+                  />
+                </div>
               </div>
-              <div className="mt-3"><Meta generation={generation} /></div>
-              {generation.referenceCount ? <p className="mt-2 text-xs text-zinc-500">使用了 {generation.referenceCount} 个参考资源</p> : null}
+              <div className="mt-3">
+                <GenerationMeta generation={generation} />
+              </div>
+              {generation.referenceCount ? (
+                <p className="mt-2 text-xs text-zinc-500">使用了 {generation.referenceCount} 个参考资源</p>
+              ) : null}
               <SubtitlePanel generation={generation} />
             </div>
           </motion.div>
