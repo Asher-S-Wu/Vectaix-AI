@@ -17,6 +17,10 @@ import {
   MINIMAX_AUDIO_DEFAULT_MODEL,
 } from "@/lib/media/shared/minimaxAudio";
 import {
+  VIDEO_ENHANCEMENT_MODEL,
+  VIDEO_ENHANCEMENT_MODEL_NAME,
+} from "@/lib/media/shared/videoEnhancement";
+import {
   getModelConfig,
   getSelectableChatModels,
   MODEL_GROUP_ORDER,
@@ -38,6 +42,7 @@ const MODEL_SELECTOR_WORKSPACE_HREFS = Object.freeze({
   [AUDIO_MODEL]: "/media/audio",
   [DOUBAO_AUDIO_MODEL]: "/media/doubao-audio",
   [MINIMAX_AUDIO_DEFAULT_MODEL]: "/media/minimax-audio",
+  [VIDEO_ENHANCEMENT_MODEL]: "/media/video-enhancement",
 });
 const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
   Object.freeze({
@@ -63,6 +68,14 @@ const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
     group: "media",
     mediaType: "audio",
     href: MODEL_SELECTOR_WORKSPACE_HREFS[MINIMAX_AUDIO_DEFAULT_MODEL],
+  }),
+  Object.freeze({
+    id: VIDEO_ENHANCEMENT_MODEL,
+    name: VIDEO_ENHANCEMENT_MODEL_NAME,
+    provider: "ai-mediakit",
+    group: "media",
+    mediaType: "video",
+    href: MODEL_SELECTOR_WORKSPACE_HREFS[VIDEO_ENHANCEMENT_MODEL],
   }),
 ]);
 

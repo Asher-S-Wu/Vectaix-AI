@@ -19,7 +19,7 @@ function buildCsp(nonce) {
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob:",
-    "connect-src 'self'",
+    "connect-src 'self' https://*.volcvod.com",
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
