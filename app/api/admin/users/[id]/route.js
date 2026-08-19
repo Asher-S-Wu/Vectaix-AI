@@ -8,7 +8,6 @@ import VideoEnhancementTask from '@/models/VideoEnhancementTask';
 import MediaKitUploadTicket from '@/models/MediaKitUploadTicket';
 import AudioGeneration from '@/models/AudioGeneration';
 import CustomVoice from '@/models/CustomVoice';
-import DoubaoAudioGeneration from '@/models/DoubaoAudioGeneration';
 import MinimaxAudioGeneration from '@/models/MinimaxAudioGeneration';
 import MinimaxVoice from '@/models/MinimaxVoice';
 import bcrypt from 'bcryptjs';
@@ -232,7 +231,6 @@ export async function DELETE(req, context) {
             MediaKitUploadTicket.deleteMany({ userId }),
             AudioGeneration.deleteMany({ userId }),
             CustomVoice.deleteMany({ userId }),
-            DoubaoAudioGeneration.deleteMany({ userId }),
             MinimaxAudioGeneration.deleteMany({ userId }),
             MinimaxVoice.deleteMany({ userId }),
         ]);
