@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Check,
@@ -10,6 +10,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import {
   AUDIO_LANGUAGE_HINTS,
   PRESET_AUDIO_VOICES,
@@ -219,15 +220,19 @@ function PickerSection({
   onSelect,
   emptyTitle = "暂无可用音色",
   emptyDescription = "",
-  className = "",
+  hideTitle = false,
 }) {
   const titleId = useId();
   return (
-    <section aria-labelledby={titleId} className={className}>
+    <section aria-labelledby={titleId}>
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h3 id={titleId} className="text-sm font-semibold">{title}</h3>
-          <p className="mt-1 text-xs text-zinc-500">{description}</p>
+          {hideTitle ? (
+            <h3 id={titleId} className="sr-only">{title}</h3>
+          ) : (
+            <h3 id={titleId} className="text-sm font-semibold">{title}</h3>
+          )}
+          {description ? <p className={`${hideTitle ? "" : "mt-1 "}text-xs text-zinc-500`}>{description}</p> : null}
         </div>
         <span className="shrink-0 text-xs text-zinc-400">
           {loading ? "读取中" : `${voices.length} 个`}
@@ -274,6 +279,11 @@ function PickerSection({
   );
 }
 
+const PICKER_TABS = [
+  { id: "preset", label: "系统音色", icon: Mic2 },
+  { id: "custom", label: "我的音色", icon: CircleUserRound },
+];
+
 export default function VoicePicker({
   open,
   brandLabel = "Qwen Audio",
@@ -289,9 +299,15 @@ export default function VoicePicker({
   const dialogRef = useRef(null);
   const previousFocusRef = useRef(null);
   const reduceMotion = useReducedMotion();
+  const [activeTab, setActiveTab] = useState("custom");
+  const showTabs = Boolean(presetSection && customSection);
+  const activeSection = showTabs
+    ? (activeTab === "preset" ? presetSection : customSection)
+    : (customSection || presetSection);
 
   useEffect(() => {
     if (!open) return undefined;
+    setActiveTab("custom");
 
     previousFocusRef.current = document.activeElement;
     const previousOverflow = document.body.style.overflow;
@@ -390,33 +406,31 @@ export default function VoicePicker({
               </button>
             </div>
 
-            <div className="fade-scrollbar overflow-y-auto px-5 py-5 sm:px-6">
-              {presetSection ? (
-                <PickerSection
-                  title={presetSection.title}
-                  description={presetSection.description}
-                  voices={presetSection.voices}
-                  loading={presetSection.loading}
-                  error={presetSection.error}
-                  selectedVoiceId={selectedVoiceId}
-                  onSelect={chooseVoice}
-                  emptyTitle={presetSection.emptyTitle}
-                  emptyDescription={presetSection.emptyDescription}
+            {showTabs ? (
+              <div className="border-b border-zinc-200 px-5 py-3 dark:border-zinc-800 sm:px-6">
+                <AudioWorkspaceTabs
+                  idPrefix="voice-picker"
+                  tabs={PICKER_TABS}
+                  activeTab={activeTab}
+                  onChange={setActiveTab}
+                  ariaLabel="音色分类"
                 />
-              ) : null}
+              </div>
+            ) : null}
 
-              {customSection ? (
+            <div className="fade-scrollbar overflow-y-auto px-5 py-5 sm:px-6">
+              {activeSection ? (
                 <PickerSection
-                  title={customSection.title}
-                  description={customSection.description}
-                  voices={customSection.voices}
-                  loading={customSection.loading}
-                  error={customSection.error}
+                  title={activeSection.title}
+                  description={activeSection.description}
+                  voices={activeSection.voices}
+                  loading={activeSection.loading}
+                  error={activeSection.error}
                   selectedVoiceId={selectedVoiceId}
                   onSelect={chooseVoice}
-                  emptyTitle={customSection.emptyTitle}
-                  emptyDescription={customSection.emptyDescription}
-                  className={presetSection ? "mt-7 border-t border-zinc-200 pt-6 dark:border-zinc-800" : ""}
+                  emptyTitle={activeSection.emptyTitle}
+                  emptyDescription={activeSection.emptyDescription}
+                  hideTitle={showTabs}
                 />
               ) : null}
             </div>
