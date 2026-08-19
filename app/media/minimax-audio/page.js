@@ -337,7 +337,7 @@ export default function MinimaxAudioWorkspacePage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                          {voicesLoading ? "正在读取音色…" : selectedVoice?.name || "请选择音色"}
+                          {voicesLoading ? "正在读取音色…" : selectedVoice?.name || selectedVoice?.displayName || "请选择音色"}
                         </span>
                         <span className="mt-1 block text-xs leading-5 text-zinc-500">
                           {voiceButtonDescription}
