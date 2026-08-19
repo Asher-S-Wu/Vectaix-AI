@@ -80,6 +80,7 @@
 |:---:|:---:|:---|
 | **Qwen Image 3.0 Pro** | Alibaba Cloud | 画像生成と1～3枚の参照画像を使った画像編集 |
 | **HappyHorse 1.1 / Video Edit 1.0** | Alibaba Cloud | テキストから動画、先頭フレームから動画、複数参照画像から動画、動画編集 |
+| **AI MediaKit 動画画質向上** | Volcengine | ローカル動画または公開HTTPS URLを生成AIで画質向上（720p／1080p／2K）し、結果をプライベートストレージに保存 |
 | **Doubao Audio Generation 1.0** | Volcengine | テキストまたは参照音声から最長120秒のナレーション、効果音、環境音を生成 |
 | **Qwen Audio 3.0 TTS Plus** | Alibaba Cloud | 多言語音声合成、表現制御、音声クローン |
 | **MiniMax Speech 2.8 HD / Turbo** | Alibaba Cloud | 感情音声合成、システム音声、ユーザー専用音声クローン |
@@ -278,6 +279,7 @@ vectaix-ai/
 | `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max、Qwen Image 3.0 Pro、HappyHorse動画、Qwen Audio 3.0 TTS Plus 用のシンガポール地域Alibaba Cloud Model Studio APIキー |
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 用の北京地域Alibaba Cloud Model Studio APIキー |
 | `DOUBAO_AUDIO_API_KEY` | — | Doubao Audio Generation 1.0 用のVolcengine新版コンソールAPIキー |
+| `AI_MEDIAKIT_API_KEY` | — | AI MediaKit画質向上（大規模モデル版）用のAPIキー。有効にする場合に設定 |
 | `PUBLIC_APP_URL` | — | HappyHorseとMiniMax音声クローンが入力素材を読み取るために使う、デプロイ済みアプリの公開HTTPSアドレス |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search と Scrape 用のAPIキー |
 

@@ -80,6 +80,7 @@ Dedicated media models:
 |:---:|:---:|:---|
 | **Qwen Image 3.0 Pro** | Alibaba Cloud | Image generation and editing with 1–3 reference images |
 | **HappyHorse 1.1 / Video Edit 1.0** | Alibaba Cloud | Text-to-video, first-frame-to-video, multi-reference-to-video, and video editing |
+| **AI MediaKit Video Enhancement** | Volcengine | Generative quality enhancement for local videos or public HTTPS URLs at 720p, 1080p, or 2K; results are saved to private storage |
 | **Doubao Audio Generation 1.0** | Volcengine | Generate up to 120 seconds of speech, sound effects, or scene audio from text or reference audio |
 | **Qwen Audio 3.0 TTS Plus** | Alibaba Cloud | Multilingual speech synthesis, expression control, and voice cloning |
 | **MiniMax Speech 2.8 HD / Turbo** | Alibaba Cloud | Emotional speech synthesis, system voices, and private voice cloning |
@@ -279,6 +280,7 @@ vectaix-ai/
 | `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen 3.8 Max, Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
 | `DASHSCOPE_BEIJING_API_KEY` | — | Beijing-region Alibaba Cloud Model Studio API key for MiniMax Speech 2.8 HD / Turbo |
 | `DOUBAO_AUDIO_API_KEY` | — | Volcengine new-console API key for Doubao Audio Generation 1.0 |
+| `AI_MEDIAKIT_API_KEY` | — | API key for AI MediaKit video enhancement (large-model edition); configure when enabled |
 | `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app, used by HappyHorse and MiniMax voice cloning to read input media |
 | `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |
 

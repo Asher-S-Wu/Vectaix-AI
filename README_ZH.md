@@ -80,6 +80,7 @@
 |:---:|:---:|:---|
 | **Qwen Image 3.0 Pro** | 阿里云 | 图片生成，以及使用 1–3 张参考图进行图片编辑 |
 | **HappyHorse 1.1 / Video Edit 1.0** | 阿里云 | 文生视频、首帧生视频、多图参考生视频和视频编辑 |
+| **AI MediaKit 视频画质增强** | 火山引擎 | 支持本地视频或公网 HTTPS 地址，进行生成式画质增强（720p、1080p 或 2K），结果保存到私有空间 |
 | **Doubao 音频生成 1.0** | 火山引擎 | 纯文本或参考音频生成最长 120 秒的配音、音效和场景音频 |
 | **Qwen Audio 3.0 TTS Plus** | 阿里云 | 多语言语音合成、表达控制和声音复刻 |
 | **MiniMax Speech 2.8 HD / Turbo** | 阿里云 | 情感语音合成、系统音色和用户专属声音复刻 |
@@ -278,6 +279,7 @@ vectaix-ai/
 | `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max、Qwen Image 3.0 Pro、HappyHorse 视频和 Qwen Audio 3.0 TTS Plus 使用的新加坡区域阿里云百炼 API 密钥 |
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 使用的北京区域阿里云百炼 API 密钥 |
 | `DOUBAO_AUDIO_API_KEY` | — | Doubao 音频生成 1.0 使用的火山引擎新版控制台 API Key |
+| `AI_MEDIAKIT_API_KEY` | — | AI MediaKit 画质增强（大模型版）使用的 API Key，实际启用时配置 |
 | `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址，供 HappyHorse 和 MiniMax 声音复刻读取输入素材 |
 | `FIRECRAWL_API_KEY` | — | Firecrawl Search 与 Scrape 使用的 API 密钥 |
 
