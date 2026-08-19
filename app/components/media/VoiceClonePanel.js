@@ -19,6 +19,7 @@ import AudioFilePicker from "@/app/components/media/AudioFilePicker";
 import AudioFormError from "@/app/components/media/AudioFormError";
 import AudioSourceClipField from "@/app/components/media/AudioSourceClipField";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
+import MediaSelect from "@/app/components/media/MediaSelect";
 import VoiceEditDialog from "@/app/components/media/VoiceEditDialog";
 import {
   AUDIO_LANGUAGE_HINTS,
@@ -355,17 +356,15 @@ export default function VoiceClonePanel({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label htmlFor="voice-language" className="text-sm font-medium">样本语言</label>
-                  <select
+                  <MediaSelect
                     id="voice-language"
+                    ariaLabel="样本语言"
                     value={languageHint}
-                    onChange={(event) => setLanguageHint(event.target.value)}
+                    onChange={setLanguageHint}
                     disabled={creating || atLimit}
-                    className="focus-ring h-11 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
-                  >
-                    {LANGUAGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
+                    options={LANGUAGE_OPTIONS.map((option) => ({ id: option.value, label: option.label }))}
+                    size="lg"
+                  />
                 </div>
                 <label className="flex min-h-[68px] items-start gap-3 rounded-xl border border-zinc-200 px-3 py-3 text-sm dark:border-zinc-700">
                   <input

@@ -22,6 +22,7 @@ import AudioSliderField from "@/app/components/media/AudioSliderField";
 import AudioWorkspaceHero from "@/app/components/media/AudioWorkspaceHero";
 import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
+import MediaSelect from "@/app/components/media/MediaSelect";
 import VoiceClonePanel from "@/app/components/media/VoiceClonePanel";
 import VoicePicker, {
   mapQwenCustomVoice,
@@ -523,55 +524,44 @@ export default function AudioWorkspacePage() {
                         <div className="grid gap-4 sm:grid-cols-3">
                           <div className="space-y-2">
                             <label htmlFor="audio-format" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">音频格式</label>
-                            <select
+                            <MediaSelect
                               id="audio-format"
+                              ariaLabel="音频格式"
                               value={format}
-                              onChange={(event) => setFormat(event.target.value)}
-                              className="focus-ring h-10 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                            >
-                              {AUDIO_FORMAT_OPTIONS.map((option) => (
-                                <option key={option.id} value={option.id}>{option.label}</option>
-                              ))}
-                            </select>
+                              onChange={setFormat}
+                              options={AUDIO_FORMAT_OPTIONS}
+                            />
                           </div>
                           <div className="space-y-2">
                             <label htmlFor="audio-sample-rate" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">采样率</label>
-                            <select
+                            <MediaSelect
                               id="audio-sample-rate"
+                              ariaLabel="采样率"
                               value={sampleRate}
-                              onChange={(event) => setSampleRate(Number(event.target.value))}
-                              className="focus-ring h-10 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                            >
-                              {AUDIO_SAMPLE_RATE_OPTIONS.map((option) => (
-                                <option key={option.id} value={option.id}>{option.label}</option>
-                              ))}
-                            </select>
+                              onChange={setSampleRate}
+                              options={AUDIO_SAMPLE_RATE_OPTIONS}
+                            />
                           </div>
                           <div className="space-y-2">
                             <label htmlFor="audio-language" className="flex items-center gap-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">
                               <Languages className="h-3.5 w-3.5 text-primary" />
                               目标语言
                             </label>
-                            <select
+                            <MediaSelect
                               id="audio-language"
+                              ariaLabel="目标语言"
                               value={languageHint}
-                              onChange={(event) => setLanguageHint(event.target.value)}
-                              className="focus-ring h-10 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                            >
-                              {AUDIO_LANGUAGE_HINTS.map((option) => (
-                                <option
-                                  key={option.id || "auto"}
-                                  value={option.id}
-                                  disabled={Boolean(
-                                    option.id
-                                    && selectedVoice?.kind === "preset"
-                                    && !selectedVoice.languages.includes(option.id)
-                                  )}
-                                >
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
+                              onChange={setLanguageHint}
+                              options={AUDIO_LANGUAGE_HINTS.map((option) => ({
+                                id: option.id,
+                                label: option.label,
+                                disabled: Boolean(
+                                  option.id
+                                  && selectedVoice?.kind === "preset"
+                                  && !selectedVoice.languages.includes(option.id)
+                                ),
+                              }))}
+                            />
                             {selectedLanguageUnsupported ? (
                               <p className="text-[11px] leading-4 text-red-600" role="alert">
                                 当前音色不支持这个语言，请改为自动识别或选择支持的语言。

@@ -23,6 +23,7 @@ import AudioWorkspaceHero from "@/app/components/media/AudioWorkspaceHero";
 import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import DoubaoAudioGenerationCard from "@/app/components/media/DoubaoAudioGenerationCard";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
+import MediaSelect from "@/app/components/media/MediaSelect";
 import {
   createDoubaoAudioGeneration,
   deleteDoubaoAudioGeneration,
@@ -401,16 +402,13 @@ export default function DoubaoAudioWorkspacePage() {
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                           <label htmlFor="doubao-format" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">输出格式</label>
-                          <select
+                          <MediaSelect
                             id="doubao-format"
+                            ariaLabel="输出格式"
                             value={format}
-                            onChange={(event) => setFormat(event.target.value)}
-                            className="focus-ring h-10 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                          >
-                            {DOUBAO_AUDIO_FORMAT_OPTIONS.map((item) => (
-                              <option key={item.id} value={item.id}>{item.label}</option>
-                            ))}
-                          </select>
+                            onChange={setFormat}
+                            options={DOUBAO_AUDIO_FORMAT_OPTIONS}
+                          />
                         </div>
                         <AudioSliderField
                           id="doubao-speech-rate"

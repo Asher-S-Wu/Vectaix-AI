@@ -22,6 +22,7 @@ import AudioSliderField from "@/app/components/media/AudioSliderField";
 import AudioWorkspaceHero from "@/app/components/media/AudioWorkspaceHero";
 import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
+import MediaSelect from "@/app/components/media/MediaSelect";
 import MinimaxAudioGenerationCard from "@/app/components/media/MinimaxAudioGenerationCard";
 import MinimaxVoiceClonePanel from "@/app/components/media/MinimaxVoiceClonePanel";
 import VoicePicker, {
@@ -348,17 +349,15 @@ export default function MinimaxAudioWorkspacePage() {
 
                   <div className="space-y-2">
                     <label htmlFor="minimax-emotion" className="text-sm font-medium">情感</label>
-                    <select
+                    <MediaSelect
                       id="minimax-emotion"
+                      ariaLabel="情感"
                       value={emotion}
-                      onChange={(event) => setEmotion(event.target.value)}
+                      onChange={setEmotion}
                       disabled={generating}
-                      className="focus-ring h-11 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                    >
-                      {MINIMAX_AUDIO_EMOTION_OPTIONS.map((item) => (
-                        <option key={item.id || "auto"} value={item.id}>{item.label}</option>
-                      ))}
-                    </select>
+                      options={MINIMAX_AUDIO_EMOTION_OPTIONS}
+                      size="lg"
+                    />
                     <p className="text-xs leading-5 text-zinc-500">默认根据文字自动判断情绪，也可以手动指定。</p>
                   </div>
                 </div>
@@ -396,62 +395,53 @@ export default function MinimaxAudioWorkspacePage() {
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                           <div className="space-y-2">
                             <label htmlFor="minimax-model" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">生成模型</label>
-                            <select
+                            <MediaSelect
                               id="minimax-model"
+                              ariaLabel="生成模型"
                               value={model}
-                              onChange={(event) => setModel(event.target.value)}
+                              onChange={setModel}
                               disabled={generating}
-                              className="focus-ring h-10 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                            >
-                              {MINIMAX_AUDIO_MODELS.map((item) => (
-                                <option key={item.id} value={item.id}>{item.label} · {item.price}</option>
-                              ))}
-                            </select>
+                              options={MINIMAX_AUDIO_MODELS.map((item) => ({
+                                id: item.id,
+                                label: `${item.label} · ${item.price}`,
+                              }))}
+                            />
                           </div>
                           <div className="space-y-2">
                             <label htmlFor="minimax-language" className="flex items-center gap-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">
                               <Languages className="h-3.5 w-3.5 text-primary" />
                               语言增强
                             </label>
-                            <select
+                            <MediaSelect
                               id="minimax-language"
+                              ariaLabel="语言增强"
                               value={languageBoost}
-                              onChange={(event) => setLanguageBoost(event.target.value)}
+                              onChange={setLanguageBoost}
                               disabled={generating}
-                              className="focus-ring h-10 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                            >
-                              {MINIMAX_AUDIO_LANGUAGE_OPTIONS.map((item) => (
-                                <option key={item.id || "none"} value={item.id}>{item.label}</option>
-                              ))}
-                            </select>
+                              options={MINIMAX_AUDIO_LANGUAGE_OPTIONS}
+                            />
                           </div>
                           <div className="space-y-2">
                             <label htmlFor="minimax-format" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">音频格式</label>
-                            <select
+                            <MediaSelect
                               id="minimax-format"
+                              ariaLabel="音频格式"
                               value={format}
-                              onChange={(event) => setFormat(event.target.value)}
+                              onChange={setFormat}
                               disabled={generating}
-                              className="focus-ring h-10 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                            >
-                              {MINIMAX_AUDIO_FORMAT_OPTIONS.map((item) => (
-                                <option key={item.id} value={item.id}>{item.label}</option>
-                              ))}
-                            </select>
+                              options={MINIMAX_AUDIO_FORMAT_OPTIONS}
+                            />
                           </div>
                           <div className="space-y-2">
                             <label htmlFor="minimax-sample-rate" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">采样率</label>
-                            <select
+                            <MediaSelect
                               id="minimax-sample-rate"
+                              ariaLabel="采样率"
                               value={sampleRate}
-                              onChange={(event) => setSampleRate(Number(event.target.value))}
+                              onChange={setSampleRate}
                               disabled={generating}
-                              className="focus-ring h-10 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                            >
-                              {MINIMAX_AUDIO_SAMPLE_RATE_OPTIONS.map((item) => (
-                                <option key={item.id} value={item.id}>{item.label}</option>
-                              ))}
-                            </select>
+                              options={MINIMAX_AUDIO_SAMPLE_RATE_OPTIONS}
+                            />
                           </div>
                         </div>
 

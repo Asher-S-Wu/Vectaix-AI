@@ -16,6 +16,7 @@ import AudioFilePicker from "@/app/components/media/AudioFilePicker";
 import AudioFormError from "@/app/components/media/AudioFormError";
 import AudioSourceClipField from "@/app/components/media/AudioSourceClipField";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
+import MediaSelect from "@/app/components/media/MediaSelect";
 import VoiceEditDialog from "@/app/components/media/VoiceEditDialog";
 import { AUDIO_UPLOAD_PURPOSES } from "@/lib/media/shared/audioUploads";
 import {
@@ -25,6 +26,7 @@ import {
   MINIMAX_VOICE_DEMO_TEXT_MAX_LENGTH,
   MINIMAX_VOICE_DISPLAY_NAME_MAX_LENGTH,
 } from "@/lib/media/shared/minimaxAudio";
+import { VOICE_CLONE_DEMO_DEFAULT_TEXT } from "@/lib/media/shared/voicePreview";
 
 const SAMPLE_ACCEPT = ".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/wav";
 const SAMPLE_EXTENSIONS = new Set(["mp3", "m4a", "wav"]);
@@ -56,7 +58,7 @@ export default function MinimaxVoiceClonePanel({
 }) {
   const reduceMotion = useReducedMotion();
   const [displayName, setDisplayName] = useState("");
-  const [demoText, setDemoText] = useState("");
+  const [demoText, setDemoText] = useState(VOICE_CLONE_DEMO_DEFAULT_TEXT);
   const [model, setModel] = useState("MiniMax/speech-2.8-hd");
   const [languageBoost, setLanguageBoost] = useState("");
   const [noiseReduction, setNoiseReduction] = useState(false);
@@ -96,6 +98,7 @@ export default function MinimaxVoiceClonePanel({
     if (clipDuration < 10 || clipDuration > 300) {
       return setFormError("请选择 10 至 300 秒的清晰人声片段");
     }
+    if (!demoText.trim()) return setFormError("请填写试听文案");
     if (!consent) return setFormError("请先确认声音授权");
     if (atLimit) return setFormError(`最多只能保存 ${MINIMAX_CUSTOM_VOICE_MAX_COUNT} 个复刻音色`);
 
@@ -114,7 +117,7 @@ export default function MinimaxVoiceClonePanel({
         consent: true,
       });
       setDisplayName("");
-      setDemoText("");
+      setDemoText(VOICE_CLONE_DEMO_DEFAULT_TEXT);
       setModel("MiniMax/speech-2.8-hd");
       setLanguageBoost("");
       setNoiseReduction(false);
@@ -201,17 +204,18 @@ export default function MinimaxVoiceClonePanel({
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="minimax-voice-model" className="text-sm font-medium">试听模型</label>
-                  <select
+                  <MediaSelect
                     id="minimax-voice-model"
+                    ariaLabel="试听模型"
                     value={model}
-                    onChange={(event) => setModel(event.target.value)}
+                    onChange={setModel}
                     disabled={creating || atLimit}
-                    className="focus-ring h-11 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
-                  >
-                    {MINIMAX_AUDIO_MODELS.map((item) => (
-                      <option key={item.id} value={item.id}>{item.label} · {item.price}</option>
-                    ))}
-                  </select>
+                    options={MINIMAX_AUDIO_MODELS.map((item) => ({
+                      id: item.id,
+                      label: `${item.label} · ${item.price}`,
+                    }))}
+                    size="lg"
+                  />
                 </div>
               </div>
 
@@ -253,7 +257,7 @@ export default function MinimaxVoiceClonePanel({
                 <div className="flex items-center justify-between gap-3">
                   <label htmlFor="minimax-voice-demo-text" className="text-sm font-medium">试听文案</label>
                   <span className="text-xs text-zinc-400">
-                    选填 · {demoText.length}/{MINIMAX_VOICE_DEMO_TEXT_MAX_LENGTH}
+                    {demoText.length}/{MINIMAX_VOICE_DEMO_TEXT_MAX_LENGTH}
                   </span>
                 </div>
                 <textarea
@@ -266,22 +270,21 @@ export default function MinimaxVoiceClonePanel({
                   disabled={creating || atLimit}
                   className="focus-ring min-h-[96px] w-full resize-y rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 placeholder:text-zinc-400 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
                 />
+                <p className="text-xs leading-5 text-zinc-500">已默认填好，可以直接使用，也可以改成自己喜欢的文字。</p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <label htmlFor="minimax-voice-language" className="text-sm font-medium">语言增强</label>
-                  <select
+                  <MediaSelect
                     id="minimax-voice-language"
+                    ariaLabel="语言增强"
                     value={languageBoost}
-                    onChange={(event) => setLanguageBoost(event.target.value)}
+                    onChange={setLanguageBoost}
                     disabled={creating || atLimit}
-                    className="focus-ring h-11 w-full cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 text-sm disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
-                  >
-                    {MINIMAX_AUDIO_LANGUAGE_OPTIONS.map((item) => (
-                      <option key={item.id || "none"} value={item.id}>{item.label}</option>
-                    ))}
-                  </select>
+                    options={MINIMAX_AUDIO_LANGUAGE_OPTIONS}
+                    size="lg"
+                  />
                 </div>
                 <label className="flex min-h-[68px] items-start gap-3 rounded-xl border border-zinc-200 px-3 py-3 text-sm dark:border-zinc-700">
                   <input
