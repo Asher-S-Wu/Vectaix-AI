@@ -47,6 +47,7 @@ import {
   MINIMAX_AUDIO_SAMPLE_RATE_OPTIONS,
   MINIMAX_AUDIO_TEXT_MAX_LENGTH,
   MINIMAX_EXPRESSIVE_TAGS,
+  MINIMAX_VOICE_DISPLAY_NAME_MAX_LENGTH,
 } from "@/lib/media/shared/minimaxAudio";
 
 function merge(items, item) {
@@ -587,6 +588,8 @@ export default function MinimaxAudioWorkspacePage() {
         }}
         onClose={closeVoicePicker}
         onSelect={selectVoice}
+        onRename={handleRenameVoice}
+        renameMaxLength={MINIMAX_VOICE_DISPLAY_NAME_MAX_LENGTH}
       />
 
       <MediaConfirmDialog

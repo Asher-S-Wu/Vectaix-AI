@@ -709,6 +709,7 @@ export default function AudioWorkspacePage() {
         }}
         onClose={closeVoicePicker}
         onSelect={selectVoice}
+        onRename={handleRenameVoice}
       />
 
       <MediaConfirmDialog

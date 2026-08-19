@@ -5,12 +5,18 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Check,
   CircleUserRound,
+  Loader2,
   Mic2,
+  Pause,
+  Pencil,
+  Play,
   Sparkles,
   UserRound,
   X,
 } from "lucide-react";
 import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
+import VoiceEditDialog from "@/app/components/media/VoiceEditDialog";
+import { previewAudioVoice } from "@/lib/media/client/media";
 import {
   AUDIO_LANGUAGE_HINTS,
   PRESET_AUDIO_VOICES,
@@ -66,7 +72,8 @@ export function mapRecommendedVoice(voice) {
     subtitle: `${voice.gender} · ${voice.age} · ${voice.languages}`,
     tier: voice.tier,
     badges: [voice.trait, voice.scene],
-    icon: "preset",
+    canPreview: true,
+    previewProvider: "qwen",
     disabled: false,
     payload: {
       voiceId: voice.voiceId,
@@ -84,12 +91,15 @@ export function mapQwenCustomVoice(voice) {
   const badges = [`${LANGUAGE_LABELS[voice.languageHint] || "自动"}样本`];
   if (voice.enablePreprocess) badges.push("已启用音频优化");
   return {
+    id: voice.id,
     voiceId: voice.voiceId,
     name: voice.displayName,
     subtitle: "我的复刻音色",
     statusBadge: status,
     badges,
-    icon: "custom",
+    canPreview: !disabled,
+    canRename: voice.status !== "DELETING" && !voice.requiresAttention,
+    previewProvider: "qwen",
     disabled,
     disabledHint: disabled
       ? (voice.requiresAttention
@@ -120,7 +130,8 @@ export function mapMinimaxSystemVoice(voice) {
     subtitle: "系统音色",
     tier: "系统音色",
     badges: Array.isArray(voice.description) ? voice.description.slice(0, 3) : [],
-    icon: "preset",
+    canPreview: true,
+    previewProvider: "minimax",
     disabled: false,
     payload: {
       voiceId: voice.voiceId,
@@ -133,11 +144,15 @@ export function mapMinimaxSystemVoice(voice) {
 
 export function mapMinimaxCustomVoice(voice) {
   return {
+    id: voice.id,
     voiceId: voice.voiceId,
     name: voice.displayName,
     subtitle: "我的复刻音色",
     badges: [],
-    icon: "custom",
+    canPreview: Boolean(voice.demoAudioUrl),
+    canRename: true,
+    previewUrl: voice.demoAudioUrl || "",
+    previewProvider: "minimax",
     disabled: false,
     payload: {
       voiceId: voice.voiceId,
@@ -148,18 +163,25 @@ export function mapMinimaxCustomVoice(voice) {
   };
 }
 
-function VoiceCard({ voice, selected, onSelect }) {
+function VoiceCard({
+  voice,
+  selected,
+  playing,
+  loadingPreview,
+  onSelect,
+  onPreview,
+  onRename,
+}) {
   return (
-    <button
-      type="button"
-      disabled={voice.disabled}
-      onClick={() => onSelect(voice)}
-      aria-pressed={selected}
-      className={`group relative w-full rounded-2xl border p-4 text-left transition-[border-color,background-color,transform] motion-reduce:transition-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+    <article
+      className={`relative rounded-2xl border p-4 transition-[border-color,background-color] ${
         selected
           ? "border-primary bg-primary/5"
           : "border-zinc-200/80 bg-white/70 hover:border-primary/50 hover:bg-primary/[0.03] dark:border-zinc-800 dark:bg-zinc-950/60"
-      }`}
+      } ${voice.disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+      onClick={() => {
+        if (!voice.disabled) onSelect(voice);
+      }}
     >
       <span
         className={`absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border ${
@@ -173,12 +195,42 @@ function VoiceCard({ voice, selected, onSelect }) {
       </span>
 
       <div className="flex items-start gap-3 pr-7">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          {voice.icon === "custom" ? <CircleUserRound className="h-5 w-5" /> : <Mic2 className="h-5 w-5" />}
-        </span>
-        <span className="min-w-0">
-          <span className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onPreview(voice);
+          }}
+          disabled={!voice.canPreview || voice.disabled}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={playing ? `停止试听 ${voice.name}` : `试听 ${voice.name}`}
+          title={voice.canPreview ? (playing ? "停止试听" : "试听") : "这个音色还不能试听"}
+        >
+          {loadingPreview ? (
+            <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />
+          ) : playing ? (
+            <Pause className="h-5 w-5" />
+          ) : (
+            <Play className="h-5 w-5 translate-x-[1px]" />
+          )}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{voice.name}</span>
+            {voice.canRename ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRename(voice);
+                }}
+                className="inline-flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                aria-label={`重命名 ${voice.name}`}
+                title="重命名"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
             {voice.statusBadge ? (
               <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${voice.statusBadge.className}`}>
                 {voice.statusBadge.label}
@@ -188,13 +240,13 @@ function VoiceCard({ voice, selected, onSelect }) {
                 {voice.tier}
               </span>
             ) : null}
-          </span>
-          <span className="mt-1 block text-xs text-zinc-500">{voice.subtitle}</span>
-        </span>
+          </div>
+          <p className="mt-1 text-xs text-zinc-500">{voice.subtitle}</p>
+        </div>
       </div>
 
       {voice.badges?.length ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
+        <div className="mt-3 flex flex-wrap gap-1.5 pl-[52px]">
           {voice.badges.map((badge) => (
             <span key={badge} className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {badge}
@@ -204,9 +256,9 @@ function VoiceCard({ voice, selected, onSelect }) {
       ) : null}
 
       {voice.disabled && voice.disabledHint ? (
-        <span className="mt-3 block text-xs text-zinc-500">{voice.disabledHint}</span>
+        <p className="mt-3 pl-[52px] text-xs text-zinc-500">{voice.disabledHint}</p>
       ) : null}
-    </button>
+    </article>
   );
 }
 
@@ -217,7 +269,11 @@ function PickerSection({
   loading = false,
   error = "",
   selectedVoiceId,
+  playingVoiceId,
+  loadingVoiceId,
   onSelect,
+  onPreview,
+  onRename,
   emptyTitle = "暂无可用音色",
   emptyDescription = "",
   hideTitle = false,
@@ -267,10 +323,14 @@ function PickerSection({
         <div className="grid gap-3 sm:grid-cols-2">
           {voices.map((voice) => (
             <VoiceCard
-              key={voice.voiceId}
+              key={voice.voiceId || voice.id}
               voice={voice}
               selected={selectedVoiceId === voice.voiceId}
+              playing={playingVoiceId === voice.voiceId}
+              loadingPreview={loadingVoiceId === voice.voiceId}
               onSelect={onSelect}
+              onPreview={onPreview}
+              onRename={onRename}
             />
           ))}
         </div>
@@ -292,22 +352,51 @@ export default function VoicePicker({
   presetSection,
   customSection,
   selectedVoiceId,
+  renameMaxLength = 40,
   onClose,
   onSelect,
+  onRename,
 }) {
   const closeButtonRef = useRef(null);
   const dialogRef = useRef(null);
   const previousFocusRef = useRef(null);
+  const audioRef = useRef(null);
+  const previewCacheRef = useRef(new Map());
+  const previewAbortRef = useRef(null);
   const reduceMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState("custom");
+  const [playingVoiceId, setPlayingVoiceId] = useState("");
+  const [loadingVoiceId, setLoadingVoiceId] = useState("");
+  const [previewError, setPreviewError] = useState("");
+  const [renameDialog, setRenameDialog] = useState(null);
+  const [renameSubmitting, setRenameSubmitting] = useState(false);
+  const [renameError, setRenameError] = useState("");
+  const renameDialogRef = useRef(null);
+  renameDialogRef.current = renameDialog;
   const showTabs = Boolean(presetSection && customSection);
   const activeSection = showTabs
     ? (activeTab === "preset" ? presetSection : customSection)
     : (customSection || presetSection);
 
+  const stopPreview = () => {
+    previewAbortRef.current?.abort();
+    previewAbortRef.current = null;
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    }
+    setPlayingVoiceId("");
+    setLoadingVoiceId("");
+  };
+
   useEffect(() => {
     if (!open) return undefined;
     setActiveTab("custom");
+    setPreviewError("");
+    setRenameDialog(null);
+    setRenameError("");
 
     previousFocusRef.current = document.activeElement;
     const previousOverflow = document.body.style.overflow;
@@ -315,6 +404,7 @@ export default function VoicePicker({
     const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
 
     const handleKeyDown = (event) => {
+      if (renameDialogRef.current) return;
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
@@ -350,92 +440,222 @@ export default function VoicePicker({
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
       previousFocusRef.current?.focus?.();
+      previewAbortRef.current?.abort();
+      previewAbortRef.current = null;
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+      }
+      previewCacheRef.current.forEach((url) => {
+        if (String(url).startsWith("blob:")) URL.revokeObjectURL(url);
+      });
+      previewCacheRef.current.clear();
     };
   }, [open, onClose]);
 
+  const playVoice = async (voice) => {
+    if (playingVoiceId === voice.voiceId || loadingVoiceId === voice.voiceId) {
+      stopPreview();
+      return;
+    }
+    stopPreview();
+    setPreviewError("");
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const startPlayback = (src) => {
+      audio.src = src;
+      const playPromise = audio.play();
+      if (playPromise) {
+        playPromise.catch((error) => {
+          if (error?.name === "AbortError") return;
+          setPlayingVoiceId("");
+          setPreviewError(error instanceof Error ? error.message : "试听失败");
+        });
+      }
+    };
+
+    const cacheKey = voice.previewUrl || `${voice.previewProvider}:${voice.voiceId}`;
+    const cached = previewCacheRef.current.get(cacheKey);
+    if (cached) {
+      setPlayingVoiceId(voice.voiceId);
+      startPlayback(cached);
+      return;
+    }
+    if (voice.previewUrl) {
+      previewCacheRef.current.set(cacheKey, voice.previewUrl);
+      setPlayingVoiceId(voice.voiceId);
+      startPlayback(voice.previewUrl);
+      return;
+    }
+
+    const controller = new AbortController();
+    previewAbortRef.current = controller;
+    setLoadingVoiceId(voice.voiceId);
+    try {
+      const src = await previewAudioVoice(voice.previewProvider, voice.voiceId, { signal: controller.signal });
+      if (controller.signal.aborted) {
+        URL.revokeObjectURL(src);
+        return;
+      }
+      previewCacheRef.current.set(cacheKey, src);
+      setPlayingVoiceId(voice.voiceId);
+      startPlayback(src);
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      setPreviewError(error instanceof Error ? error.message : "试听失败");
+    } finally {
+      if (previewAbortRef.current === controller) previewAbortRef.current = null;
+      setLoadingVoiceId((current) => current === voice.voiceId ? "" : current);
+    }
+  };
+
   const chooseVoice = (voice) => {
+    stopPreview();
     onSelect(voice.payload);
     onClose();
+  };
+
+  const openRename = (voice) => {
+    if (!onRename || !voice.canRename) return;
+    stopPreview();
+    setRenameError("");
+    setRenameDialog({ kind: "rename", voice: { id: voice.id, displayName: voice.name } });
+  };
+
+  const submitRename = async (input) => {
+    if (!onRename || !renameDialog) return;
+    const displayName = input.displayName.trim();
+    if (!displayName) {
+      setRenameError("请填写音色名称");
+      return;
+    }
+    setRenameSubmitting(true);
+    setRenameError("");
+    try {
+      await onRename(renameDialog.voice, displayName);
+      setRenameDialog(null);
+    } catch (error) {
+      setRenameError(error instanceof Error ? error.message : "修改音色名称失败");
+    } finally {
+      setRenameSubmitting(false);
+    }
   };
 
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
-          className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-4"
-          initial={reduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
-          role="presentation"
-        >
-          <button
-            type="button"
-            className="absolute inset-0 cursor-default bg-zinc-950/45 backdrop-blur-sm"
-            onClick={onClose}
-            aria-label="关闭音色选择器"
-            tabIndex={-1}
-          />
-          <motion.section
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="voice-picker-title"
-            initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 20, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="relative flex max-h-[88dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[28px] border border-zinc-200 bg-white shadow-pop sm:max-h-[82dvh] sm:rounded-[28px] dark:border-zinc-800 dark:bg-zinc-950"
+        <>
+          <motion.div
+            className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-4"
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
+            role="presentation"
           >
-            <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 dark:border-zinc-800 sm:px-6">
-              <div>
-                <div className="mb-1 flex items-center gap-2 text-primary">
-                  <Sparkles className="h-4 w-4" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em]">{brandLabel}</span>
+            <button
+              type="button"
+              className="absolute inset-0 cursor-default bg-zinc-950/45 backdrop-blur-sm"
+              onClick={onClose}
+              aria-label="关闭音色选择器"
+              tabIndex={-1}
+            />
+            <motion.section
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="voice-picker-title"
+              initial={reduceMotion ? false : { opacity: 0, y: 28, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 20, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="relative flex max-h-[88dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[28px] border border-zinc-200 bg-white shadow-pop sm:max-h-[82dvh] sm:rounded-[28px] dark:border-zinc-800 dark:bg-zinc-950"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-4 dark:border-zinc-800 sm:px-6">
+                <div>
+                  <div className="mb-1 flex items-center gap-2 text-primary">
+                    <Sparkles className="h-4 w-4" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em]">{brandLabel}</span>
+                  </div>
+                  <h2 id="voice-picker-title" className="text-lg font-semibold">{title}</h2>
+                  <p className="mt-1 text-sm text-zinc-500">{description}</p>
                 </div>
-                <h2 id="voice-picker-title" className="text-lg font-semibold">{title}</h2>
-                <p className="mt-1 text-sm text-zinc-500">{description}</p>
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  onClick={onClose}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  aria-label="关闭"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <button
-                ref={closeButtonRef}
-                type="button"
-                onClick={onClose}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                aria-label="关闭"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
 
-            {showTabs ? (
-              <div className="border-b border-zinc-200 px-5 py-3 dark:border-zinc-800 sm:px-6">
-                <AudioWorkspaceTabs
-                  idPrefix="voice-picker"
-                  tabs={PICKER_TABS}
-                  activeTab={activeTab}
-                  onChange={setActiveTab}
-                  ariaLabel="音色分类"
-                />
-              </div>
-            ) : null}
-
-            <div className="fade-scrollbar overflow-y-auto px-5 py-5 sm:px-6">
-              {activeSection ? (
-                <PickerSection
-                  title={activeSection.title}
-                  description={activeSection.description}
-                  voices={activeSection.voices}
-                  loading={activeSection.loading}
-                  error={activeSection.error}
-                  selectedVoiceId={selectedVoiceId}
-                  onSelect={chooseVoice}
-                  emptyTitle={activeSection.emptyTitle}
-                  emptyDescription={activeSection.emptyDescription}
-                  hideTitle={showTabs}
-                />
+              {showTabs ? (
+                <div className="border-b border-zinc-200 px-5 py-3 dark:border-zinc-800 sm:px-6">
+                  <AudioWorkspaceTabs
+                    idPrefix="voice-picker"
+                    tabs={PICKER_TABS}
+                    activeTab={activeTab}
+                    onChange={(tab) => {
+                      stopPreview();
+                      setActiveTab(tab);
+                    }}
+                    ariaLabel="音色分类"
+                  />
+                </div>
               ) : null}
-            </div>
-          </motion.section>
-        </motion.div>
+
+              <div className="fade-scrollbar overflow-y-auto px-5 py-5 sm:px-6">
+                {previewError ? (
+                  <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600" role="alert">
+                    {previewError}
+                  </div>
+                ) : null}
+                {activeSection ? (
+                  <PickerSection
+                    title={activeSection.title}
+                    description={activeSection.description}
+                    voices={activeSection.voices}
+                    loading={activeSection.loading}
+                    error={activeSection.error}
+                    selectedVoiceId={selectedVoiceId}
+                    playingVoiceId={playingVoiceId}
+                    loadingVoiceId={loadingVoiceId}
+                    onSelect={chooseVoice}
+                    onPreview={playVoice}
+                    onRename={openRename}
+                    emptyTitle={activeSection.emptyTitle}
+                    emptyDescription={activeSection.emptyDescription}
+                    hideTitle={showTabs}
+                  />
+                ) : null}
+              </div>
+              <audio
+                ref={audioRef}
+                className="hidden"
+                onEnded={() => setPlayingVoiceId("")}
+              />
+            </motion.section>
+          </motion.div>
+
+          <AnimatePresence>
+            {renameDialog ? (
+              <VoiceEditDialog
+                dialog={renameDialog}
+                submitting={renameSubmitting}
+                error={renameError}
+                onClose={() => {
+                  if (!renameSubmitting) setRenameDialog(null);
+                }}
+                onSubmit={submitRename}
+                nameMaxLength={renameMaxLength}
+              />
+            ) : null}
+          </AnimatePresence>
+        </>
       ) : null}
     </AnimatePresence>
   );
