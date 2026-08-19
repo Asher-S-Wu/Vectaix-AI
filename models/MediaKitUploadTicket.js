@@ -96,6 +96,7 @@ const MediaKitUploadTicketSchema = new mongoose.Schema({
 }, {
   timestamps: true,
   strict: "throw",
+  autoIndex: false,
 });
 
 MediaKitUploadTicketSchema.pre("validate", function validateTicketState() {
@@ -124,5 +125,21 @@ MediaKitUploadTicketSchema.pre("validate", function validateTicketState() {
 MediaKitUploadTicketSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 MediaKitUploadTicketSchema.index({ userId: 1, status: 1, expiresAt: 1 });
 
-export default mongoose.models.MediaKitUploadTicket
+const MediaKitUploadTicket = mongoose.models.MediaKitUploadTicket
   || mongoose.model("MediaKitUploadTicket", MediaKitUploadTicketSchema);
+
+export async function ensureMediaKitUploadTicketIndexes() {
+  const collection = MediaKitUploadTicket.collection;
+  await collection.createIndex({ userId: 1 }, { name: "userId_1" });
+  await collection.createIndex({ status: 1 }, { name: "status_1" });
+  await collection.createIndex(
+    { expiresAt: 1 },
+    { name: "expiresAt_1", expireAfterSeconds: 0 },
+  );
+  await collection.createIndex(
+    { userId: 1, status: 1, expiresAt: 1 },
+    { name: "userId_1_status_1_expiresAt_1" },
+  );
+}
+
+export default MediaKitUploadTicket;

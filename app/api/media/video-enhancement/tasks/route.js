@@ -299,10 +299,13 @@ export async function POST(request) {
         {
           $set: {
             status: failure.status,
+            videoFileId: null,
+            result: null,
             error: { code: failure.code },
             nextPollAt: null,
             lastSyncedAt: new Date(),
           },
+          $unset: { lease: 1 },
         },
         { new: true },
       );

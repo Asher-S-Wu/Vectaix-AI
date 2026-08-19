@@ -181,6 +181,7 @@ const VideoEnhancementTaskSchema = new mongoose.Schema({
 }, {
   timestamps: true,
   strict: "throw",
+  autoIndex: false,
 });
 
 VideoEnhancementTaskSchema.pre("validate", function validateTask() {
@@ -218,6 +219,48 @@ VideoEnhancementTaskSchema.index(
 VideoEnhancementTaskSchema.index({ userId: 1, updatedAt: -1 });
 VideoEnhancementTaskSchema.index({ userId: 1, status: 1, updatedAt: -1 });
 VideoEnhancementTaskSchema.index({ status: 1, nextPollAt: 1, "lease.expiresAt": 1 });
+VideoEnhancementTaskSchema.index({
+  status: 1,
+  upstreamTaskId: 1,
+  createdAt: 1,
+  "lease.expiresAt": 1,
+});
 
-export default mongoose.models.VideoEnhancementTask
+const VideoEnhancementTask = mongoose.models.VideoEnhancementTask
   || mongoose.model("VideoEnhancementTask", VideoEnhancementTaskSchema);
+
+export async function ensureVideoEnhancementTaskIndexes() {
+  const collection = VideoEnhancementTask.collection;
+  await collection.createIndex({ userId: 1 }, { name: "userId_1" });
+  await collection.createIndex({ sourceType: 1 }, { name: "sourceType_1" });
+  await collection.createIndex({ clientToken: 1 }, { name: "clientToken_1", unique: true });
+  await collection.createIndex({ status: 1 }, { name: "status_1" });
+  await collection.createIndex({ nextPollAt: 1 }, { name: "nextPollAt_1" });
+  await collection.createIndex({ videoFileId: 1 }, { name: "videoFileId_1" });
+  await collection.createIndex(
+    { upstreamTaskId: 1 },
+    {
+      name: "upstreamTaskId_1",
+      unique: true,
+      partialFilterExpression: { upstreamTaskId: { $type: "string" } },
+    },
+  );
+  await collection.createIndex(
+    { userId: 1, updatedAt: -1 },
+    { name: "userId_1_updatedAt_-1" },
+  );
+  await collection.createIndex(
+    { userId: 1, status: 1, updatedAt: -1 },
+    { name: "userId_1_status_1_updatedAt_-1" },
+  );
+  await collection.createIndex(
+    { status: 1, nextPollAt: 1, "lease.expiresAt": 1 },
+    { name: "status_1_nextPollAt_1_lease.expiresAt_1" },
+  );
+  await collection.createIndex(
+    { status: 1, upstreamTaskId: 1, createdAt: 1, "lease.expiresAt": 1 },
+    { name: "status_1_upstreamTaskId_1_createdAt_1_lease.expiresAt_1" },
+  );
+}
+
+export default VideoEnhancementTask;

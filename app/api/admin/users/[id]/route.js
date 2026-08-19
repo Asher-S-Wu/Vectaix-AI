@@ -4,6 +4,8 @@ import User from '@/models/User';
 import Conversation from '@/models/Conversation';
 import UserSettings from '@/models/UserSettings';
 import VideoGenerationTask from '@/models/VideoGenerationTask';
+import VideoEnhancementTask from '@/models/VideoEnhancementTask';
+import MediaKitUploadTicket from '@/models/MediaKitUploadTicket';
 import AudioGeneration from '@/models/AudioGeneration';
 import CustomVoice from '@/models/CustomVoice';
 import DoubaoAudioGeneration from '@/models/DoubaoAudioGeneration';
@@ -226,6 +228,8 @@ export async function DELETE(req, context) {
             Conversation.deleteMany({ userId }),
             UserSettings.deleteMany({ userId }),
             VideoGenerationTask.deleteMany({ userId }),
+            VideoEnhancementTask.deleteMany({ userId }),
+            MediaKitUploadTicket.deleteMany({ userId }),
             AudioGeneration.deleteMany({ userId }),
             CustomVoice.deleteMany({ userId }),
             DoubaoAudioGeneration.deleteMany({ userId }),
