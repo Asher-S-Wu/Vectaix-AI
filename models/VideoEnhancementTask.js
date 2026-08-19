@@ -147,6 +147,7 @@ const VideoEnhancementTaskSchema = new mongoose.Schema({
     minlength: 8,
     maxlength: 256,
     default: null,
+    select: false,
   },
   status: {
     type: String,
