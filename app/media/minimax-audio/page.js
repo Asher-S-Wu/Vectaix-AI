@@ -45,7 +45,7 @@ import {
   MINIMAX_AUDIO_FORMAT_OPTIONS,
   MINIMAX_AUDIO_LANGUAGE_OPTIONS,
   MINIMAX_AUDIO_MODELS,
-  MINIMAX_AUDIO_SAMPLE_RATE_OPTIONS,
+  MINIMAX_AUDIO_MAX_SAMPLE_RATE,
   MINIMAX_AUDIO_TEXT_MAX_LENGTH,
   MINIMAX_EXPRESSIVE_TAGS,
   MINIMAX_VOICE_DISPLAY_NAME_MAX_LENGTH,
@@ -68,7 +68,6 @@ export default function MinimaxAudioWorkspacePage() {
   const [pitch, setPitch] = useState(0);
   const [languageBoost, setLanguageBoost] = useState("");
   const [format, setFormat] = useState("mp3");
-  const [sampleRate, setSampleRate] = useState(32000);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [voicePickerOpen, setVoicePickerOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -190,7 +189,6 @@ export default function MinimaxAudioWorkspacePage() {
         pitch,
         languageBoost,
         format,
-        sampleRate,
       });
       setGenerations((current) => merge(current, generation));
       setLatestId(generation.id);
@@ -376,7 +374,7 @@ export default function MinimaxAudioWorkspacePage() {
                     声音设置
                   </span>
                   <span className="flex items-center gap-2 text-xs font-normal text-zinc-500">
-                    {currentModel?.label || model} · {format.toUpperCase()} · {sampleRate / 1000}kHz
+                    {currentModel?.label || model} · {format.toUpperCase()} · {MINIMAX_AUDIO_MAX_SAMPLE_RATE / 1000}kHz
                     <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${advancedOpen ? "rotate-180" : ""}`} />
                   </span>
                 </button>
@@ -392,7 +390,7 @@ export default function MinimaxAudioWorkspacePage() {
                       className="overflow-hidden"
                     >
                       <div className="border-t border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                           <div className="space-y-2">
                             <label htmlFor="minimax-model" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">生成模型</label>
                             <MediaSelect
@@ -401,10 +399,7 @@ export default function MinimaxAudioWorkspacePage() {
                               value={model}
                               onChange={setModel}
                               disabled={generating}
-                              options={MINIMAX_AUDIO_MODELS.map((item) => ({
-                                id: item.id,
-                                label: `${item.label} · ${item.price}`,
-                              }))}
+                              options={MINIMAX_AUDIO_MODELS}
                             />
                           </div>
                           <div className="space-y-2">
@@ -430,17 +425,6 @@ export default function MinimaxAudioWorkspacePage() {
                               onChange={setFormat}
                               disabled={generating}
                               options={MINIMAX_AUDIO_FORMAT_OPTIONS}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label htmlFor="minimax-sample-rate" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">采样率</label>
-                            <MediaSelect
-                              id="minimax-sample-rate"
-                              ariaLabel="采样率"
-                              value={sampleRate}
-                              onChange={setSampleRate}
-                              disabled={generating}
-                              options={MINIMAX_AUDIO_SAMPLE_RATE_OPTIONS}
                             />
                           </div>
                         </div>

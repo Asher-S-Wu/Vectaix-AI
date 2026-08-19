@@ -8,6 +8,7 @@ import {
   AUDIO_FORMAT_OPTIONS,
   AUDIO_INSTRUCTION_MAX_LENGTH,
   AUDIO_LANGUAGE_HINTS,
+  AUDIO_DEFAULT_SAMPLE_RATE,
   AUDIO_MODEL,
   AUDIO_SAMPLE_RATE_OPTIONS,
   AUDIO_TEXT_MAX_LENGTH,
@@ -82,7 +83,7 @@ function parseGenerationInput(body) {
   const voiceId = typeof body?.voiceId === "string" ? body.voiceId.trim() : "";
   const instruction = typeof body?.instruction === "string" ? body.instruction.trim() : "";
   const format = typeof body?.format === "string" ? body.format.trim().toLowerCase() : "mp3";
-  const sampleRate = readNumber(body?.sampleRate, 24000);
+  const sampleRate = readNumber(body?.sampleRate, AUDIO_DEFAULT_SAMPLE_RATE);
   const rate = readNumber(body?.rate, 1);
   const pitch = readNumber(body?.pitch, 1);
   const volume = readNumber(body?.volume, 50);

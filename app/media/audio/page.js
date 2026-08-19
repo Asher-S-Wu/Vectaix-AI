@@ -43,7 +43,7 @@ import {
   AUDIO_FORMAT_OPTIONS,
   AUDIO_INSTRUCTION_MAX_LENGTH,
   AUDIO_LANGUAGE_HINTS,
-  AUDIO_SAMPLE_RATE_OPTIONS,
+  AUDIO_MAX_SAMPLE_RATE,
   AUDIO_TEXT_MAX_LENGTH,
 } from "@/lib/media/shared/models";
 
@@ -91,7 +91,6 @@ export default function AudioWorkspacePage() {
   const [instruction, setInstruction] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [format, setFormat] = useState("mp3");
-  const [sampleRate, setSampleRate] = useState(24000);
   const [rate, setRate] = useState(1);
   const [pitch, setPitch] = useState(1);
   const [volume, setVolume] = useState(50);
@@ -284,7 +283,6 @@ export default function AudioWorkspacePage() {
         voiceId: selectedVoice.voiceId,
         instruction: instruction.trim(),
         format,
-        sampleRate,
         rate,
         pitch,
         volume,
@@ -505,7 +503,7 @@ export default function AudioWorkspacePage() {
                     声音设置
                   </span>
                   <span className="flex items-center gap-2 text-xs font-normal text-zinc-500">
-                    {format.toUpperCase()} · {sampleRate / 1000}kHz
+                    {format.toUpperCase()} · {AUDIO_MAX_SAMPLE_RATE / 1000}kHz
                     <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${advancedOpen ? "rotate-180" : ""}`} />
                   </span>
                 </button>
@@ -521,7 +519,7 @@ export default function AudioWorkspacePage() {
                       className="overflow-hidden"
                     >
                       <div className="border-t border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
-                        <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
                             <label htmlFor="audio-format" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">音频格式</label>
                             <MediaSelect
@@ -530,16 +528,6 @@ export default function AudioWorkspacePage() {
                               value={format}
                               onChange={setFormat}
                               options={AUDIO_FORMAT_OPTIONS}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label htmlFor="audio-sample-rate" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">采样率</label>
-                            <MediaSelect
-                              id="audio-sample-rate"
-                              ariaLabel="采样率"
-                              value={sampleRate}
-                              onChange={setSampleRate}
-                              options={AUDIO_SAMPLE_RATE_OPTIONS}
                             />
                           </div>
                           <div className="space-y-2">

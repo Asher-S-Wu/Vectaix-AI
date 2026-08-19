@@ -7,6 +7,7 @@ import {
 } from "@/lib/server/api/routeHelpers";
 import {
   MINIMAX_AUDIO_EMOTION_IDS,
+  MINIMAX_AUDIO_DEFAULT_SAMPLE_RATE,
   MINIMAX_AUDIO_FORMAT_IDS,
   MINIMAX_AUDIO_LANGUAGE_IDS,
   MINIMAX_AUDIO_MODEL_IDS,
@@ -71,7 +72,7 @@ function parseInput(body) {
     pitch: readNumber(body?.pitch, 0),
     languageBoost: typeof body?.languageBoost === "string" && body.languageBoost.trim() ? body.languageBoost.trim() : null,
     format: typeof body?.format === "string" ? body.format.trim().toLowerCase() : "mp3",
-    sampleRate: readNumber(body?.sampleRate, 32000),
+    sampleRate: readNumber(body?.sampleRate, MINIMAX_AUDIO_DEFAULT_SAMPLE_RATE),
   };
   if (!input.text) throw Object.assign(new Error("请输入需要朗读的文字"), { status: 400 });
   if (input.text.length > MINIMAX_AUDIO_TEXT_MAX_LENGTH) {
@@ -218,4 +219,3 @@ export async function POST(request) {
     }
   }
 }
-

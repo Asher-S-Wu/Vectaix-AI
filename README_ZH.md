@@ -30,7 +30,7 @@
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.6%20Sol-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.6 Sol"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.6%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.5-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.5"/><br/><sub><b>xAI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.6-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.6"/><br/><sub><b>xAI</b></sub></td>
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>阿里云</b></sub></td>
@@ -70,7 +70,7 @@
 | **Claude Opus 5** | Anthropic | 100 万 | 文本、图像 | ✅ | ✅ |
 | **Gemini 3.7 Flash** | Google | 100 万 | 文本、图像、音频、视频 | ✅ | ✅ |
 | **Abliterated Model Large** | Abliteration AI | 100 万 | 文本 | ✅ | ✅ |
-| **Grok 4.5** | xAI | 50 万 | 文本、图像 | ✅ | ✅ |
+| **Grok 4.6** | xAI | 50 万 | 文本、图像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 100 万 | 文本、图像 | ✅ | ✅ |
 | **Qwen 3.8 Max** | 阿里云 | 100 万 | 文本、图像 | ✅ | ✅ |
 

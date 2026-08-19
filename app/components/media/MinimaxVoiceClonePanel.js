@@ -210,10 +210,7 @@ export default function MinimaxVoiceClonePanel({
                     value={model}
                     onChange={setModel}
                     disabled={creating || atLimit}
-                    options={MINIMAX_AUDIO_MODELS.map((item) => ({
-                      id: item.id,
-                      label: `${item.label} · ${item.price}`,
-                    }))}
+                    options={MINIMAX_AUDIO_MODELS}
                     size="lg"
                   />
                 </div>
