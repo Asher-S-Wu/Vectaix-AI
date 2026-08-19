@@ -127,7 +127,10 @@ export async function GET() {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const tasks = await VideoEnhancementTask.find({ userId: user.userId })
+    const tasks = await VideoEnhancementTask.find({
+      userId: user.userId,
+      deletionRequestedAt: null,
+    })
       .select(PUBLIC_TASK_FIELDS)
       .sort({ updatedAt: -1 })
       .limit(100)

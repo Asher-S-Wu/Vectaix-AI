@@ -4,12 +4,12 @@ import {
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
 import { serializeVideoEnhancementTask } from "@/lib/media/server/mediaKit/taskRecords";
+import { cleanupVideoEnhancementTaskDeletion } from "@/lib/media/server/mediaKit/taskDeletion";
 import {
   assertMediaWriteLeaseActive,
   beginMediaWriteLease,
   endMediaWriteLease,
 } from "@/lib/media/server/userOperationLeases";
-import { deleteStoredFilesByOwner } from "@/lib/server/storage/service";
 import VideoEnhancementTask from "@/models/VideoEnhancementTask";
 
 export const runtime = "nodejs";
@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 const TERMINAL_STATUSES = Object.freeze(["completed", "failed", "canceled"]);
 const ACTIVE_STATUSES = new Set(["submitting", "running", "finalizing"]);
+const TASK_DELETION_CLEANUP_TIMEOUT_MS = 10 * 1000;
 const PUBLIC_TASK_FIELDS = [
   "_id",
   "model",
@@ -56,6 +57,13 @@ function getPublicErrorMessage(error, fallback) {
   return error?.name === "UserOperationLeaseError" ? error.message : fallback;
 }
 
+function releaseTaskDeletionLease(mediaWriteLease, taskId, label) {
+  const release = endMediaWriteLease(mediaWriteLease);
+  release.catch((error) => {
+    console.error(label, { taskId, ...safeErrorDetails(error) });
+  });
+}
+
 async function getTaskId(context) {
   const params = await context?.params;
   return typeof params?.id === "string" ? params.id.trim() : "";
@@ -71,6 +79,7 @@ export async function GET(_request, context) {
     const task = await VideoEnhancementTask.findOne({
       _id: id,
       userId: user.userId,
+      deletionRequestedAt: null,
     }).select(PUBLIC_TASK_FIELDS).lean();
     if (!task) return jsonMessage("视频画质增强任务不存在", 404);
     return Response.json({ success: true, task: serializeVideoEnhancementTask(task) });
@@ -82,54 +91,102 @@ export async function GET(_request, context) {
 
 export async function DELETE(_request, context) {
   let mediaWriteLease = null;
+  let deletionAccepted = false;
+  let taskId = "";
   try {
     const auth = await requireUserRecord({ connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const id = await getTaskId(context);
     if (!mongoose.isValidObjectId(id)) return jsonMessage("任务编号无效", 400);
+    taskId = id;
 
     mediaWriteLease = await beginMediaWriteLease(user.userId);
     await assertMediaWriteLeaseActive(mediaWriteLease);
-    const task = await VideoEnhancementTask.findOne({
-      _id: id,
-      userId: user.userId,
-    }).select("_id status").lean();
-    if (!task) return jsonMessage("视频画质增强任务不存在", 404);
-    if (ACTIVE_STATUSES.has(task.status)) {
-      return jsonMessage("提交中、处理中或正在保存的任务不能删除", 409);
-    }
-    if (!TERMINAL_STATUSES.includes(task.status)) {
-      return jsonMessage("当前任务状态不能删除", 409);
+    const requestedAt = new Date();
+    let task = await VideoEnhancementTask.findOneAndUpdate(
+      {
+        _id: id,
+        userId: user.userId,
+        status: { $in: TERMINAL_STATUSES },
+        deletionRequestedAt: null,
+      },
+      { $set: { deletionRequestedAt: requestedAt } },
+      { new: true, runValidators: true },
+    ).select("_id userId status +deletionRequestedAt").lean();
+    if (!task) {
+      task = await VideoEnhancementTask.findOne({
+        _id: id,
+        userId: user.userId,
+      }).select("_id userId status +deletionRequestedAt").lean();
+      if (!task) return jsonMessage("视频画质增强任务不存在", 404);
+      if (ACTIVE_STATUSES.has(task.status)) {
+        return jsonMessage("提交中、处理中或正在保存的任务不能删除", 409);
+      }
+      if (!TERMINAL_STATUSES.includes(task.status) || !task.deletionRequestedAt) {
+        return jsonMessage("当前任务状态不能删除", 409);
+      }
     }
 
+    deletionAccepted = true;
     await assertMediaWriteLeaseActive(mediaWriteLease);
-    await deleteStoredFilesByOwner({
-      userId: user.userId,
-      ownerType: "video-enhancement-task",
-      ownerId: task._id,
-    });
-    await assertMediaWriteLeaseActive(mediaWriteLease);
-    const deleted = await VideoEnhancementTask.deleteOne({
-      _id: task._id,
-      userId: user.userId,
-      status: { $in: TERMINAL_STATUSES },
-    });
-    if (deleted.deletedCount !== 1) {
-      return jsonMessage("任务状态已变化，无法删除", 409);
+    releaseTaskDeletionLease(
+      mediaWriteLease,
+      taskId,
+      "[AI MediaKit] release task deletion intent lease failed",
+    );
+    mediaWriteLease = null;
+
+    try {
+      await cleanupVideoEnhancementTaskDeletion(
+        { taskId: task._id, userId: task.userId },
+        { timeoutMs: TASK_DELETION_CLEANUP_TIMEOUT_MS },
+      );
+      return Response.json({ success: true, deleted: true, cleanupPending: false });
+    } catch (error) {
+      console.error(
+        "[AI MediaKit] delete enhancement task cleanup pending",
+        { taskId, ...safeErrorDetails(error) },
+      );
+      return Response.json(
+        {
+          success: true,
+          deleted: false,
+          cleanupPending: true,
+          message: "删除已受理，正在后台清理",
+        },
+        { status: 202 },
+      );
     }
-    return Response.json({ success: true, deleted: true });
   } catch (error) {
-    console.error("[AI MediaKit] delete enhancement task failed", safeErrorDetails(error));
+    console.error(
+      deletionAccepted
+        ? "[AI MediaKit] delete enhancement task cleanup pending"
+        : "[AI MediaKit] delete enhancement task failed",
+      { taskId, ...safeErrorDetails(error) },
+    );
+    if (deletionAccepted) {
+      return Response.json(
+        {
+          success: true,
+          deleted: false,
+          cleanupPending: true,
+          message: "删除已受理，正在后台清理",
+        },
+        { status: 202 },
+      );
+    }
     return jsonMessage(
       getPublicErrorMessage(error, "删除视频画质增强任务失败"),
       getErrorStatus(error),
     );
   } finally {
     if (mediaWriteLease) {
-      await endMediaWriteLease(mediaWriteLease).catch((error) => {
-        console.error("[AI MediaKit] release task deletion lease failed", safeErrorDetails(error));
-      });
+      releaseTaskDeletionLease(
+        mediaWriteLease,
+        taskId,
+        "[AI MediaKit] release task deletion lease failed",
+      );
     }
   }
 }

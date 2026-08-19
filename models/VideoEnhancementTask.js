@@ -161,6 +161,7 @@ const VideoEnhancementTaskSchema = new mongoose.Schema({
   upstreamCreatedAt: { type: Date, default: null },
   lastSyncedAt: { type: Date, default: null },
   finalizationStartedAt: { type: Date, default: null },
+  deletionRequestedAt: { type: Date, default: null, select: false },
   videoFileId: {
     type: String,
     trim: true,
@@ -207,6 +208,12 @@ VideoEnhancementTaskSchema.pre("validate", function validateTask() {
     const safeError = normalizeVideoEnhancementError(this.error);
     this.error.code = safeError.code;
   }
+  if (
+    this.deletionRequestedAt
+    && !["completed", "failed", "canceled"].includes(this.status)
+  ) {
+    this.invalidate("deletionRequestedAt", "只有已结束的任务可以登记删除意图");
+  }
 });
 
 VideoEnhancementTaskSchema.index(
@@ -216,15 +223,25 @@ VideoEnhancementTaskSchema.index(
     partialFilterExpression: { upstreamTaskId: { $type: "string" } },
   },
 );
-VideoEnhancementTaskSchema.index({ userId: 1, updatedAt: -1 });
+VideoEnhancementTaskSchema.index({ userId: 1, deletionRequestedAt: 1, updatedAt: -1 });
 VideoEnhancementTaskSchema.index({ userId: 1, status: 1, updatedAt: -1 });
-VideoEnhancementTaskSchema.index({ status: 1, nextPollAt: 1, "lease.expiresAt": 1 });
 VideoEnhancementTaskSchema.index({
   status: 1,
+  deletionRequestedAt: 1,
+  nextPollAt: 1,
+  "lease.expiresAt": 1,
+});
+VideoEnhancementTaskSchema.index({
+  status: 1,
+  deletionRequestedAt: 1,
   upstreamTaskId: 1,
   createdAt: 1,
   "lease.expiresAt": 1,
 });
+VideoEnhancementTaskSchema.index(
+  { deletionRequestedAt: 1, _id: 1 },
+  { partialFilterExpression: { deletionRequestedAt: { $type: "date" } } },
+);
 
 const VideoEnhancementTask = mongoose.models.VideoEnhancementTask
   || mongoose.model("VideoEnhancementTask", VideoEnhancementTaskSchema);
@@ -246,20 +263,35 @@ export async function ensureVideoEnhancementTaskIndexes() {
     },
   );
   await collection.createIndex(
-    { userId: 1, updatedAt: -1 },
-    { name: "userId_1_updatedAt_-1" },
+    { userId: 1, deletionRequestedAt: 1, updatedAt: -1 },
+    { name: "userId_1_deletionRequestedAt_1_updatedAt_-1" },
   );
   await collection.createIndex(
     { userId: 1, status: 1, updatedAt: -1 },
     { name: "userId_1_status_1_updatedAt_-1" },
   );
   await collection.createIndex(
-    { status: 1, nextPollAt: 1, "lease.expiresAt": 1 },
-    { name: "status_1_nextPollAt_1_lease.expiresAt_1" },
+    { status: 1, deletionRequestedAt: 1, nextPollAt: 1, "lease.expiresAt": 1 },
+    { name: "status_1_deletionRequestedAt_1_nextPollAt_1_lease.expiresAt_1" },
   );
   await collection.createIndex(
-    { status: 1, upstreamTaskId: 1, createdAt: 1, "lease.expiresAt": 1 },
-    { name: "status_1_upstreamTaskId_1_createdAt_1_lease.expiresAt_1" },
+    {
+      status: 1,
+      deletionRequestedAt: 1,
+      upstreamTaskId: 1,
+      createdAt: 1,
+      "lease.expiresAt": 1,
+    },
+    {
+      name: "status_1_deletionRequestedAt_1_upstreamTaskId_1_createdAt_1_lease.expiresAt_1",
+    },
+  );
+  await collection.createIndex(
+    { deletionRequestedAt: 1, _id: 1 },
+    {
+      name: "deletionRequestedAt_1__id_1",
+      partialFilterExpression: { deletionRequestedAt: { $type: "date" } },
+    },
   );
 }
 

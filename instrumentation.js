@@ -1,6 +1,7 @@
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 const VIDEO_RECONCILE_INTERVAL_MS = 15 * 1000;
 const MEDIAKIT_RECONCILE_INTERVAL_MS = 15 * 1000;
+const MEDIAKIT_DELETION_RECONCILE_INTERVAL_MS = 15 * 1000;
 
 function safeErrorDetails(error) {
   const errorType = /^[A-Za-z][A-Za-z0-9]{0,63}$/.test(error?.name || "")
@@ -30,6 +31,7 @@ export async function register() {
       { reconcileHappyHorseVideoTasks },
       { ensureHappyHorseVideoTaskIndexes },
       { reconcileMediaKitVideoEnhancementTasks },
+      { reconcileMediaKitVideoEnhancementTaskDeletions },
       { ensureVideoEnhancementTaskIndexes },
       { ensureMediaKitUploadTicketIndexes },
     ] = await Promise.all([
@@ -40,6 +42,7 @@ export async function register() {
       import("@/lib/media/server/happyhorse/reconciler"),
       import("@/models/VideoGenerationTask"),
       import("@/lib/media/server/mediaKit/reconciler"),
+      import("@/lib/media/server/mediaKit/taskDeletion"),
       import("@/models/VideoEnhancementTask"),
       import("@/models/MediaKitUploadTicket"),
     ]);
@@ -118,6 +121,32 @@ export async function register() {
       MEDIAKIT_RECONCILE_INTERVAL_MS,
     );
     mediaKitTimer.unref?.();
+
+    let mediaKitDeletionReconcileRunning = false;
+    const reconcileMediaKitTaskDeletions = async () => {
+      if (mediaKitDeletionReconcileRunning) return;
+      mediaKitDeletionReconcileRunning = true;
+      try {
+        await reconcileMediaKitVideoEnhancementTaskDeletions();
+      } catch (error) {
+        console.error(
+          "[AI MediaKit] scheduled deletion reconcile failed",
+          safeErrorDetails(error),
+        );
+      } finally {
+        mediaKitDeletionReconcileRunning = false;
+      }
+    };
+    const initialMediaKitDeletionReconcile = setTimeout(
+      reconcileMediaKitTaskDeletions,
+      0,
+    );
+    initialMediaKitDeletionReconcile.unref?.();
+    const mediaKitDeletionTimer = setInterval(
+      reconcileMediaKitTaskDeletions,
+      MEDIAKIT_DELETION_RECONCILE_INTERVAL_MS,
+    );
+    mediaKitDeletionTimer.unref?.();
   } catch (error) {
     delete globalThis.__vectaixStorageCleanupStarted;
     throw error;
