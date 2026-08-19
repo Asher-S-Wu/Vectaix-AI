@@ -61,6 +61,7 @@ const StoredFileSchema = new mongoose.Schema({
       "avatar",
       "image-result",
       "video-task",
+      "video-enhancement-task",
       "audio-generation",
       "voice-profile",
       "audio-processing",
