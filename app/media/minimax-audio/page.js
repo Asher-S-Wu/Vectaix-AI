@@ -38,6 +38,7 @@ import {
   listMinimaxVoices,
   renameMinimaxVoice,
 } from "@/lib/media/client/media";
+import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
 import {
   getMinimaxAudioModel,
   MINIMAX_AUDIO_DEFAULT_MODEL,
@@ -58,6 +59,7 @@ function merge(items, item) {
 export default function MinimaxAudioWorkspacePage() {
   const reduceMotion = useReducedMotion();
   const textRef = useRef(null);
+  const pendingAutoPlayGenerationIdRef = useRef("");
   const [activeTab, setActiveTab] = useState("synthesis");
   const [text, setText] = useState("");
   const [model, setModel] = useState(MINIMAX_AUDIO_DEFAULT_MODEL);
@@ -76,6 +78,11 @@ export default function MinimaxAudioWorkspacePage() {
   const [generationsLoading, setGenerationsLoading] = useState(true);
   const [generationsError, setGenerationsError] = useState("");
   const [latestId, setLatestId] = useState("");
+  const latestAudioRef = useCallback((audioElement) => playNewGenerationOnce({
+    generationId: latestId,
+    pendingGenerationIdRef: pendingAutoPlayGenerationIdRef,
+    audioElement,
+  }), [latestId]);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingId, setDeletingId] = useState("");
   const [systemVoices, setSystemVoices] = useState([]);
@@ -190,6 +197,7 @@ export default function MinimaxAudioWorkspacePage() {
         languageBoost,
         format,
       });
+      pendingAutoPlayGenerationIdRef.current = generation.id;
       setGenerations((current) => merge(current, generation));
       setLatestId(generation.id);
       setGenerationsError("");
@@ -500,6 +508,7 @@ export default function MinimaxAudioWorkspacePage() {
               <MinimaxAudioGenerationCard
                 generation={latest}
                 featured
+                audioRef={latestAudioRef}
                 deleting={deletingId === latest.id}
                 deleteDisabled={Boolean(deletingId)}
                 onDelete={setDeleteTarget}

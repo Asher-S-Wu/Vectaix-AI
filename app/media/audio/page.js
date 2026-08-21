@@ -39,6 +39,7 @@ import {
   listCustomVoices,
   updateCustomVoice,
 } from "@/lib/media/client/media";
+import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
 import {
   AUDIO_FORMAT_OPTIONS,
   AUDIO_INSTRUCTION_MAX_LENGTH,
@@ -80,6 +81,7 @@ function mergeVoice(items, nextVoice) {
 export default function AudioWorkspacePage() {
   const reduceMotion = useReducedMotion();
   const textAreaRef = useRef(null);
+  const pendingAutoPlayGenerationIdRef = useRef("");
   const generationsStateVersionRef = useRef(0);
   const generationsRequestRef = useRef(0);
   const voicesStateVersionRef = useRef(0);
@@ -98,6 +100,11 @@ export default function AudioWorkspacePage() {
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState("");
   const [latestGenerationId, setLatestGenerationId] = useState("");
+  const latestAudioRef = useCallback((audioElement) => playNewGenerationOnce({
+    generationId: latestGenerationId,
+    pendingGenerationIdRef: pendingAutoPlayGenerationIdRef,
+    audioElement,
+  }), [latestGenerationId]);
 
   const [generations, setGenerations] = useState([]);
   const [generationsLoading, setGenerationsLoading] = useState(true);
@@ -288,6 +295,7 @@ export default function AudioWorkspacePage() {
         volume,
         languageHint,
       });
+      pendingAutoPlayGenerationIdRef.current = generation.id;
       generationsStateVersionRef.current += 1;
       setGenerations((current) => mergeGeneration(current, generation));
       setLatestGenerationId(generation.id);
@@ -626,6 +634,7 @@ export default function AudioWorkspacePage() {
               <AudioGenerationCard
                 generation={latestGeneration}
                 featured
+                audioRef={latestAudioRef}
                 deleting={deletingGenerationId === latestGeneration.id}
                 deleteDisabled={Boolean(deletingGenerationId)}
                 onDelete={setDeleteTarget}

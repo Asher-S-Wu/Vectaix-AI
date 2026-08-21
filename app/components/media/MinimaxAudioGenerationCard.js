@@ -103,6 +103,7 @@ export default function MinimaxAudioGenerationCard({
   deleting = false,
   deleteDisabled = false,
   featured = false,
+  audioRef,
   onDelete,
 }) {
   const reduceMotion = useReducedMotion();
@@ -150,6 +151,7 @@ export default function MinimaxAudioGenerationCard({
         </div>
 
         <audio
+          ref={audioRef}
           className="mt-4 h-11 w-full"
           controls
           preload="metadata"
