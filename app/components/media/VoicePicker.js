@@ -163,6 +163,43 @@ export function mapMinimaxCustomVoice(voice) {
   };
 }
 
+function formatVoiceDuration(value) {
+  const duration = Number(value);
+  return Number.isFinite(duration) && duration > 0 ? `${duration.toFixed(1)} 秒` : "";
+}
+
+function formatVoiceSampleRate(value) {
+  const sampleRate = Number(value);
+  if (!Number.isFinite(sampleRate) || sampleRate <= 0) return "";
+  const kilohertz = sampleRate / 1000;
+  return `${Number.isInteger(kilohertz) ? kilohertz : kilohertz.toFixed(1)} kHz`;
+}
+
+export function mapDoubaoCustomVoice(voice) {
+  return {
+    id: voice.profileId,
+    profileId: voice.profileId,
+    voiceId: voice.voiceId,
+    name: voice.displayName,
+    subtitle: "我的参考声音",
+    badges: [
+      formatVoiceDuration(voice.duration),
+      formatVoiceSampleRate(voice.sampleRate),
+    ].filter(Boolean),
+    canPreview: Boolean(voice.audioUrl),
+    canRename: true,
+    previewUrl: voice.audioUrl || "",
+    previewProvider: "doubao",
+    disabled: false,
+    payload: {
+      voiceId: voice.voiceId,
+      name: voice.displayName,
+      kind: "custom",
+      description: "我的参考声音",
+    },
+  };
+}
+
 function VoiceCard({
   voice,
   selected,
@@ -372,11 +409,14 @@ export default function VoicePicker({
   const [renameSubmitting, setRenameSubmitting] = useState(false);
   const [renameError, setRenameError] = useState("");
   const renameDialogRef = useRef(null);
-  renameDialogRef.current = renameDialog;
   const showTabs = Boolean(presetSection && customSection);
   const activeSection = showTabs
     ? (activeTab === "preset" ? presetSection : customSection)
     : (customSection || presetSection);
+
+  useEffect(() => {
+    renameDialogRef.current = renameDialog;
+  }, [renameDialog]);
 
   const stopPreview = () => {
     previewAbortRef.current?.abort();
@@ -393,15 +433,19 @@ export default function VoicePicker({
 
   useEffect(() => {
     if (!open) return undefined;
-    setActiveTab("custom");
-    setPreviewError("");
-    setRenameDialog(null);
-    setRenameError("");
 
     previousFocusRef.current = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+    const audio = audioRef.current;
+    const previewCache = previewCacheRef.current;
+    const focusTimer = window.setTimeout(() => {
+      setActiveTab("custom");
+      setPreviewError("");
+      setRenameDialog(null);
+      setRenameError("");
+      closeButtonRef.current?.focus();
+    }, 0);
 
     const handleKeyDown = (event) => {
       if (renameDialogRef.current) return;
@@ -442,16 +486,15 @@ export default function VoicePicker({
       previousFocusRef.current?.focus?.();
       previewAbortRef.current?.abort();
       previewAbortRef.current = null;
-      const audio = audioRef.current;
       if (audio) {
         audio.pause();
         audio.removeAttribute("src");
         audio.load();
       }
-      previewCacheRef.current.forEach((url) => {
+      previewCache.forEach((url) => {
         if (String(url).startsWith("blob:")) URL.revokeObjectURL(url);
       });
-      previewCacheRef.current.clear();
+      previewCache.clear();
     };
   }, [open, onClose]);
 
@@ -522,7 +565,14 @@ export default function VoicePicker({
     if (!onRename || !voice.canRename) return;
     stopPreview();
     setRenameError("");
-    setRenameDialog({ kind: "rename", voice: { id: voice.id, displayName: voice.name } });
+    setRenameDialog({
+      kind: "rename",
+      voice: {
+        id: voice.id,
+        profileId: voice.profileId,
+        displayName: voice.name,
+      },
+    });
   };
 
   const submitRename = async (input) => {

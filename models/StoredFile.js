@@ -49,6 +49,7 @@ const StoredFileSchema = new mongoose.Schema({
       "media-video",
       "media-audio",
       "voice-sample",
+      "doubao-voice-reference",
       "audio-source",
     ],
     required: true,
@@ -76,7 +77,7 @@ const StoredFileSchema = new mongoose.Schema({
   },
   audioPurpose: {
     type: String,
-    enum: ["voice-clone", "minimax-voice-clone", null],
+    enum: ["voice-clone", "minimax-voice-clone", "doubao-voice-library", null],
     default: null,
   },
   audioDuration: {

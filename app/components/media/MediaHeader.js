@@ -76,6 +76,7 @@ export default function MediaHeader() {
     { href: "/media/video-enhancement", label: "画质增强" },
     { href: "/media/audio", label: "Qwen 语音" },
     { href: "/media/minimax-audio", label: "MiniMax 语音" },
+    { href: "/media/doubao-audio", label: "豆包语音" },
   ];
 
   return (

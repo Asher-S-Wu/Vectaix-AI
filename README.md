@@ -90,8 +90,8 @@ Dedicated media models:
 
 Real-time access to the internet with intelligent multi-round browsing capabilities.
 
-- **Smart Search** — Discover fresh, relevant sources with Firecrawl Search
-- **Page Crawling** — Extract selected pages as clean Markdown with Firecrawl Scrape
+- **Smart Search** — Discover fresh, relevant sources with Exa Search
+- **Page Content** — Extract selected pages as clean Markdown with Exa Contents
 - **Multi-Page Browsing** — Crawl multiple pages in a single session
 - **Inline Citations** — Every claim backed by traceable source references
 
@@ -280,7 +280,7 @@ vectaix-ai/
 | `DASHSCOPE_BEIJING_API_KEY` | — | Beijing-region Alibaba Cloud Model Studio API key for MiniMax Speech 2.8 HD / Turbo |
 | `AI_MEDIAKIT_API_KEY` | — | API key for AI MediaKit video enhancement (large-model edition); configure when enabled |
 | `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app, used by HappyHorse and MiniMax voice cloning to read input media |
-| `FIRECRAWL_API_KEY` | — | API key for Firecrawl Search and Scrape |
+| `EXA_API_KEY` | — | API key for Exa Search and Contents |
 
 > [!TIP]
 > Configure the key for every model or feature you enable. Missing keys return a clear configuration error.

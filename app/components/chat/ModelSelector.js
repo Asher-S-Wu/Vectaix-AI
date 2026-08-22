@@ -12,6 +12,7 @@ import {
 import {
   MINIMAX_AUDIO_DEFAULT_MODEL,
 } from "@/lib/media/shared/minimaxAudio";
+import { DOUBAO_AUDIO_MODEL } from "@/lib/media/shared/doubaoAudio";
 import {
   VIDEO_ENHANCEMENT_MODEL,
   VIDEO_ENHANCEMENT_MODEL_NAME,
@@ -37,6 +38,7 @@ const MODEL_SELECTOR_WORKSPACE_HREFS = Object.freeze({
   [VIDEO_MODEL]: "/media/video",
   [AUDIO_MODEL]: "/media/audio",
   [MINIMAX_AUDIO_DEFAULT_MODEL]: "/media/minimax-audio",
+  [DOUBAO_AUDIO_MODEL]: "/media/doubao-audio",
   [VIDEO_ENHANCEMENT_MODEL]: "/media/video-enhancement",
 });
 const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
@@ -55,6 +57,14 @@ const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
     group: "media",
     mediaType: "audio",
     href: MODEL_SELECTOR_WORKSPACE_HREFS[MINIMAX_AUDIO_DEFAULT_MODEL],
+  }),
+  Object.freeze({
+    id: DOUBAO_AUDIO_MODEL,
+    name: "豆包 Seed Audio 1.0",
+    provider: "doubao-audio-gen",
+    group: "media",
+    mediaType: "audio",
+    href: MODEL_SELECTOR_WORKSPACE_HREFS[DOUBAO_AUDIO_MODEL],
   }),
   Object.freeze({
     id: VIDEO_ENHANCEMENT_MODEL,

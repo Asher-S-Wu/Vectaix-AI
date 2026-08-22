@@ -90,8 +90,8 @@
 
 インテリジェントなマルチラウンドブラウジング機能によるリアルタイムインターネットアクセス。
 
-- **スマート検索** — Firecrawl Search で最新かつ関連性の高い情報源を発見
-- **ページクローリング** — Firecrawl Scrape で選択したページをクリーンな Markdown として抽出
+- **スマート検索** — Exa Search で最新かつ関連性の高い情報源を発見
+- **ページコンテンツ取得** — Exa Contents で選択したページをクリーンな Markdown として抽出
 - **マルチページブラウジング** — 1セッションで複数ページをクロール
 - **インライン引用** — すべての主張にトレーサブルなソース参照を付与
 
@@ -279,7 +279,7 @@ vectaix-ai/
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 用の北京地域Alibaba Cloud Model Studio APIキー |
 | `AI_MEDIAKIT_API_KEY` | — | AI MediaKit画質向上（大規模モデル版）用のAPIキー。有効にする場合に設定 |
 | `PUBLIC_APP_URL` | — | HappyHorseとMiniMax音声クローンが入力素材を読み取るために使う、デプロイ済みアプリの公開HTTPSアドレス |
-| `FIRECRAWL_API_KEY` | — | Firecrawl Search と Scrape 用のAPIキー |
+| `EXA_API_KEY` | — | Exa Search と Contents 用のAPIキー |
 
 > [!TIP]
 > 有効にするモデルや機能ごとに対応するキーを設定してください。キーがない場合は明確な設定エラーを返します。

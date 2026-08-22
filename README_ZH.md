@@ -90,8 +90,8 @@
 
 具备实时互联网访问能力，支持智能多轮浏览。
 
-- **智能搜索** — 通过 Firecrawl Search 发现最新、相关的网页来源
-- **网页抓取** — 通过 Firecrawl Scrape 将选定页面提取为干净的 Markdown
+- **智能搜索** — 通过 Exa Search 发现最新、相关的网页来源
+- **网页内容提取** — 通过 Exa Contents 将选定页面提取为干净的 Markdown
 - **多页浏览** — 单次会话中抓取多个页面
 - **行内引用** — 每个论点都有可溯源的参考链接
 
@@ -279,7 +279,7 @@ vectaix-ai/
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 使用的北京区域阿里云百炼 API 密钥 |
 | `AI_MEDIAKIT_API_KEY` | — | AI MediaKit 画质增强（大模型版）使用的 API Key，实际启用时配置 |
 | `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址，供 HappyHorse 和 MiniMax 声音复刻读取输入素材 |
-| `FIRECRAWL_API_KEY` | — | Firecrawl Search 与 Scrape 使用的 API 密钥 |
+| `EXA_API_KEY` | — | Exa Search 与 Contents 使用的 API 密钥 |
 
 > [!TIP]
 > 请为实际启用的模型或功能配置对应密钥；缺少密钥时接口会返回明确的配置错误。

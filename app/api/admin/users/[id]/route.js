@@ -10,6 +10,8 @@ import AudioGeneration from '@/models/AudioGeneration';
 import CustomVoice from '@/models/CustomVoice';
 import MinimaxAudioGeneration from '@/models/MinimaxAudioGeneration';
 import MinimaxVoice from '@/models/MinimaxVoice';
+import DoubaoAudioGeneration from '@/models/DoubaoAudioGeneration';
+import DoubaoVoice from '@/models/DoubaoVoice';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
@@ -233,6 +235,8 @@ export async function DELETE(req, context) {
             CustomVoice.deleteMany({ userId }),
             MinimaxAudioGeneration.deleteMany({ userId }),
             MinimaxVoice.deleteMany({ userId }),
+            DoubaoAudioGeneration.deleteMany({ userId }),
+            DoubaoVoice.deleteMany({ userId }),
         ]);
         await assertUserDeletionFenceActive(deletionLease);
         const deleted = await User.deleteOne({
