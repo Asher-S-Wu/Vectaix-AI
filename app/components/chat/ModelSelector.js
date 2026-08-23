@@ -60,7 +60,7 @@ const MODEL_SELECTOR_WORKSPACE_ITEMS = Object.freeze([
   }),
   Object.freeze({
     id: DOUBAO_AUDIO_MODEL,
-    name: "豆包 Seed Audio 1.0",
+    name: "Doubao Seed Audio 1.0",
     provider: "doubao-audio-gen",
     group: "media",
     mediaType: "audio",

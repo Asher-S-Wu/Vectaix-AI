@@ -39,6 +39,8 @@ import {
   renameMinimaxVoice,
 } from "@/lib/media/client/media";
 import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
+import { createMinimaxAudioVoicePageAdapter } from "@/lib/media/client/audioVoiceSelection.mjs";
+import { readLocalSetting, writeLocalSetting } from "@/lib/client/localSettings";
 import {
   getMinimaxAudioModel,
   MINIMAX_AUDIO_DEFAULT_MODEL,
@@ -60,6 +62,12 @@ export default function MinimaxAudioWorkspacePage() {
   const reduceMotion = useReducedMotion();
   const textRef = useRef(null);
   const pendingAutoPlayGenerationIdRef = useRef("");
+  const systemVoicesRef = useRef([]);
+  const customVoicesRef = useRef([]);
+  const [voiceSelectionController] = useState(() => createMinimaxAudioVoicePageAdapter({
+    readSetting: readLocalSetting,
+    writeSetting: writeLocalSetting,
+  }));
   const [activeTab, setActiveTab] = useState("synthesis");
   const [text, setText] = useState("");
   const [model, setModel] = useState(MINIMAX_AUDIO_DEFAULT_MODEL);
@@ -90,6 +98,10 @@ export default function MinimaxAudioWorkspacePage() {
   const [voicesLoading, setVoicesLoading] = useState(true);
   const [voicesError, setVoicesError] = useState("");
 
+  const selectVoiceId = useCallback((nextVoiceId) => {
+    setVoiceId(voiceSelectionController.select(nextVoiceId));
+  }, [voiceSelectionController]);
+
   const loadGenerations = useCallback(async () => {
     setGenerationsLoading(true);
     setGenerationsError("");
@@ -103,24 +115,30 @@ export default function MinimaxAudioWorkspacePage() {
   }, []);
 
   const loadVoices = useCallback(async () => {
+    const load = voiceSelectionController.beginLoad();
     setVoicesLoading(true);
     setVoicesError("");
     try {
       const voices = await listMinimaxVoices();
+      const available = [...voices.systemVoices, ...voices.customVoices];
+      const selection = voiceSelectionController.resolveLoadedVoice(load, {
+        availableVoiceIds: available.map((voice) => voice.voiceId),
+        defaultVoiceId: available[0]?.voiceId || "",
+      });
+      if (!selection.applied) return;
+      systemVoicesRef.current = voices.systemVoices;
+      customVoicesRef.current = voices.customVoices;
       setSystemVoices(voices.systemVoices);
       setCustomVoices(voices.customVoices);
-      setVoiceId((current) => {
-        const available = [...voices.systemVoices, ...voices.customVoices];
-        return available.some((voice) => voice.voiceId === current)
-          ? current
-          : available[0]?.voiceId || "";
-      });
+      setVoiceId(selection.voiceId);
     } catch (error) {
-      setVoicesError(error instanceof Error ? error.message : "读取 MiniMax 音色失败");
+      if (voiceSelectionController.canApplyLoad(load)) {
+        setVoicesError(error instanceof Error ? error.message : "读取 MiniMax 音色失败");
+      }
     } finally {
-      setVoicesLoading(false);
+      if (voiceSelectionController.finishLoad(load)) setVoicesLoading(false);
     }
-  }, []);
+  }, [voiceSelectionController]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -137,9 +155,9 @@ export default function MinimaxAudioWorkspacePage() {
 
   const closeVoicePicker = useCallback(() => setVoicePickerOpen(false), []);
   const selectVoice = useCallback((voice) => {
-    setVoiceId(voice.voiceId);
+    selectVoiceId(voice.voiceId);
     setGenerationError("");
-  }, []);
+  }, [selectVoiceId]);
 
   const voiceButtonDescription = selectedVoice
     ? (selectedVoice.kind === "custom"
@@ -226,27 +244,41 @@ export default function MinimaxAudioWorkspacePage() {
   };
 
   const handleCreateVoice = async (input) => {
+    if (voiceSelectionController.isLoading()) {
+      throw new Error("音色列表正在读取，请稍后再创建");
+    }
     const voice = await createMinimaxVoice(input);
-    setCustomVoices((current) => merge(current, voice));
-    setVoiceId(voice.voiceId);
+    voiceSelectionController.markMutation();
+    const nextVoices = merge(customVoicesRef.current, voice);
+    customVoicesRef.current = nextVoices;
+    setCustomVoices(nextVoices);
+    selectVoiceId(voice.voiceId);
     setVoicesError("");
     return voice;
   };
 
   const handleRenameVoice = async (voice, displayName) => {
     const updated = await renameMinimaxVoice(voice.id, displayName);
-    setCustomVoices((current) => current.map((item) => item.id === updated.id ? updated : item));
+    voiceSelectionController.markMutation();
+    const nextVoices = customVoicesRef.current.map((item) => item.id === updated.id ? updated : item);
+    customVoicesRef.current = nextVoices;
+    setCustomVoices(nextVoices);
     setVoicesError("");
     return updated;
   };
 
   const handleDeleteVoice = async (voice) => {
     await deleteMinimaxVoice(voice.id);
-    const remaining = customVoices.filter((item) => item.id !== voice.id);
+    voiceSelectionController.markMutation();
+    const remaining = customVoicesRef.current.filter((item) => item.id !== voice.id);
+    customVoicesRef.current = remaining;
     setCustomVoices(remaining);
-    if (voice.voiceId === voiceId) {
-      setVoiceId(systemVoices[0]?.voiceId || remaining[0]?.voiceId || "");
-    }
+    const previousVoiceId = voiceSelectionController.getVoiceId();
+    const nextVoiceId = voiceSelectionController.resolveAfterDelete({
+      deletedVoiceId: voice.voiceId,
+      defaultVoiceId: systemVoicesRef.current[0]?.voiceId || remaining[0]?.voiceId || "",
+    });
+    if (nextVoiceId !== previousVoiceId) setVoiceId(nextVoiceId);
     setVoicesError("");
   };
 

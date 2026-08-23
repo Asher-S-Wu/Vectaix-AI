@@ -40,6 +40,8 @@ import {
   updateCustomVoice,
 } from "@/lib/media/client/media";
 import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
+import { createQwenAudioVoicePageAdapter } from "@/lib/media/client/audioVoiceSelection.mjs";
+import { readLocalSetting, writeLocalSetting } from "@/lib/client/localSettings";
 import {
   AUDIO_FORMAT_OPTIONS,
   AUDIO_INSTRUCTION_MAX_LENGTH,
@@ -84,8 +86,11 @@ export default function AudioWorkspacePage() {
   const pendingAutoPlayGenerationIdRef = useRef("");
   const generationsStateVersionRef = useRef(0);
   const generationsRequestRef = useRef(0);
-  const voicesStateVersionRef = useRef(0);
-  const voicesRequestRef = useRef(0);
+  const [voiceSelectionController] = useState(() => createQwenAudioVoicePageAdapter({
+    readSetting: readLocalSetting,
+    writeSetting: writeLocalSetting,
+    initialVoiceId: DEFAULT_VOICE.voiceId,
+  }));
   const [activeTab, setActiveTab] = useState("synthesis");
   const [text, setText] = useState("");
   const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE);
@@ -117,9 +122,10 @@ export default function AudioWorkspacePage() {
   const [voicesError, setVoicesError] = useState("");
   const closeVoicePicker = useCallback(() => setVoicePickerOpen(false), []);
   const selectVoice = useCallback((voice) => {
+    voiceSelectionController.select(voice.voiceId);
     setSelectedVoice(voice);
     setGenerationError("");
-  }, []);
+  }, [voiceSelectionController]);
 
   const loadGenerations = useCallback(async () => {
     const requestId = generationsRequestRef.current + 1;
@@ -148,30 +154,34 @@ export default function AudioWorkspacePage() {
   }, []);
 
   const loadVoices = useCallback(async () => {
-    const requestId = voicesRequestRef.current + 1;
-    voicesRequestRef.current = requestId;
-    const stateVersion = voicesStateVersionRef.current;
+    const load = voiceSelectionController.beginLoad();
     setVoicesLoading(true);
     setVoicesError("");
     try {
       const items = await listCustomVoices();
-      if (
-        voicesRequestRef.current === requestId
-        && voicesStateVersionRef.current === stateVersion
-      ) {
-        voicesStateVersionRef.current += 1;
-        setVoices(items);
-      }
+      const selectableVoices = [
+        ...PRESET_VOICE_ITEMS,
+        ...items.map(mapQwenCustomVoice),
+      ].filter((voice) => !voice.disabled);
+      const selection = voiceSelectionController.resolveLoadedVoice(load, {
+        availableVoiceIds: selectableVoices.map((voice) => voice.voiceId),
+        defaultVoiceId: DEFAULT_VOICE.voiceId,
+      });
+      if (!selection.applied) return;
+      setVoices(items);
+      setSelectedVoice(
+        selectableVoices.find((voice) => voice.voiceId === selection.voiceId)?.payload || DEFAULT_VOICE,
+      );
     } catch (loadError) {
-      if (voicesRequestRef.current === requestId) {
+      if (voiceSelectionController.canApplyLoad(load)) {
         setVoicesError(loadError instanceof Error ? loadError.message : "读取复刻音色失败");
       }
     } finally {
-      if (voicesRequestRef.current === requestId) {
+      if (voiceSelectionController.finishLoad(load)) {
         setVoicesLoading(false);
       }
     }
-  }, []);
+  }, [voiceSelectionController]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -199,11 +209,11 @@ export default function AudioWorkspacePage() {
     const syncDeployingVoices = async () => {
       if (syncing) return;
       syncing = true;
-      const stateVersion = voicesStateVersionRef.current;
+      const stateVersion = voiceSelectionController.captureStateVersion();
       try {
         const refreshedVoices = await Promise.all(voiceIds.map((voiceId) => getCustomVoice(voiceId)));
-        if (cancelled || voicesStateVersionRef.current !== stateVersion) return;
-        voicesStateVersionRef.current += 1;
+        if (cancelled || !voiceSelectionController.isStateVersionCurrent(stateVersion)) return;
+        voiceSelectionController.markMutation();
         setVoices((current) => refreshedVoices.reduce((items, voice) => mergeVoice(items, voice), current));
         setSelectedVoice((current) => {
           if (!current || current.kind !== "custom") return current;
@@ -213,7 +223,9 @@ export default function AudioWorkspacePage() {
         setVoicesError("");
       } catch (syncError) {
         if (!cancelled) {
-          setVoicesError(syncError instanceof Error ? syncError.message : "同步音色状态失败");
+          voiceSelectionController.reportErrorIfCurrent(stateVersion, () => {
+            setVoicesError(syncError instanceof Error ? syncError.message : "同步音色状态失败");
+          });
         }
       } finally {
         syncing = false;
@@ -225,7 +237,7 @@ export default function AudioWorkspacePage() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [deployingVoiceKey]);
+  }, [deployingVoiceKey, voiceSelectionController]);
 
   const insertExpressiveTag = (tag) => {
     const textarea = textAreaRef.current;
@@ -326,7 +338,7 @@ export default function AudioWorkspacePage() {
   };
 
   const updateVoiceInState = useCallback((voice) => {
-    voicesStateVersionRef.current += 1;
+    voiceSelectionController.markMutation();
     setVoices((current) => mergeVoice(current, voice));
     setSelectedVoice((current) => (
       current?.kind === "custom" && current.voiceId === voice.voiceId
@@ -335,12 +347,15 @@ export default function AudioWorkspacePage() {
     ));
     setVoicesError("");
     return voice;
-  }, []);
+  }, [voiceSelectionController]);
 
   const handleCreateVoice = useCallback(async (input) => {
+    if (voiceSelectionController.isLoading()) {
+      throw new Error("音色列表正在读取，请稍后再创建");
+    }
     const voice = await createCustomVoice(input);
     return updateVoiceInState(voice);
-  }, [updateVoiceInState]);
+  }, [updateVoiceInState, voiceSelectionController]);
 
   const handleRenameVoice = useCallback(async (voice, displayName) => {
     const updatedVoice = await updateCustomVoice(voice.id, { displayName });
@@ -354,13 +369,17 @@ export default function AudioWorkspacePage() {
 
   const handleDeleteVoice = useCallback(async (voice) => {
     await deleteCustomVoice(voice.id);
-    voicesStateVersionRef.current += 1;
+    voiceSelectionController.markMutation();
+    voiceSelectionController.resolveAfterDelete({
+      deletedVoiceId: voice.voiceId,
+      defaultVoiceId: "",
+    });
     setVoices((current) => current.filter((item) => item.id !== voice.id));
     setSelectedVoice((current) => (
       current?.kind === "custom" && current.voiceId === voice.voiceId ? null : current
     ));
     setVoicesError("");
-  }, []);
+  }, [voiceSelectionController]);
 
   const handleRefreshVoice = useCallback(async (voice) => {
     const refreshedVoice = await getCustomVoice(voice.id);

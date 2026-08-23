@@ -75,6 +75,8 @@ export default function DoubaoVoiceLibraryPanel({
   const [dialogError, setDialogError] = useState("");
 
   const atLimit = voices.length >= DOUBAO_CUSTOM_VOICE_MAX_COUNT;
+  const formDisabled = loading || creating || atLimit;
+  const voiceActionActive = creating || Boolean(deletingId);
 
   const resetSample = useCallback(() => {
     setSampleFile(null);
@@ -85,6 +87,7 @@ export default function DoubaoVoiceLibraryPanel({
   const submit = async (event) => {
     event.preventDefault();
     setFormError("");
+    if (loading) return setFormError("声音列表正在读取，请稍后再保存");
     const name = displayName.trim();
     if (!name) return setFormError("请填写声音名称");
     const sampleError = validateSampleFile(sampleFile);
@@ -178,7 +181,7 @@ export default function DoubaoVoiceLibraryPanel({
                   }}
                   maxLength={DISPLAY_NAME_MAX_LENGTH}
                   placeholder="例如：温柔旁白"
-                  disabled={creating || atLimit}
+                  disabled={formDisabled}
                   className="focus-ring h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </div>
@@ -191,7 +194,7 @@ export default function DoubaoVoiceLibraryPanel({
                     file={sampleFile}
                     purpose={AUDIO_UPLOAD_PURPOSES.DOUBAO_VOICE_LIBRARY}
                     label="声音样本"
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     onStateChange={setSampleState}
                     onRemove={resetSample}
                   />
@@ -199,7 +202,7 @@ export default function DoubaoVoiceLibraryPanel({
                   <AudioFilePicker
                     id="doubao-voice-sample"
                     inputKey={sampleInputKey}
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     accept={SAMPLE_ACCEPT}
                     hint="支持 MP3、M4A 或 WAV，选择 1 至 30 秒的清晰人声"
                     onChange={(file) => {
@@ -222,7 +225,7 @@ export default function DoubaoVoiceLibraryPanel({
                   type="checkbox"
                   checked={consent}
                   onChange={(event) => setConsent(event.target.checked)}
-                  disabled={creating || atLimit}
+                  disabled={formDisabled}
                   className="mt-1 h-4 w-4 shrink-0 accent-primary"
                 />
                 <span className="text-zinc-600 dark:text-zinc-300">我确认已获得该声音本人明确授权，并同意将这段样本用于语音合成。</span>
@@ -237,7 +240,7 @@ export default function DoubaoVoiceLibraryPanel({
 
               <button
                 type="submit"
-                disabled={creating || atLimit || (sampleFile && sampleState?.status !== "ready")}
+                disabled={formDisabled || (sampleFile && sampleState?.status !== "ready")}
                 className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60"
               >
                 {creating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <FileAudio2 className="h-5 w-5" />}
@@ -276,7 +279,7 @@ export default function DoubaoVoiceLibraryPanel({
               setActionError("");
               onRefresh();
             }}
-            disabled={loading || Boolean(deletingId)}
+            disabled={loading || voiceActionActive}
             className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm font-medium text-zinc-700 transition-[background-color,transform] hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} />刷新
@@ -320,7 +323,7 @@ export default function DoubaoVoiceLibraryPanel({
                             setDialogError("");
                             setDialog({ kind: "rename", voice });
                           }}
-                          disabled={Boolean(deletingId)}
+                          disabled={voiceActionActive}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
                           aria-label={`重命名 ${voice.displayName}`}
                           title="重命名"
@@ -330,7 +333,7 @@ export default function DoubaoVoiceLibraryPanel({
                         <button
                           type="button"
                           onClick={() => setDeleteTarget(voice)}
-                          disabled={Boolean(deletingId)}
+                          disabled={voiceActionActive}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:border-zinc-700"
                           aria-label={`删除 ${voice.displayName}`}
                           title="删除"

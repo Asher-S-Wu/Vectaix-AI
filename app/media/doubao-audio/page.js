@@ -26,6 +26,8 @@ import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
 import MediaSelect from "@/app/components/media/MediaSelect";
 import VoicePicker, { mapDoubaoCustomVoice } from "@/app/components/media/VoicePicker";
 import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
+import { createDoubaoAudioVoicePageAdapter } from "@/lib/media/client/audioVoiceSelection.mjs";
+import { readLocalSetting, writeLocalSetting } from "@/lib/client/localSettings";
 import {
   createDoubaoAudioGeneration,
   createDoubaoVoice,
@@ -60,8 +62,11 @@ export default function DoubaoAudioWorkspacePage() {
   const reduceMotion = useReducedMotion();
   const textRef = useRef(null);
   const generationsVersionRef = useRef(0);
-  const voicesVersionRef = useRef(0);
   const pendingAutoPlayGenerationIdRef = useRef("");
+  const [voiceSelectionController] = useState(() => createDoubaoAudioVoicePageAdapter({
+    readSetting: readLocalSetting,
+    writeSetting: writeLocalSetting,
+  }));
   const [activeTab, setActiveTab] = useState("synthesis");
   const [text, setText] = useState("");
   const [voiceId, setVoiceId] = useState("");
@@ -84,6 +89,10 @@ export default function DoubaoAudioWorkspacePage() {
   const [voices, setVoices] = useState([]);
   const [voicesLoading, setVoicesLoading] = useState(true);
   const [voicesError, setVoicesError] = useState("");
+
+  const selectVoiceId = useCallback((nextVoiceId) => {
+    setVoiceId(voiceSelectionController.select(nextVoiceId));
+  }, [voiceSelectionController]);
 
   const latestAudioRef = useCallback((audioElement) => playNewGenerationOnce({
     generationId: latestId,
@@ -108,23 +117,26 @@ export default function DoubaoAudioWorkspacePage() {
   }, []);
 
   const loadVoices = useCallback(async () => {
-    const version = ++voicesVersionRef.current;
+    const load = voiceSelectionController.beginLoad();
     setVoicesLoading(true);
     setVoicesError("");
     try {
       const nextVoices = await listDoubaoVoices();
-      if (voicesVersionRef.current !== version) return;
+      const selection = voiceSelectionController.resolveLoadedVoice(load, {
+        availableVoiceIds: nextVoices.map((voice) => voice.voiceId),
+        defaultVoiceId: nextVoices[0]?.voiceId || "",
+      });
+      if (!selection.applied) return;
       setVoices(nextVoices);
-      setVoiceId((current) => nextVoices.some((voice) => voice.voiceId === current)
-        ? current
-        : nextVoices[0]?.voiceId || "");
+      setVoiceId(selection.voiceId);
     } catch (error) {
-      if (voicesVersionRef.current !== version) return;
-      setVoicesError(error instanceof Error ? error.message : "读取豆包声音失败");
+      if (voiceSelectionController.canApplyLoad(load)) {
+        setVoicesError(error instanceof Error ? error.message : "读取豆包声音失败");
+      }
     } finally {
-      if (voicesVersionRef.current === version) setVoicesLoading(false);
+      if (voiceSelectionController.finishLoad(load)) setVoicesLoading(false);
     }
-  }, []);
+  }, [voiceSelectionController]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -143,9 +155,9 @@ export default function DoubaoAudioWorkspacePage() {
 
   const closeVoicePicker = useCallback(() => setVoicePickerOpen(false), []);
   const selectVoice = useCallback((voice) => {
-    setVoiceId(voice.voiceId);
+    selectVoiceId(voice.voiceId);
     setGenerationError("");
-  }, []);
+  }, [selectVoiceId]);
 
   const handleGenerate = useCallback(async (event) => {
     event.preventDefault();
@@ -213,29 +225,37 @@ export default function DoubaoAudioWorkspacePage() {
   }, [deleteTarget]);
 
   const handleCreateVoice = useCallback(async (input) => {
+    if (voiceSelectionController.isLoading()) {
+      throw new Error("声音列表正在读取，请稍后再保存");
+    }
     const voice = await createDoubaoVoice(input);
-    voicesVersionRef.current += 1;
+    voiceSelectionController.markMutation();
     setVoices((current) => merge(current, voice));
-    setVoiceId(voice.voiceId);
+    selectVoiceId(voice.voiceId);
     setVoicesError("");
     return voice;
-  }, []);
+  }, [selectVoiceId, voiceSelectionController]);
 
   const handleRenameVoice = useCallback(async (voice, displayName) => {
     const updated = await renameDoubaoVoice(voice.profileId, displayName);
-    voicesVersionRef.current += 1;
+    voiceSelectionController.markMutation();
     setVoices((current) => current.map((item) => item.profileId === updated.profileId ? updated : item));
     setVoicesError("");
     return updated;
-  }, []);
+  }, [voiceSelectionController]);
 
   const handleDeleteVoice = useCallback(async (voice) => {
     await deleteDoubaoVoice(voice.profileId);
-    voicesVersionRef.current += 1;
+    voiceSelectionController.markMutation();
     setVoices((current) => current.filter((item) => item.profileId !== voice.profileId));
-    setVoiceId((current) => current === voice.voiceId ? "" : current);
+    const previousVoiceId = voiceSelectionController.getVoiceId();
+    const nextVoiceId = voiceSelectionController.resolveAfterDelete({
+      deletedVoiceId: voice.voiceId,
+      defaultVoiceId: "",
+    });
+    if (nextVoiceId !== previousVoiceId) setVoiceId(nextVoiceId);
     setVoicesError("");
-  }, []);
+  }, [voiceSelectionController]);
 
   return (
     <div className="space-y-6">

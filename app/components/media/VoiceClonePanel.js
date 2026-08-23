@@ -136,11 +136,13 @@ export default function VoiceClonePanel({
   const [deleteVoice, setDeleteVoice] = useState(null);
 
   const atLimit = voices.length >= CUSTOM_VOICE_MAX_COUNT;
-  const voiceActionActive = Boolean(actingVoiceId);
+  const formDisabled = loading || creating || atLimit;
+  const voiceActionActive = creating || Boolean(actingVoiceId);
 
   const handleCreate = async (event) => {
     event.preventDefault();
     setFormError("");
+    if (loading) return setFormError("音色列表正在读取，请稍后再创建");
     const trimmedName = displayName.trim();
     if (!trimmedName) {
       setFormError("请填写音色名称");
@@ -311,7 +313,7 @@ export default function VoiceClonePanel({
                   onChange={(event) => setDisplayName(event.target.value)}
                   maxLength={40}
                   placeholder="例如：温暖旁白"
-                  disabled={creating || atLimit}
+                  disabled={formDisabled}
                   className="focus-ring h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </div>
@@ -324,7 +326,7 @@ export default function VoiceClonePanel({
                     file={audio}
                     purpose={AUDIO_UPLOAD_PURPOSES.VOICE_CLONE}
                     label="声音样本"
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     onStateChange={setAudioSource}
                     onRemove={() => {
                       setAudio(null);
@@ -336,7 +338,7 @@ export default function VoiceClonePanel({
                   <AudioFilePicker
                     id="voice-sample-audio"
                     inputKey={audioInputKey}
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     accept={AUDIO_UPLOAD_ACCEPT}
                     onChange={(file) => {
                       const fileError = getFileError(file);
@@ -361,7 +363,7 @@ export default function VoiceClonePanel({
                     ariaLabel="样本语言"
                     value={languageHint}
                     onChange={setLanguageHint}
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     options={LANGUAGE_OPTIONS.map((option) => ({ id: option.value, label: option.label }))}
                     size="lg"
                   />
@@ -371,7 +373,7 @@ export default function VoiceClonePanel({
                     type="checkbox"
                     checked={enablePreprocess}
                     onChange={(event) => setEnablePreprocess(event.target.checked)}
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     className="mt-1 h-4 w-4 shrink-0 accent-primary"
                   />
                   <span>
@@ -386,7 +388,7 @@ export default function VoiceClonePanel({
                   type="checkbox"
                   checked={consent}
                   onChange={(event) => setConsent(event.target.checked)}
-                  disabled={creating || atLimit}
+                  disabled={formDisabled}
                   className="mt-1 h-4 w-4 shrink-0 accent-primary"
                 />
                 <span className="text-zinc-600 dark:text-zinc-300">
@@ -404,7 +406,7 @@ export default function VoiceClonePanel({
 
               <button
                 type="submit"
-                disabled={creating || atLimit || (audio && audioSource?.status !== "ready")}
+                disabled={formDisabled || (audio && audioSource?.status !== "ready")}
                 className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60"
               >
                 {creating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <Mic2 className="h-5 w-5" />}

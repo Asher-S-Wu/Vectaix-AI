@@ -77,7 +77,8 @@ export default function MinimaxVoiceClonePanel({
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const atLimit = voices.length >= MINIMAX_CUSTOM_VOICE_MAX_COUNT;
-  const voiceActionActive = Boolean(deletingId);
+  const formDisabled = loading || creating || atLimit;
+  const voiceActionActive = creating || Boolean(deletingId);
 
   const resetSample = () => {
     setSampleFile(null);
@@ -88,6 +89,7 @@ export default function MinimaxVoiceClonePanel({
   const submit = async (event) => {
     event.preventDefault();
     setFormError("");
+    if (loading) return setFormError("音色列表正在读取，请稍后再创建");
     if (!displayName.trim()) return setFormError("请填写音色名称");
     const sampleError = validateSampleFile(sampleFile);
     if (sampleError) return setFormError(sampleError);
@@ -198,7 +200,7 @@ export default function MinimaxVoiceClonePanel({
                     onChange={(event) => setDisplayName(event.target.value)}
                     maxLength={MINIMAX_VOICE_DISPLAY_NAME_MAX_LENGTH}
                     placeholder="例如：温柔旁白"
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     className="focus-ring h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
                   />
                 </div>
@@ -209,7 +211,7 @@ export default function MinimaxVoiceClonePanel({
                     ariaLabel="试听模型"
                     value={model}
                     onChange={setModel}
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     options={MINIMAX_AUDIO_MODELS}
                     size="lg"
                   />
@@ -224,7 +226,7 @@ export default function MinimaxVoiceClonePanel({
                     file={sampleFile}
                     purpose={AUDIO_UPLOAD_PURPOSES.MINIMAX_VOICE_CLONE}
                     label="声音样本"
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     onStateChange={setSampleState}
                     onRemove={resetSample}
                   />
@@ -232,7 +234,7 @@ export default function MinimaxVoiceClonePanel({
                   <AudioFilePicker
                     id="minimax-voice-sample"
                     inputKey={sampleInputKey}
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     accept={SAMPLE_ACCEPT}
                     hint="支持 MP3、M4A 或 WAV，选择 10 至 300 秒的清晰人声"
                     onChange={(file) => {
@@ -264,7 +266,7 @@ export default function MinimaxVoiceClonePanel({
                   maxLength={MINIMAX_VOICE_DEMO_TEXT_MAX_LENGTH}
                   rows={3}
                   placeholder="填写一段文字，创建完成后会用它生成试听音频。"
-                  disabled={creating || atLimit}
+                  disabled={formDisabled}
                   className="focus-ring min-h-[96px] w-full resize-y rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 placeholder:text-zinc-400 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
                 />
                 <p className="text-xs leading-5 text-zinc-500">已默认填好，可以直接使用，也可以改成自己喜欢的文字。</p>
@@ -278,7 +280,7 @@ export default function MinimaxVoiceClonePanel({
                     ariaLabel="语言增强"
                     value={languageBoost}
                     onChange={setLanguageBoost}
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     options={MINIMAX_AUDIO_LANGUAGE_OPTIONS}
                     size="lg"
                   />
@@ -288,7 +290,7 @@ export default function MinimaxVoiceClonePanel({
                     type="checkbox"
                     checked={noiseReduction}
                     onChange={(event) => setNoiseReduction(event.target.checked)}
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     className="mt-1 h-4 w-4 shrink-0 accent-primary"
                   />
                   <span>
@@ -301,7 +303,7 @@ export default function MinimaxVoiceClonePanel({
                     type="checkbox"
                     checked={volumeNormalization}
                     onChange={(event) => setVolumeNormalization(event.target.checked)}
-                    disabled={creating || atLimit}
+                    disabled={formDisabled}
                     className="mt-1 h-4 w-4 shrink-0 accent-primary"
                   />
                   <span>
@@ -320,7 +322,7 @@ export default function MinimaxVoiceClonePanel({
                   type="checkbox"
                   checked={consent}
                   onChange={(event) => setConsent(event.target.checked)}
-                  disabled={creating || atLimit}
+                  disabled={formDisabled}
                   className="mt-1 h-4 w-4 shrink-0 accent-primary"
                 />
                 <span className="text-zinc-600 dark:text-zinc-300">
@@ -338,7 +340,7 @@ export default function MinimaxVoiceClonePanel({
 
               <button
                 type="submit"
-                disabled={creating || atLimit || (sampleFile && sampleState?.status !== "ready")}
+                disabled={formDisabled || (sampleFile && sampleState?.status !== "ready")}
                 className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60"
               >
                 {creating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <Mic2 className="h-5 w-5" />}
