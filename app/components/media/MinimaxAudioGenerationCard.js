@@ -1,4 +1,6 @@
 "use client";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
+
 
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -83,7 +85,7 @@ function CardActions({ generation, deleting, deleteDisabled, onDelete, className
   return (
     <>
       <AudioDownloadButton
-        href={`${generation.audioUrl}?download=1`}
+        href={scopeGuestUrl(`${generation.audioUrl}?download=1`)}
         fileName={formatFileName(generation)}
         className={className}
       />
@@ -155,7 +157,7 @@ export default function MinimaxAudioGenerationCard({
           className="mt-4 h-11 w-full"
           controls
           preload="metadata"
-          src={generation.audioUrl}
+          src={scopeGuestUrl(generation.audioUrl)}
           aria-label={`${generation.voiceName} 生成的语音`}
         >
           你的浏览器不支持音频播放。
@@ -229,7 +231,7 @@ export default function MinimaxAudioGenerationCard({
                   className="h-10 w-full min-w-0 sm:flex-1"
                   controls
                   preload="metadata"
-                  src={generation.audioUrl}
+                  src={scopeGuestUrl(generation.audioUrl)}
                   aria-label={`${generation.voiceName} 生成的语音`}
                 >
                   你的浏览器不支持音频播放。

@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import dbConnect from "@/lib/db";
 import Conversation from "@/models/Conversation";
 import User from "@/models/User";
@@ -125,10 +126,12 @@ export async function POST(req) {
       return Response.json({ error: "unsupported model" }, { status: 400 });
     }
 
-    const auth = await getAuthPayload();
+    const auth = await getAuthPayload(req);
     if (!auth) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const accessError = modelAccessResponse(auth, model);
+    if (accessError) return accessError;
 
     const clientIP = getClientIP(req);
     const rateLimitKey = `chat:${auth.userId}:${clientIP}`;

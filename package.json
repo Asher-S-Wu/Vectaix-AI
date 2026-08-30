@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "migrate:guest-users": "node scripts/migrate-guest-users.mjs",
+    "prestart": "npm run migrate:guest-users",
     "start": "next start",
     "lint": "eslint ."
   },

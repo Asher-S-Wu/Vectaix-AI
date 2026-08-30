@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
@@ -205,9 +206,9 @@ async function pruneHistory(userId) {
   }
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const generations = await DoubaoAudioGeneration.find({
@@ -230,9 +231,11 @@ export async function GET() {
 export async function POST(request) {
   let mediaWriteLease = null;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const accessError = modelAccessResponse(user, DOUBAO_AUDIO_MODEL);
+    if (accessError) return accessError;
     const limited = rateLimit(
       `media-doubao-audio-generation:${user.userId}:${getClientIP(request)}`,
       GENERATION_RATE_LIMIT,

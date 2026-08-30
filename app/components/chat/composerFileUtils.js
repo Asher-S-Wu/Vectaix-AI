@@ -1,3 +1,4 @@
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
 export function readAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -30,6 +31,6 @@ export function convertImageFileToPng(file) {
       );
     };
     img.onerror = () => resolve(null);
-    img.src = URL.createObjectURL(file);
+    img.src = scopeGuestUrl(URL.createObjectURL(file));
   });
 }

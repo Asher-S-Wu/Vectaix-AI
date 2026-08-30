@@ -1,9 +1,10 @@
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
 import { Download, Loader2, Trash2 } from "lucide-react";
 
 export function AudioDownloadButton({ href, fileName, className = "" }) {
   return (
     <a
-      href={href}
+      href={scopeGuestUrl(href)}
       download={fileName}
       className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-3 text-sm font-medium text-zinc-700 transition-[background-color,transform] hover:bg-zinc-100 active:scale-[0.98] dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800 ${className}`}
     >

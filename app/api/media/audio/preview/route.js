@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   parseJsonRequest,
@@ -68,9 +69,11 @@ async function resolvePreviewVoice({ userId, voiceId }) {
 
 export async function POST(request) {
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const accessError = modelAccessResponse(user, AUDIO_MODEL);
+    if (accessError) return accessError;
     const limited = rateLimit(
       `media-audio-preview:${user.userId}:${getClientIP(request)}`,
       PREVIEW_RATE_LIMIT,

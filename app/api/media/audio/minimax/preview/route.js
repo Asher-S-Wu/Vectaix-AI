@@ -6,7 +6,9 @@ import {
 } from "@/lib/server/api/routeHelpers";
 import {
   MINIMAX_AUDIO_DEFAULT_MODEL,
+  MINIMAX_AUDIO_MODEL_IDS,
 } from "@/lib/media/shared/minimaxAudio";
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import { VOICE_PREVIEW_TEXT_ZH } from "@/lib/media/shared/voicePreview";
 import {
   listMinimaxSystemVoices,
@@ -53,7 +55,7 @@ async function resolvePreviewVoice({ userId, voiceId, signal }) {
 
 export async function POST(request) {
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const limited = rateLimit(
@@ -66,6 +68,14 @@ export async function POST(request) {
     if (!parsed.ok) return parsed.response;
     const voiceId = typeof parsed.body?.voiceId === "string" ? parsed.body.voiceId.trim() : "";
     if (!voiceId) return jsonMessage("请选择音色");
+    const requestedModel = typeof parsed.body?.model === "string" ? parsed.body.model.trim() : "";
+    if (user.kind === "guest") {
+      if (!MINIMAX_AUDIO_MODEL_IDS.includes(requestedModel)) {
+        return jsonMessage("请选择要试听的 MiniMax 模型");
+      }
+      const accessError = modelAccessResponse(user, requestedModel);
+      if (accessError) return accessError;
+    }
 
     const voice = await resolvePreviewVoice({
       userId: user.userId,
@@ -74,7 +84,7 @@ export async function POST(request) {
     });
     const upstream = await synthesizeMinimaxSpeech({
       text: VOICE_PREVIEW_TEXT_ZH,
-      model: voice.model,
+      model: user.kind === "guest" ? requestedModel : voice.model,
       voiceId: voice.voiceId,
       speed: 1,
       volume: 1,

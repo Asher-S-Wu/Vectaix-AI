@@ -5,6 +5,7 @@ import {
   updateConversationForUser,
 } from "@/lib/server/conversations/service";
 import { TEXT_CHAT_MAX_REQUEST_BYTES } from '@/lib/server/chat/routeConstants';
+import { modelAccessResponse } from '@/lib/server/guest/access';
 import {
   assertRequestSize,
   parseJsonRequest,
@@ -12,8 +13,8 @@ import {
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
 
-async function requireConversationUser() {
-  const auth = await requireUserRecord({ connectDb: true, select: null });
+async function requireConversationUser(req) {
+  const auth = await requireUserRecord({ request: req, connectDb: true, select: null });
   return auth?.payload || null;
 }
 
@@ -28,7 +29,7 @@ export async function GET(req, context) {
     return Response.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  const user = await requireConversationUser();
+  const user = await requireConversationUser(req);
   if (!user) return unauthorizedResponse();
 
   const conversation = await getConversationForUser(id, user.userId);
@@ -43,7 +44,7 @@ export async function DELETE(req, context) {
     return Response.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  const user = await requireConversationUser();
+  const user = await requireConversationUser(req);
   if (!user) return unauthorizedResponse();
 
   const conversation = await getConversationForUser(id, user.userId);
@@ -64,7 +65,7 @@ export async function PUT(req, context) {
   const oversizeResponse = assertRequestSize(req, TEXT_CHAT_MAX_REQUEST_BYTES);
   if (oversizeResponse) return oversizeResponse;
 
-  const user = await requireConversationUser();
+  const user = await requireConversationUser(req);
   if (!user) return unauthorizedResponse();
 
   const parsed = await parseJsonRequest(req, "Invalid JSON", TEXT_CHAT_MAX_REQUEST_BYTES);
@@ -72,6 +73,15 @@ export async function PUT(req, context) {
   const body = parsed.body;
 
   try {
+    if (user.kind === "guest" && body?.model !== undefined) {
+      const current = await getConversationForUser(id, user.userId);
+      if (!current) return Response.json({ error: "Not found" }, { status: 404 });
+      const nextModel = typeof body.model === "string" ? body.model.trim() : body.model;
+      if (nextModel !== current.model) {
+        const accessError = modelAccessResponse(user, nextModel);
+        if (accessError) return accessError;
+      }
+    }
     const conversation = await updateConversationForUser(id, user.userId, body);
     const nextConversation = conversation?.toObject?.() || conversation;
     if (!nextConversation) {

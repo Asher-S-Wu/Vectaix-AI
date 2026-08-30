@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
@@ -85,7 +86,7 @@ function parseCreateInput(body) {
 
 export async function GET(request) {
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const limited = rateLimit(
@@ -118,9 +119,11 @@ export async function POST(request) {
   let profileId = "";
   let userId = "";
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const accessError = modelAccessResponse(user, DOUBAO_AUDIO_MODEL);
+    if (accessError) return accessError;
     userId = user.userId;
     const limited = rateLimit(
       `media-doubao-voice-mutation:${userId}:${getClientIP(request)}`,

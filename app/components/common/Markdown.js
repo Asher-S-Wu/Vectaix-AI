@@ -1,5 +1,7 @@
 "use client";
 
+import NextImage from "next/image";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
 import { useState, useEffect, useRef, cloneElement } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
@@ -79,6 +81,8 @@ export default function Markdown({
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins}
         components={{
+          img: ({ node, src, alt, ...props }) => <NextImage {...props} src={scopeGuestUrl(src)} alt={alt || "图片"} width={1200} height={800} unoptimized className="h-auto max-w-full" />,
+          a: ({ node, href, children, ...props }) => <a {...props} href={scopeGuestUrl(href)}>{children}</a>,
           table: ({ children, ...props }) => (
             <div className="table-scroll-wrapper">
               <table {...props}>{children}</table>

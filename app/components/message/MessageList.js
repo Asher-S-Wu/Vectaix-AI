@@ -1,4 +1,7 @@
 "use client";
+import { useGuestSession } from "@/lib/client/GuestSession";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
+
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -95,6 +98,8 @@ export default function MessageList({
   userNickname,
   onSendStarterPrompt,
 }) {
+  const guest = useGuestSession();
+  const generationAllowed = !guest || guest.user.allowedModelIds.includes(model);
   const editTextareaRef = useRef(null);
   const editFileInputRef = useRef(null);
   const exportMenuRef = useRef(null);
@@ -267,7 +272,7 @@ export default function MessageList({
       onScroll={onScroll}
       className={`flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 py-4 space-y-4 scroll-smooth fade-scrollbar mobile-scroll ${fontSizeClass}`}
     >
-      <ImageLightbox open={lightboxOpen} onClose={closeLightbox} src={lightboxSrc} />
+      <ImageLightbox open={lightboxOpen} onClose={closeLightbox} src={scopeGuestUrl(lightboxSrc)} />
 
       <ConfirmModal
         open={deleteConfirm.open}
@@ -325,6 +330,7 @@ export default function MessageList({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 + idx * 0.08, type: "spring", damping: 20 }}
                     onClick={() => onSendStarterPrompt?.(prompt.description)}
+                    disabled={!generationAllowed}
                     className="flex flex-col items-start p-4 rounded-2xl glass-effect border-zinc-200/40 hover:border-primary/40 hover:shadow-lift hover:-translate-y-0.5 transition-all duration-300 text-left group active:scale-[0.98]"
                   >
                     <span className="mb-2.5 flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
@@ -360,7 +366,7 @@ export default function MessageList({
           const hasToolRuns = Array.isArray(msg.tools) && msg.tools.length > 0;
           const shouldRenderToolCards = msg.role === "model" && hasToolRuns && !hasThinkingTimeline && msg.tools.some((t) => t?.id);
           const shouldRenderBubble = hasParts || hasVisibleContent || shouldRenderToolCards;
-          const canRegenerateMessage = msg.role === "model" && messages[i - 1]?.role === "user";
+          const canRegenerateMessage = generationAllowed && msg.role === "model" && messages[i - 1]?.role === "user";
           const isFailedModelMessage = msg.role === "model" && !shouldRenderBubble && !msg.isStreaming && !msg.isWaitingFirstChunk
             && !msg.thought && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasToolRuns;
 
@@ -393,7 +399,7 @@ export default function MessageList({
                       {userNickname || "您"}
                     </span>
                     {userAvatar ? (
-                      <NextImage src={userAvatar} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-md object-cover ring-1 ring-zinc-200/50 dark:ring-zinc-700" />
+                      <NextImage src={scopeGuestUrl(userAvatar)} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-md object-cover ring-1 ring-zinc-200/50 dark:ring-zinc-700" />
                     ) : (
                       <div className="w-5 h-5 rounded-md bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-500">
                         {userNickname?.[0] || "您"}
@@ -437,7 +443,7 @@ export default function MessageList({
                               <div key={image.id} className="relative h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900">
                                 {image.preview ? (
                                   <NextImage
-                                    src={image.preview}
+                                    src={scopeGuestUrl(image.preview)}
                                     alt={`第 ${imageIndex + 1} 张参考图片`}
                                     fill
                                     sizes="64px"
@@ -484,7 +490,7 @@ export default function MessageList({
                       <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors">取消</button>
                       <button
                         onClick={() => onSubmitEdit(i)}
-                        disabled={isEditingImageUploading}
+                        disabled={!generationAllowed || isEditingImageUploading}
                         className="btn-primary px-3 py-1.5 text-xs rounded-lg disabled:opacity-40"
                       >
                         {isEditingImageUploading ? "上传中" : "提交"}
@@ -512,7 +518,7 @@ export default function MessageList({
                               return ordered.map(({ part, idx }) => {
                                 const url = part?.inlineData?.url;
                                 const previewUrl = part?.inlineData?.localPreviewUrl;
-                                if (url) return <Thumb key={idx} src={url} previewSrc={previewUrl} onClick={openLightbox} />;
+                                if (url) return <Thumb key={idx} src={scopeGuestUrl(url)} previewSrc={previewUrl} onClick={openLightbox} />;
                                 if (part?.fileData?.name) return <AttachmentCard key={idx} file={part.fileData} compact={isUser} />;
                                 if (part?.text?.trim()) {
                                   return (
@@ -598,7 +604,7 @@ export default function MessageList({
                           {copiedIndex === i ? <Check size={16} /> : <Copy size={16} />}
                         </button>
                         <button onClick={() => handleDeleteClick(i, msg.role)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="删除" aria-label="删除消息"><Trash2 size={16} /></button>
-                        {msg.role === "user" && (
+                        {generationAllowed && msg.role === "user" && (
                           <button onClick={() => onStartEdit(i, msg)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="编辑" aria-label="编辑消息"><Edit3 size={16} /></button>
                         )}
                       </div>

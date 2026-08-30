@@ -1,4 +1,5 @@
 import Conversation from '@/models/Conversation';
+import { modelAccessResponse } from '@/lib/server/guest/access';
 import { sanitizeImportedConversation } from '@/lib/server/conversations/sanitize';
 import { bindStoredFiles, collectStoredFileIds } from '@/lib/server/storage/service';
 import { TEXT_CHAT_MAX_REQUEST_BYTES } from '@/lib/server/chat/routeConstants';
@@ -12,9 +13,9 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
     try {
-        const auth = await requireUserRecord({ connectDb: true, select: null });
+        const auth = await requireUserRecord({ request: req, connectDb: true, select: null });
         const user = auth?.payload;
         if (!user) return unauthorizedResponse();
 
@@ -38,7 +39,7 @@ export async function POST(req) {
         const oversizeResponse = assertRequestSize(req, TEXT_CHAT_MAX_REQUEST_BYTES);
         if (oversizeResponse) return oversizeResponse;
 
-        const auth = await requireUserRecord({ connectDb: true, select: null });
+        const auth = await requireUserRecord({ request: req, connectDb: true, select: null });
         const user = auth?.payload;
         if (!user) return unauthorizedResponse();
 
@@ -47,6 +48,8 @@ export async function POST(req) {
         const body = parsed.body;
 
         const conversationInput = sanitizeImportedConversation(body, 0, user.userId);
+        const accessError = modelAccessResponse(user, conversationInput.model);
+        if (accessError) return accessError;
         const created = await Conversation.create({
             ...conversationInput,
             pinned: Boolean(conversationInput.pinned),

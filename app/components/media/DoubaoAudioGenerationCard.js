@@ -1,4 +1,6 @@
 "use client";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
+
 
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -66,7 +68,7 @@ function CardActions({ generation, deleting, deleteDisabled, onDelete, className
   return (
     <>
       <AudioDownloadButton
-        href={`${generation.audioUrl}?download=1`}
+        href={scopeGuestUrl(`${generation.audioUrl}?download=1`)}
         fileName={formatFileName(generation)}
         className={className}
       />
@@ -139,7 +141,7 @@ export default function DoubaoAudioGenerationCard({
           className="mt-4 h-11 w-full"
           controls
           preload="metadata"
-          src={generation.audioUrl}
+          src={scopeGuestUrl(generation.audioUrl)}
           aria-label={`${generation.voiceName} 生成的语音`}
         >
           你的浏览器不支持音频播放。
@@ -195,7 +197,7 @@ export default function DoubaoAudioGenerationCard({
             <div className="border-t border-zinc-200/60 px-3.5 py-3.5 dark:border-zinc-800/60">
               <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-300">{generation.text}</p>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <audio className="h-10 w-full min-w-0 sm:flex-1" controls preload="metadata" src={generation.audioUrl} aria-label={`${generation.voiceName} 生成的语音`}>
+                <audio className="h-10 w-full min-w-0 sm:flex-1" controls preload="metadata" src={scopeGuestUrl(generation.audioUrl)} aria-label={`${generation.voiceName} 生成的语音`}>
                   你的浏览器不支持音频播放。
                 </audio>
                 <div className="flex shrink-0 items-center gap-2">

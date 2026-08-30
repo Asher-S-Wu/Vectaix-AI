@@ -1,4 +1,6 @@
 "use client";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
+
 
 import { motion } from "framer-motion";
 import {
@@ -159,7 +161,7 @@ export default function VideoEnhancementTaskCard({ task, deleting, onDelete }) {
               controls
               playsInline
               preload="metadata"
-              src={result.videoUrl}
+              src={scopeGuestUrl(result.videoUrl)}
               className="aspect-video w-full rounded-2xl border border-zinc-200 bg-black object-contain dark:border-zinc-800"
             >
               您的浏览器暂时无法播放这个视频。
@@ -172,7 +174,7 @@ export default function VideoEnhancementTaskCard({ task, deleting, onDelete }) {
                 {result.fps ? <span>{result.fps} fps</span> : null}
               </div>
               <a
-                href={result.downloadUrl}
+                href={scopeGuestUrl(result.downloadUrl)}
                 download
                 className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-zinc-900 px-3 text-sm font-medium text-white transition-transform active:scale-[0.98] dark:bg-zinc-100 dark:text-zinc-900"
               >

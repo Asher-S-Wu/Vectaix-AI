@@ -1,5 +1,6 @@
 'use client';
 
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
 import { useEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -228,7 +229,7 @@ export default function ImageGenerationPage() {
                 {sourceImages.map(({ file, previewUrl }, index) => (
                   <div key={previewUrl} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
                     <div className="relative">
-                      <NextImage src={previewUrl} alt={`第 ${index + 1} 张参考图片：${file.name}`} width={512} height={132} unoptimized className="h-[132px] w-full object-contain" />
+                      <NextImage src={scopeGuestUrl(previewUrl)} alt={`第 ${index + 1} 张参考图片：${file.name}`} width={512} height={132} unoptimized className="h-[132px] w-full object-contain" />
                       <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs text-white">第 {index + 1} 张</span>
                       <button type="button" onClick={() => handleRemoveSourceImage(previewUrl)} className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label={`移除第 ${index + 1} 张参考图片`}>
                         <X className="h-4 w-4" />

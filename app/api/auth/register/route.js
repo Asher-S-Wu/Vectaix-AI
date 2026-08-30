@@ -2,7 +2,7 @@ import dbConnect from '@/lib/db';
 import { getUserAccessFlags } from '@/lib/admin';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-import { startAuthSession } from '@/lib/auth';
+import { hasGuestRequestContext, startAuthSession } from '@/lib/auth';
 import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import { isValidEmail, normalizeEmail, validatePassword } from '@/lib/server/auth/validation';
 
@@ -10,6 +10,9 @@ const REGISTER_RATE_LIMIT = { limit: 3, windowMs: 10 * 60 * 1000 };
 
 export async function POST(req) {
     try {
+        if (await hasGuestRequestContext(req)) {
+            return Response.json({ error: '游客空间不支持账号注册' }, { status: 403 });
+        }
         const clientIP = getClientIP(req);
         const rateLimitKey = `register:${clientIP}`;
         const { success, resetTime } = rateLimit(rateLimitKey, REGISTER_RATE_LIMIT);
@@ -61,7 +64,7 @@ export async function POST(req) {
             return Response.json({ error: '两次输入的密码不一致' }, { status: 400 });
         }
 
-        const existingUser = await User.findOne({ email: normalizedEmail });
+        const existingUser = await User.findOne({ email: normalizedEmail, guestLinkId: { $exists: false } });
         if (existingUser) {
             return Response.json({ error: '该邮箱已注册' }, { status: 400 });
         }

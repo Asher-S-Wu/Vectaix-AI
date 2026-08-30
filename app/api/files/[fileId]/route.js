@@ -13,8 +13,8 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function getOwnedFile(context) {
-  const auth = await getAuthPayload();
+async function getOwnedFile(request, context) {
+  const auth = await getAuthPayload(request);
   if (!auth?.userId) return { error: Response.json({ error: "未登录" }, { status: 401 }) };
   const params = await context.params;
   const fileId = normalizeFileId(params?.fileId);
@@ -52,7 +52,7 @@ function parseRange(rangeHeader, size) {
 }
 
 async function serve(request, context, headOnly = false) {
-  const owned = await getOwnedFile(context);
+  const owned = await getOwnedFile(request, context);
   if (owned.error) return owned.error;
   const { file } = owned;
   try {
@@ -100,7 +100,7 @@ export function HEAD(request, context) {
 }
 
 export async function DELETE(request, context) {
-  const owned = await getOwnedFile(context);
+  const owned = await getOwnedFile(request, context);
   if (owned.error) return owned.error;
   if (owned.file.ownerType !== "temporary") {
     return Response.json({ error: "已使用的文件不能直接删除" }, { status: 409 });

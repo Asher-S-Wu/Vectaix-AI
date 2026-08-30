@@ -1,4 +1,7 @@
 "use client";
+import { useGuestSession } from "@/lib/client/GuestSession";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
+
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import NextImage from "next/image";
@@ -372,7 +375,9 @@ export default function Composer({
 
   const isUploading = selectedAttachments.some((item) => item.uploadStatus === "uploading");
   const hasReadyAttachment = selectedAttachments.some((item) => item.uploadStatus === "ready");
-  const canSend = isImageModel ? Boolean(input.trim()) : Boolean(input.trim()) || hasReadyAttachment;
+  const guest = useGuestSession();
+  const modelAllowed = !guest || guest.user.allowedModelIds.includes(model);
+  const canSend = modelAllowed && (isImageModel ? Boolean(input.trim()) : Boolean(input.trim()) || hasReadyAttachment);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -385,6 +390,7 @@ export default function Composer({
   };
 
   const handleSend = () => {
+    if (!modelAllowed) return;
     const text = input.trim();
     if ((!text && selectedAttachments.length === 0) || loading || isUploading) return;
     if (isImageModel && !text) {
@@ -452,7 +458,7 @@ export default function Composer({
                     <AlertCircle size={14} className="text-red-500 shrink-0" />
                   ) : isImageAttachment(item) ? (
                     <div className="relative w-6 h-6 rounded-lg overflow-hidden border border-zinc-100 dark:border-zinc-700">
-                      {item.preview ? <NextImage src={item.preview} alt="附件预览" fill sizes="24px" unoptimized className="object-cover" /> : null}
+                      {item.preview ? <NextImage src={scopeGuestUrl(item.preview)} alt="附件预览" fill sizes="24px" unoptimized className="object-cover" /> : null}
                     </div>
                   ) : (
                     <FileText size={14} className="text-primary" />
@@ -483,6 +489,7 @@ export default function Composer({
         )}
       </AnimatePresence>
 
+      {!modelAllowed && <p role="status" className="mb-2 text-center text-sm text-amber-600">当前模型已不再开放，请从菜单中选择可用模型。历史内容仍可查看。</p>}
       <div className="composer-shell relative flex flex-col glass-effect rounded-[24px] border-zinc-200/60 dark:border-zinc-800/60 hover:border-zinc-300 dark:hover:border-zinc-700">
         <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-zinc-100/50 dark:border-zinc-800/50 bg-zinc-50/30 dark:bg-zinc-900/30 rounded-t-[24px]">
           <ModelSelector
@@ -533,7 +540,7 @@ export default function Composer({
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={selectedAttachments.length >= attachmentLimit}
+                disabled={!modelAllowed || selectedAttachments.length >= attachmentLimit}
                 className="p-2.5 rounded-xl text-zinc-500 hover:text-primary hover:bg-primary/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-90"
                 type="button"
                 title="上传附件"
@@ -552,7 +559,7 @@ export default function Composer({
             onPaste={handlePaste}
             onFocus={() => setIsMainInputFocused(true)}
             onBlur={() => setIsMainInputFocused(false)}
-            readOnly={false}
+            readOnly={!modelAllowed}
             placeholder={isImageModel ? "描述你想生成或修改的图片…" : "给 AI 发送消息…"}
             className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-base md:text-[15px] text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none py-2 min-h-[44px] transition-all no-scrollbar"
             rows={1}

@@ -1,7 +1,9 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import { getAuthPayload } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import { editAndStoreImage } from "@/lib/media/server/qwenImage";
 import {
+  IMAGE_MODEL,
   IMAGE_EDIT_ACCEPTED_MIME_TYPES,
   IMAGE_EDIT_ACCEPTED_EXTENSIONS,
   IMAGE_EDIT_MAX_BYTES,
@@ -22,10 +24,12 @@ const ALLOWED_MIME_TYPES = new Set(IMAGE_EDIT_ACCEPTED_MIME_TYPES);
 export async function POST(request) {
   let mediaWriteLease = null;
   try {
-    const auth = await getAuthPayload();
+    const auth = await getAuthPayload(request);
     if (!auth) {
       return Response.json({ success: false, message: "未登录" }, { status: 401 });
     }
+    const accessError = modelAccessResponse(auth, IMAGE_MODEL);
+    if (accessError) return accessError;
     await dbConnect();
 
     const formData = await request.formData();

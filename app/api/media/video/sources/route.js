@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   assertRequestSize,
@@ -5,6 +6,7 @@ import {
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
 import {
+  VIDEO_MODEL,
   VIDEO_IMAGE_ACCEPTED_MIME_TYPES,
   VIDEO_IMAGE_MAX_BYTES,
   VIDEO_SOURCE_VIDEO_ACCEPTED_MIME_TYPES,
@@ -43,9 +45,11 @@ function jsonMessage(message, status = 400) {
 export async function POST(request) {
   let mediaWriteLease = null;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const accessError = modelAccessResponse(user, VIDEO_MODEL);
+    if (accessError) return accessError;
     const limited = rateLimit(
       `media-video-source:${user.userId}:${getClientIP(request)}`,
       SOURCE_UPLOAD_RATE_LIMIT,

@@ -51,7 +51,7 @@ async function loadOwnedTask(id, userId) {
 export async function GET(request, context) {
   let mediaWriteLease = null;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const task = await loadOwnedTask(await getTaskId(context), user.userId);
@@ -95,7 +95,7 @@ export async function GET(request, context) {
 export async function DELETE(request, context) {
   let mediaWriteLease = null;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const task = await loadOwnedTask(await getTaskId(context), user.userId);

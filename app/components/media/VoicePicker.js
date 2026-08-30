@@ -1,4 +1,6 @@
 "use client";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
+
 
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -382,6 +384,8 @@ const PICKER_TABS = [
 ];
 
 export default function VoicePicker({
+  model,
+  generationAllowed = true,
   open,
   brandLabel = "Qwen Audio",
   title = "选择音色",
@@ -509,7 +513,7 @@ export default function VoicePicker({
     if (!audio) return;
 
     const startPlayback = (src) => {
-      audio.src = src;
+      audio.src = scopeGuestUrl(src);
       const playPromise = audio.play();
       if (playPromise) {
         playPromise.catch((error) => {
@@ -520,7 +524,7 @@ export default function VoicePicker({
       }
     };
 
-    const cacheKey = voice.previewUrl || `${voice.previewProvider}:${voice.voiceId}`;
+    const cacheKey = voice.previewUrl || `${voice.previewProvider}:${voice.voiceId}:${model || ""}`;
     const cached = previewCacheRef.current.get(cacheKey);
     if (cached) {
       setPlayingVoiceId(voice.voiceId);
@@ -534,11 +538,12 @@ export default function VoicePicker({
       return;
     }
 
+    if (!generationAllowed) { setPreviewError("当前模型已不再开放，请先选择可用模型"); return; }
     const controller = new AbortController();
     previewAbortRef.current = controller;
     setLoadingVoiceId(voice.voiceId);
     try {
-      const src = await previewAudioVoice(voice.previewProvider, voice.voiceId, { signal: controller.signal });
+      const src = await previewAudioVoice(voice.previewProvider, voice.voiceId, { signal: controller.signal, model });
       if (controller.signal.aborted) {
         URL.revokeObjectURL(src);
         return;

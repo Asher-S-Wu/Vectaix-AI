@@ -69,9 +69,9 @@ async function getTaskId(context) {
   return typeof params?.id === "string" ? params.id.trim() : "";
 }
 
-export async function GET(_request, context) {
+export async function GET(request, context) {
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const id = await getTaskId(context);
@@ -89,12 +89,12 @@ export async function GET(_request, context) {
   }
 }
 
-export async function DELETE(_request, context) {
+export async function DELETE(request, context) {
   let mediaWriteLease = null;
   let deletionAccepted = false;
   let taskId = "";
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const id = await getTaskId(context);

@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useGuestSession } from "@/lib/client/GuestSession";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AudioLines,
@@ -59,6 +61,10 @@ function merge(items, item) {
 }
 
 export default function MinimaxAudioWorkspacePage() {
+  const guest = useGuestSession();
+  const searchParams = useSearchParams();
+  const requestedModel = searchParams.get("model");
+  const availableModels = MINIMAX_AUDIO_MODELS.filter((item) => !guest || guest.user.allowedModelIds.includes(item.id));
   const reduceMotion = useReducedMotion();
   const textRef = useRef(null);
   const pendingAutoPlayGenerationIdRef = useRef("");
@@ -70,7 +76,24 @@ export default function MinimaxAudioWorkspacePage() {
   }));
   const [activeTab, setActiveTab] = useState("synthesis");
   const [text, setText] = useState("");
-  const [model, setModel] = useState(MINIMAX_AUDIO_DEFAULT_MODEL);
+  const [model, setModelState] = useState(() => {
+    const saved = readLocalSetting("vectaix-minimax-model");
+    return availableModels.find((item) => item.id === requestedModel)?.id || availableModels.find((item) => item.id === saved)?.id || availableModels[0]?.id || (guest ? "" : MINIMAX_AUDIO_DEFAULT_MODEL);
+  });
+  const modelAllowed = availableModels.some((item) => item.id === model);
+  const setModel = (nextModel) => {
+    if (!availableModels.some((item) => item.id === nextModel)) return;
+    setModelState(nextModel);
+    writeLocalSetting("vectaix-minimax-model", nextModel);
+  };
+  const applyRequestedModel = useEffectEvent(() => {
+    if (requestedModel && requestedModel !== model && availableModels.some((item) => item.id === requestedModel)) setModel(requestedModel);
+  });
+  useEffect(() => {
+    if (!requestedModel) return;
+    const timer = setTimeout(applyRequestedModel, 0);
+    return () => clearTimeout(timer);
+  }, [requestedModel]);
   const [voiceId, setVoiceId] = useState("");
   const [emotion, setEmotion] = useState("");
   const [speed, setSpeed] = useState(1);
@@ -187,6 +210,7 @@ export default function MinimaxAudioWorkspacePage() {
 
   const handleGenerate = async (event) => {
     event.preventDefault();
+    if (!modelAllowed) { setGenerationError("当前模型已不再开放，请选择可用模型"); return; }
     const normalized = text.trim();
     setGenerationError("");
     if (!normalized) {
@@ -244,6 +268,7 @@ export default function MinimaxAudioWorkspacePage() {
   };
 
   const handleCreateVoice = async (input) => {
+    if (!modelAllowed) throw new Error("当前模型已不再开放，请选择可用模型");
     if (voiceSelectionController.isLoading()) {
       throw new Error("音色列表正在读取，请稍后再创建");
     }
@@ -286,12 +311,13 @@ export default function MinimaxAudioWorkspacePage() {
 
   return (
     <div className="space-y-6">
+      {!modelAllowed && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700"><p className="mb-3">当前模型已不再开放，请选择可用模型继续。</p><MediaSelect ariaLabel="选择可用模型" value="" onChange={setModel} options={availableModels} /></div>}
       <AudioWorkspaceHero
         icon={AudioWaveform}
         title="MiniMax 语音工作台"
         badge="2.8"
         description="使用系统音色或你的专属声音，把文字变成自然、有情绪的语音。"
-        modelLabel="Speech 2.8 HD · Turbo"
+        modelLabel={availableModels.map((item) => item.label).join(" · ")}
       >
         <AudioWorkspaceTabs
           idPrefix="minimax-audio"
@@ -439,7 +465,7 @@ export default function MinimaxAudioWorkspacePage() {
                               value={model}
                               onChange={setModel}
                               disabled={generating}
-                              options={MINIMAX_AUDIO_MODELS}
+                              options={availableModels}
                             />
                           </div>
                           <div className="space-y-2">
@@ -517,7 +543,7 @@ export default function MinimaxAudioWorkspacePage() {
 
               <button
                 type="submit"
-                disabled={generating || voicesLoading || !voiceId}
+                disabled={!modelAllowed || generating || voicesLoading || !voiceId}
                 className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60"
               >
                 {generating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <WandSparkles className="h-5 w-5" />}
@@ -569,6 +595,10 @@ export default function MinimaxAudioWorkspacePage() {
       ) : (
         <div id="minimax-audio-panel-cloning" role="tabpanel" aria-labelledby="minimax-audio-tab-cloning">
           <MinimaxVoiceClonePanel
+            model={model}
+            onModelChange={setModel}
+            availableModels={availableModels}
+            modelAllowed={modelAllowed}
             voices={customVoices}
             loading={voicesLoading}
             error={voicesError}
@@ -581,6 +611,8 @@ export default function MinimaxAudioWorkspacePage() {
       )}
 
       <VoicePicker
+        model={model}
+        generationAllowed={modelAllowed}
         open={voicePickerOpen}
         brandLabel="MiniMax Speech"
         selectedVoiceId={voiceId}

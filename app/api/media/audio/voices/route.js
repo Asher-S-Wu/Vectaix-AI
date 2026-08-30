@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
@@ -136,10 +137,10 @@ function readCreateVoiceInput(body) {
   };
 }
 
-export async function GET() {
+export async function GET(request) {
   let mediaWriteLease = null;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     mediaWriteLease = await beginMediaWriteLease(user.userId);
@@ -181,9 +182,11 @@ export async function POST(request) {
   let voiceCreationLease = null;
   let sourceOperationId = "";
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const accessError = modelAccessResponse(user, AUDIO_MODEL);
+    if (accessError) return accessError;
     userId = user.userId;
     mediaWriteLease = await beginMediaWriteLease(user.userId);
     voiceCreationLease = await acquireVoiceCreationLease(user.userId);

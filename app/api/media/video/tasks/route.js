@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   parseJsonRequest,
@@ -5,6 +6,7 @@ import {
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
 import {
+  VIDEO_MODEL,
   VIDEO_ASPECT_RATIO_OPTIONS,
   VIDEO_DURATION_OPTIONS,
   VIDEO_EDIT_RESOLUTION_OPTIONS,
@@ -253,9 +255,9 @@ async function bindVideoTaskSources({ userId, fileIds, taskId }) {
   throw error;
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const tasks = await VideoGenerationTask.find({
@@ -278,9 +280,11 @@ export async function POST(request) {
   let sourcesBound = false;
   let failureHandled = false;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const accessError = modelAccessResponse(user, VIDEO_MODEL);
+    if (accessError) return accessError;
 
     const limited = rateLimit(
       `media-video:${user.userId}:${getClientIP(request)}`,

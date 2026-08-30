@@ -2,7 +2,7 @@ import dbConnect from '@/lib/db';
 import { getUserAccessFlags } from '@/lib/admin';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-import { startAuthSession } from '@/lib/auth';
+import { hasGuestRequestContext, startAuthSession } from '@/lib/auth';
 import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import { normalizeEmail } from '@/lib/server/auth/validation';
 
@@ -10,6 +10,9 @@ const LOGIN_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
 
 export async function POST(req) {
     try {
+        if (await hasGuestRequestContext(req)) {
+            return Response.json({ error: '游客空间不支持账号登录' }, { status: 403 });
+        }
         const clientIP = getClientIP(req);
         const rateLimitKey = `login:${clientIP}`;
         const { success, remaining, resetTime } = rateLimit(rateLimitKey, LOGIN_RATE_LIMIT);
@@ -47,7 +50,7 @@ export async function POST(req) {
 
         const normalizedEmail = normalizeEmail(email);
 
-        const user = await User.findOne({ email: normalizedEmail });
+        const user = await User.findOne({ email: normalizedEmail, guestLinkId: { $exists: false } });
         if (!user) {
             return Response.json({ error: '邮箱或密码错误' }, { status: 401 });
         }

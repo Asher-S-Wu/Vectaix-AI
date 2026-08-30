@@ -1,4 +1,6 @@
 "use client";
+import { useGuestSession } from "@/lib/client/GuestSession";
+import { guestFetch, guestStorageKey } from "@/lib/client/guestAccess";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useChatAppActions } from "@/lib/client/chat/chatAppActions";
 import {
@@ -21,8 +23,11 @@ import ConfirmModal from "./components/modals/ConfirmModal";
 import ChatLayout from "./components/layout/ChatLayout";
 
 const FONT_SIZE_CLASSES = { small: "text-size-small", medium: "text-size-medium", large: "text-size-large" };
-export default function ChatApp() {
+export default function ChatApp({ guestConversationId = null, guestModelId = null }) {
   const toast = useToast();
+  const guest = useGuestSession();
+  const requestedConversationId = guest ? guestConversationId : null;
+  const savedConversationRef = useRef(typeof window !== "undefined" ? window.localStorage.getItem(guestStorageKey("vectaix-current-conversation")) : null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState(null);
@@ -154,10 +159,10 @@ export default function ChatApp() {
     currentConversationIdRef.current = currentConversationId;
     if (typeof window === "undefined") return;
     if (currentConversationId) {
-      window.localStorage.setItem("vectaix-current-conversation", currentConversationId);
+      window.localStorage.setItem(guestStorageKey("vectaix-current-conversation"), currentConversationId);
       return;
     }
-    window.localStorage.removeItem("vectaix-current-conversation");
+    window.localStorage.removeItem(guestStorageKey("vectaix-current-conversation"));
   }, [currentConversationId]);
 
   useEffect(() => {
@@ -195,7 +200,7 @@ export default function ChatApp() {
 
   async function fetchConversations() {
     try {
-      const res = await fetch("/api/conversations");
+      const res = await guestFetch("/api/conversations");
       if (res.status === 401) {
         handleAuthExpired();
         return;
@@ -272,7 +277,7 @@ export default function ChatApp() {
   const persistConversationModel = async (conversationIdToUpdate, nextModel) => {
     if (!conversationIdToUpdate || !nextModel) return false;
     try {
-      const response = await fetch(`/api/conversations/${conversationIdToUpdate}`, {
+      const response = await guestFetch(`/api/conversations/${conversationIdToUpdate}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: nextModel }),
@@ -309,6 +314,17 @@ export default function ChatApp() {
     lastTextModelRef,
   });
 
+  const selectRequestedGuestModel = useEffectEvent(() => {
+    if (!guest || !guestModelId || !isSettingsReady || guestModelId === model) return;
+    if (guest.user.allowedModelIds.includes(guestModelId)) requestModelChange(guestModelId);
+  });
+
+  useEffect(() => {
+    if (!guestModelId || !isSettingsReady) return;
+    const timer = setTimeout(selectRequestedGuestModel, 0);
+    return () => clearTimeout(timer);
+  }, [guestModelId, isSettingsReady]);
+
   const loadConversation = async (id, options = {}) => {
     const silent = options?.silent === true;
     if (currentConversationIdRef.current && currentConversationIdRef.current !== id && isStreamingRef.current) {
@@ -320,7 +336,7 @@ export default function ChatApp() {
       if (window.innerWidth < 768) setSidebarOpen(false);
     }
     try {
-      const res = await fetch(`/api/conversations/${id}`, { cache: "no-store" });
+      const res = await guestFetch(`/api/conversations/${id}`, { cache: "no-store" });
       if (res.status === 401) {
         handleAuthExpired();
         throw new Error("登录已过期，请重新登录");
@@ -353,7 +369,7 @@ export default function ChatApp() {
         });
         setCurrentConversationId(id);
 
-        const targetModel = resolveUsableModelId(conversation.model, DEFAULT_MODEL);
+        const targetModel = guest ? conversation.model : resolveUsableModelId(conversation.model, DEFAULT_MODEL);
         if (targetModel !== model) {
           setModel(targetModel);
           lastTextModelRef.current = targetModel;
@@ -382,13 +398,19 @@ export default function ChatApp() {
   useEffect(() => {
     if (!user || !serverSettingsReady || hasRestoredConversationRef.current || conversations.length === 0) return;
     hasRestoredConversationRef.current = true;
-    const savedConversationId = window.localStorage.getItem("vectaix-current-conversation");
+    const savedConversationId = requestedConversationId || savedConversationRef.current;
     if (!savedConversationId) return;
-    const exists = conversations.some((conversation) => conversation?._id === savedConversationId);
+    const exists = conversations.some((conversation) => conversation?._id === savedConversationId && (!guest || requestedConversationId || guest.user.allowedModelIds.includes(conversation.model)));
     if (!exists) return;
     const timer = setTimeout(() => restoreConversation(savedConversationId), 0);
     return () => clearTimeout(timer);
-  }, [conversations, serverSettingsReady, user]);
+  }, [conversations, guest, requestedConversationId, serverSettingsReady, user]);
+
+  useEffect(() => {
+    if (!requestedConversationId || !serverSettingsReady) return;
+    const timer = setTimeout(() => restoreConversation(requestedConversationId), 0);
+    return () => clearTimeout(timer);
+  }, [requestedConversationId, serverSettingsReady]);
 
   const syncConversationSettings = (settingsUpdate) => {
     if (!currentConversationId) return;
@@ -409,7 +431,7 @@ export default function ChatApp() {
       pendingConversationIdRef.current = null;
       if (!targetId) return;
       try {
-        await fetch(`/api/conversations/${targetId}`, {
+        await guestFetch(`/api/conversations/${targetId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ settings: toSync }),
@@ -421,7 +443,7 @@ export default function ChatApp() {
   const deleteConversation = async (id, e) => {
     e?.stopPropagation?.();
     try {
-      const res = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+      const res = await guestFetch(`/api/conversations/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("delete failed");
       setConversations((prev) => prev.filter((c) => c._id !== id));
       if (currentConversationId === id) {
@@ -435,7 +457,7 @@ export default function ChatApp() {
 
   const renameConversation = async (id, newTitle) => {
     try {
-      const res = await fetch(`/api/conversations/${id}`, {
+      const res = await guestFetch(`/api/conversations/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newTitle }),
@@ -451,7 +473,7 @@ export default function ChatApp() {
 
   const togglePinConversation = async (id, nextPinned) => {
     try {
-      const res = await fetch(`/api/conversations/${id}`, {
+      const res = await guestFetch(`/api/conversations/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pinned: nextPinned }),
@@ -473,6 +495,13 @@ export default function ChatApp() {
   };
   const updateFontSize = (size) => {
     setFontSize(size);
+  };
+  const allowGeneration = (action) => (...args) => {
+    if (guest && !guest.user.allowedModelIds.includes(model)) {
+      toast.warning("当前模型已不再开放，请选择可用模型");
+      return;
+    }
+    return action(...args);
   };
   return (
     <>
@@ -527,11 +556,11 @@ export default function ChatApp() {
           onEditingImagesSelect={actions.onEditingImagesSelect}
           onEditingImageRemove={actions.onEditingImageRemove}
           onCancelEdit={actions.cancelEdit}
-          onSubmitEdit={actions.submitEditAndRegenerate}
+          onSubmitEdit={allowGeneration(actions.submitEditAndRegenerate)}
           onCopy={actions.copyMessage}
           onDeleteModelMessage={actions.deleteModelMessage}
           onDeleteUserMessage={actions.deleteUserMessage}
-          onRegenerateModelMessage={actions.regenerateModelMessage}
+          onRegenerateModelMessage={allowGeneration(actions.regenerateModelMessage)}
           onStartEdit={actions.startEdit}
           userAvatar={avatar}
           onAvatarChange={setAvatar}
@@ -553,7 +582,7 @@ export default function ChatApp() {
             addSystemPrompt,
             updateSystemPrompt,
             deleteSystemPrompt,
-            onSend: actions.handleSendFromComposer,
+            onSend: allowGeneration(actions.handleSendFromComposer),
             onStop: actions.stopStreaming,
             prefill: composerPrefill,
           }}

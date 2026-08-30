@@ -1,11 +1,12 @@
 "use client";
 
 import { Menu, MessageSquarePlus } from "lucide-react";
+import GuestToolbar from "../guest/GuestToolbar";
 import ModeSwitcher from "../chat/ModeSwitcher";
 
 export default function ChatHeader({ onToggleSidebar, onStartNewChat, modelReady, sidebarOpen }) {
   return (
-    <header className="px-4 py-3 glass-effect border-b border-zinc-200/50 flex items-center justify-between z-40">
+    <header className="px-4 py-3 glass-effect border-b border-zinc-200/50 flex flex-wrap items-center justify-between z-40">
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
@@ -26,6 +27,7 @@ export default function ChatHeader({ onToggleSidebar, onStartNewChat, modelReady
       >
         <MessageSquarePlus size={22} />
       </button>
+      <GuestToolbar />
     </header>
   );
 }

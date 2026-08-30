@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
@@ -217,7 +218,7 @@ async function parsePatchInput(request) {
 export async function GET(request, context) {
   let mediaWriteLease = null;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     mediaWriteLease = await beginMediaWriteLease(user.userId);
@@ -387,9 +388,11 @@ export async function PATCH(request, context) {
   let mediaWriteLease = null;
   let sourceOperationId = "";
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const accessError = modelAccessResponse(user, AUDIO_MODEL);
+    if (accessError) return accessError;
     userId = user.userId;
     mediaWriteLease = await beginMediaWriteLease(user.userId);
 
@@ -681,7 +684,7 @@ export async function DELETE(request, context) {
   let claimedVoice = null;
   let mediaWriteLease = null;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     mediaWriteLease = await beginMediaWriteLease(user.userId);

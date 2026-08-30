@@ -1,8 +1,8 @@
-import { endCurrentAuthSession } from '@/lib/auth';
+import { endCurrentAuthSession, hasGuestRequestContext } from '@/lib/auth';
 import { getCurrentUserWithAccess } from '@/lib/admin';
 
-export async function GET() {
-  const user = await getCurrentUserWithAccess();
+export async function GET(request) {
+  const user = await getCurrentUserWithAccess(request);
   if (!user) return Response.json({ user: null });
 
   return Response.json({
@@ -15,7 +15,10 @@ export async function GET() {
   });
 }
 
-export async function DELETE() {
+export async function DELETE(request) {
+    if (await hasGuestRequestContext(request)) {
+        return Response.json({ error: '游客空间不能退出普通账号' }, { status: 403 });
+    }
     await endCurrentAuthSession();
     return Response.json({ success: true });
 }

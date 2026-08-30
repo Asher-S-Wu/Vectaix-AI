@@ -1,4 +1,6 @@
 "use client";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
+
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -210,7 +212,7 @@ export default function AudioSourceClipField({
             云端识别完成，提交后会自动转码
           </p>
           {previewUrl ? (
-            <audio ref={playerRef} controls preload="metadata" src={previewUrl} className="h-9 w-full">
+            <audio ref={playerRef} controls preload="metadata" src={scopeGuestUrl(previewUrl)} className="h-9 w-full">
               你的浏览器不支持音频播放。
             </audio>
           ) : null}

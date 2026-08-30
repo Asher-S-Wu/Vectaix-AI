@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useGuestSession } from "@/lib/client/GuestSession";
+import { getGuestModels } from "@/lib/shared/guestModels";
+import { guestWorkspaceHref } from "@/lib/client/guestAccess";
 import { useRouter } from "next/navigation";
 import { AudioLines, Clapperboard, ChevronUp, ImagePlus } from "lucide-react";
 import {
@@ -96,10 +99,16 @@ export default function ModelSelector({
   fullWidth = false,
 }) {
   const router = useRouter();
+  const guest = useGuestSession();
   const [showModelMenu, setShowModelMenu] = useState(false);
-  const currentModel = ready ? getModelConfig(model) : null;
-  const currentModelLabel = currentModel?.name || "模型";
-  const selectableModels = [
+  const currentModel = ready && (!guest || guest.user.allowedModelIds.includes(model)) ? getModelConfig(model) : null;
+  const currentModelLabel = currentModel?.name || (guest ? "请选择模型" : "模型");
+  const selectableModels = guest ? getGuestModels(guest.user.allowedModelIds).map((item) => ({
+    ...getModelConfig(item.id), ...item,
+    group: item.type === "chat" ? getModelConfig(item.id)?.group : "media",
+    mediaType: item.type === "chat" ? undefined : item.type,
+    href: item.type === "chat" ? undefined : item.href,
+  })) : [
     ...getSelectableChatModels().map((item) => {
       const href = MODEL_SELECTOR_WORKSPACE_HREFS[item.id];
       return href ? { ...item, href } : item;
@@ -185,7 +194,7 @@ export default function ModelSelector({
                             if (!ready) return;
                             setShowModelMenu(false);
                             if (item.href) {
-                              router.push(item.href);
+                              router.push(`${guestWorkspaceHref(item.href)}${guest ? `?model=${encodeURIComponent(item.id)}` : ""}`);
                               return;
                             }
                             onModelChange(item.id);

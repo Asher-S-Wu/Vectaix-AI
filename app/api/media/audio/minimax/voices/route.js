@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { resolvePublicAppUrl } from "@/lib/modelRoutes";
@@ -114,7 +115,7 @@ function createVoiceId() {
 
 export async function GET(request) {
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const limited = rateLimit(
@@ -147,7 +148,7 @@ export async function POST(request) {
   let profileId = "";
   let remoteVoiceId = "";
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const limited = rateLimit(
@@ -164,6 +165,8 @@ export async function POST(request) {
     const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
     if (!parsed.ok) return parsed.response;
     const input = parseCreateInput(parsed.body);
+    const accessError = modelAccessResponse(user, input.model);
+    if (accessError) return accessError;
 
     sourceOperationId = crypto.randomUUID();
     const [source] = await claimAudioSources({

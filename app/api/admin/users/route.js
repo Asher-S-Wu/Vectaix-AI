@@ -11,7 +11,7 @@ function escapeRegex(input) {
 }
 
 export async function GET(req) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin(req);
   if (!admin) {
     return forbiddenResponse();
   }
@@ -25,9 +25,8 @@ export async function GET(req) {
   const skip = (page - 1) * limit;
 
   const safeSearch = search.slice(0, 100);
-  const filter = safeSearch
-    ? { email: { $regex: escapeRegex(safeSearch), $options: 'i' } }
-    : {};
+  const filter = { guestLinkId: { $exists: false } };
+  if (safeSearch) filter.email = { $regex: escapeRegex(safeSearch), $options: 'i' };
 
   const [users, total] = await Promise.all([
     User.find(filter)

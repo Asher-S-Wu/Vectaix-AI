@@ -7,8 +7,8 @@ import { validatePassword } from '@/lib/server/auth/validation';
 export async function POST(req) {
   try {
     await dbConnect();
-    const auth = await getAuthPayload();
-    if (!auth) {
+    const auth = await getAuthPayload(req);
+    if (auth?.kind !== "member") {
       return Response.json({ error: '登录已过期，请重新登录' }, { status: 401 });
     }
 
@@ -29,7 +29,7 @@ export async function POST(req) {
       return Response.json({ error: '两次输入的新密码不一致' }, { status: 400 });
     }
 
-    const userDoc = await User.findById(auth.userId);
+    const userDoc = await User.findOne({ _id: auth.userId, guestLinkId: { $exists: false } });
     if (!userDoc) {
       return Response.json({ error: '用户不存在' }, { status: 404 });
     }

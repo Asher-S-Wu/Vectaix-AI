@@ -1,4 +1,9 @@
 "use client";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
+
+
+import { guestFetch } from "@/lib/client/guestAccess";
+
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, Loader2, X } from "lucide-react";
@@ -34,7 +39,7 @@ export default function ImageLightbox({ open, onClose, src }) {
     if (!src || downloading) return;
     setDownloading(true);
     try {
-      const res = await fetch(src);
+      const res = await guestFetch(src);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -45,7 +50,7 @@ export default function ImageLightbox({ open, onClose, src }) {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     } catch {
-      window.open(src, "_blank");
+      window.open(scopeGuestUrl(src), "_blank");
     } finally {
       setDownloading(false);
     }
@@ -57,7 +62,7 @@ export default function ImageLightbox({ open, onClose, src }) {
     if (!open || !src) return;
     const img = new window.Image();
     img.onload = () => setLoadedImage({ src, w: img.naturalWidth, h: img.naturalHeight });
-    img.src = src;
+    img.src = scopeGuestUrl(src);
   }, [open, src]);
 
   useEffect(() => {
@@ -146,7 +151,7 @@ export default function ImageLightbox({ open, onClose, src }) {
 
             {src && (
               <Image
-                src={src}
+                src={scopeGuestUrl(src)}
                 alt="查看大图"
                 width={loadedImage?.src === src ? loadedImage.w : 1200}
                 height={loadedImage?.src === src ? loadedImage.h : 800}

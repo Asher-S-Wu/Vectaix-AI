@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   parseJsonRequest,
@@ -52,9 +53,11 @@ function checkRateLimit(request, userId) {
 
 export async function PATCH(request, context) {
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    const accessError = modelAccessResponse(user, DOUBAO_AUDIO_MODEL);
+    if (accessError) return accessError;
     if (!checkRateLimit(request, user.userId).success) {
       return jsonMessage("声音修改过于频繁，请稍后再试", 429);
     }
@@ -93,7 +96,7 @@ export async function PATCH(request, context) {
 export async function DELETE(request, context) {
   let mediaWriteLease = null;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     if (!checkRateLimit(request, user.userId).success) {

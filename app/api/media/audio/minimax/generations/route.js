@@ -1,3 +1,4 @@
+import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
@@ -131,9 +132,9 @@ async function pruneHistory(userId) {
   }
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const generations = await MinimaxAudioGeneration.find({ userId: user.userId })
@@ -153,7 +154,7 @@ export async function GET() {
 export async function POST(request) {
   let mediaWriteLease = null;
   try {
-    const auth = await requireUserRecord({ connectDb: true, select: null });
+    const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
     const limited = rateLimit(
@@ -164,6 +165,8 @@ export async function POST(request) {
     const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
     if (!parsed.ok) return parsed.response;
     const input = parseInput(parsed.body);
+    const accessError = modelAccessResponse(user, input.model);
+    if (accessError) return accessError;
     const voice = await resolveVoice({ userId: user.userId, voiceId: input.voiceId, signal: request.signal });
     mediaWriteLease = await beginMediaWriteLease(user.userId);
     const upstream = await synthesizeMinimaxSpeech({ ...input, voiceId: voice.voiceId }, { signal: request.signal });

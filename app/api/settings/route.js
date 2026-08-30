@@ -12,13 +12,13 @@ import {
   updateUserPrompt,
 } from "@/lib/server/settings/service";
 
-async function requireUser() {
-  const auth = await requireUserRecord({ connectDb: true, select: null });
+async function requireUser(req) {
+  const auth = await requireUserRecord({ request: req, connectDb: true, select: null });
   return auth?.payload || null;
 }
 
-export async function GET() {
-  const user = await requireUser();
+export async function GET(req) {
+  const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
   const settings = await getUserSettings(user.userId);
@@ -26,7 +26,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
-  const user = await requireUser();
+  const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
   const parsed = await parseJsonRequest(req);
@@ -41,7 +41,7 @@ export async function POST(req) {
 }
 
 export async function DELETE(req) {
-  const user = await requireUser();
+  const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
   const parsed = await parseJsonRequest(req);
@@ -57,7 +57,7 @@ export async function DELETE(req) {
 }
 
 export async function PUT(req) {
-  const user = await requireUser();
+  const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
   const parsed = await parseJsonRequest(req);
@@ -72,7 +72,7 @@ export async function PUT(req) {
 }
 
 export async function PATCH(req) {
-  const user = await requireUser();
+  const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
   const parsed = await parseJsonRequest(req);

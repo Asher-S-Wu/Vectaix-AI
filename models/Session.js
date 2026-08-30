@@ -18,6 +18,15 @@ const SessionSchema = new mongoose.Schema({
     required: true,
     index: { expires: 0 },
   },
+  guestLinkId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "GuestLink",
+    index: true,
+  },
+  guestLinkRevision: {
+    type: String,
+    required: function requireGuestRevision() { return Boolean(this.guestLinkId); },
+  },
 }, { timestamps: true });
 
 SessionSchema.index({ userId: 1, expiresAt: 1 });

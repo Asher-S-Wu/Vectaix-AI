@@ -1,4 +1,6 @@
 "use client";
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
+
 
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -48,6 +50,10 @@ function formatDate(value) {
 }
 
 export default function MinimaxVoiceClonePanel({
+  model,
+  onModelChange,
+  availableModels,
+  modelAllowed,
   voices,
   loading,
   error,
@@ -59,7 +65,6 @@ export default function MinimaxVoiceClonePanel({
   const reduceMotion = useReducedMotion();
   const [displayName, setDisplayName] = useState("");
   const [demoText, setDemoText] = useState(VOICE_CLONE_DEMO_DEFAULT_TEXT);
-  const [model, setModel] = useState("MiniMax/speech-2.8-hd");
   const [languageBoost, setLanguageBoost] = useState("");
   const [noiseReduction, setNoiseReduction] = useState(false);
   const [volumeNormalization, setVolumeNormalization] = useState(false);
@@ -77,7 +82,7 @@ export default function MinimaxVoiceClonePanel({
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const atLimit = voices.length >= MINIMAX_CUSTOM_VOICE_MAX_COUNT;
-  const formDisabled = loading || creating || atLimit;
+  const formDisabled = !modelAllowed || loading || creating || atLimit;
   const voiceActionActive = creating || Boolean(deletingId);
 
   const resetSample = () => {
@@ -88,6 +93,7 @@ export default function MinimaxVoiceClonePanel({
 
   const submit = async (event) => {
     event.preventDefault();
+    if (!modelAllowed) return;
     setFormError("");
     if (loading) return setFormError("音色列表正在读取，请稍后再创建");
     if (!displayName.trim()) return setFormError("请填写音色名称");
@@ -120,7 +126,6 @@ export default function MinimaxVoiceClonePanel({
       });
       setDisplayName("");
       setDemoText(VOICE_CLONE_DEMO_DEFAULT_TEXT);
-      setModel("MiniMax/speech-2.8-hd");
       setLanguageBoost("");
       setNoiseReduction(false);
       setVolumeNormalization(false);
@@ -210,9 +215,9 @@ export default function MinimaxVoiceClonePanel({
                     id="minimax-voice-model"
                     ariaLabel="试听模型"
                     value={model}
-                    onChange={setModel}
+                    onChange={onModelChange}
                     disabled={formDisabled}
-                    options={MINIMAX_AUDIO_MODELS}
+                    options={availableModels}
                     size="lg"
                   />
                 </div>
@@ -496,7 +501,7 @@ export default function MinimaxVoiceClonePanel({
                       <audio
                         controls
                         preload="metadata"
-                        src={voice.demoAudioUrl}
+                        src={scopeGuestUrl(voice.demoAudioUrl)}
                         className="mt-3 h-10 w-full"
                         aria-label={`${voice.displayName} 的试听音频`}
                       >

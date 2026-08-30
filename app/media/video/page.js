@@ -1,5 +1,6 @@
 'use client';
 
+import { scopeGuestUrl } from "@/lib/client/guestAccess";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -129,7 +130,7 @@ function readImageMetadata(file) {
       finish();
       reject(new Error(`无法读取图片「${file.name}」`));
     };
-    image.src = objectUrl;
+    image.src = scopeGuestUrl(objectUrl);
   });
 }
 
@@ -258,7 +259,7 @@ function PreviewImage({ file, alt }) {
     };
   }, [file]);
   if (!src) return null;
-  return <NextImage src={src} alt={alt} fill sizes="180px" unoptimized className="object-cover" />;
+  return <NextImage src={scopeGuestUrl(src)} alt={alt} fill sizes="180px" unoptimized className="object-cover" />;
 }
 
 function PreviewVideo({ file }) {
@@ -275,7 +276,7 @@ function PreviewVideo({ file }) {
     };
   }, [file]);
   if (!src) return null;
-  return <video src={src} muted controls playsInline className="h-48 w-full bg-black object-contain" />;
+  return <video src={scopeGuestUrl(src)} muted controls playsInline className="h-48 w-full bg-black object-contain" />;
 }
 
 function StatusBadge({ status }) {
@@ -353,8 +354,8 @@ function TaskCard({ task, acting, stale, onRefresh, onDelete }) {
       {errorText ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{errorText}</div> : null}
       {task.videoUrl ? (
         <div className="mt-4 space-y-3">
-          <video controls playsInline className="w-full overflow-hidden rounded-xl border border-zinc-200 bg-black dark:border-zinc-700" src={task.videoUrl}>您的浏览器不支持视频播放。</video>
-          <a href={`${task.videoUrl}?download=1`} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+          <video controls playsInline className="w-full overflow-hidden rounded-xl border border-zinc-200 bg-black dark:border-zinc-700" src={scopeGuestUrl(task.videoUrl)}>您的浏览器不支持视频播放。</video>
+          <a href={scopeGuestUrl(`${task.videoUrl}?download=1`)} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
             <Download className="h-4 w-4" /> 下载视频
           </a>
         </div>
