@@ -354,7 +354,7 @@ export async function POST(req) {
     }
 
     const encoder = new TextEncoder();
-    let clientAborted = false;
+    let clientAborted = req.signal.aborted;
     const onAbort = () => { clientAborted = true; };
     try { req?.signal?.addEventListener?.("abort", onAbort, { once: true }); } catch { /* ignore */ }
 
@@ -469,8 +469,6 @@ export async function POST(req) {
           fullText = fullText.trim();
           fullThought = fullThought.trim();
 
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-
           if (user && currentConversationId) {
             const providerState = finalProviderState
               ? { ...finalProviderState, usage: finalUsage }
@@ -507,6 +505,9 @@ export async function POST(req) {
                 ownerId: currentConversationId,
               });
             }
+          }
+          if (!clientAborted) {
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           }
           controller.close();
         } catch (err) {
