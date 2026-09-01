@@ -6,7 +6,7 @@ import { hasGuestRequestContext, startAuthSession } from '@/lib/auth';
 import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import { isValidEmail, normalizeEmail, validatePassword } from '@/lib/server/auth/validation';
 
-const REGISTER_RATE_LIMIT = { limit: 3, windowMs: 10 * 60 * 1000 };
+const REGISTER_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 
 export async function POST(req) {
     try {
