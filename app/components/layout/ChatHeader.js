@@ -1,8 +1,8 @@
 "use client";
 
 import { Menu, MessageSquarePlus } from "lucide-react";
-import GuestToolbar from "../guest/GuestToolbar";
 import ModeSwitcher from "../chat/ModeSwitcher";
+import CreditShell from "../credits/CreditShell";
 
 export default function ChatHeader({ onToggleSidebar, onStartNewChat, modelReady, sidebarOpen }) {
   return (
@@ -18,16 +18,18 @@ export default function ChatHeader({ onToggleSidebar, onStartNewChat, modelReady
         </button>
         <ModeSwitcher ready={modelReady} />
       </div>
-      <button
-        onClick={onStartNewChat}
-        type="button"
-        aria-label="新建对话"
-        title="新建对话"
-        className="md:hidden p-2 rounded-lg text-zinc-500 hover:text-primary hover:bg-zinc-100 active:scale-90 transition-all"
-      >
-        <MessageSquarePlus size={22} />
-      </button>
-      <GuestToolbar />
+      <div className="flex items-center gap-1.5">
+        <CreditShell />
+        <button
+          onClick={onStartNewChat}
+          type="button"
+          aria-label="新建对话"
+          title="新建对话"
+          className="md:hidden p-2 rounded-lg text-zinc-500 hover:text-primary hover:bg-zinc-100 active:scale-90 transition-all"
+        >
+          <MessageSquarePlus size={22} />
+        </button>
+      </div>
     </header>
   );
 }

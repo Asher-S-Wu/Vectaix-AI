@@ -1,8 +1,6 @@
 "use client";
-import { scopeGuestUrl } from "@/lib/client/guestAccess";
 
 
-import { guestFetch } from "@/lib/client/guestAccess";
 
 
 import { AnimatePresence, motion } from "framer-motion";
@@ -39,7 +37,7 @@ export default function ImageLightbox({ open, onClose, src }) {
     if (!src || downloading) return;
     setDownloading(true);
     try {
-      const res = await guestFetch(src);
+      const res = await fetch(src);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -50,7 +48,7 @@ export default function ImageLightbox({ open, onClose, src }) {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     } catch {
-      window.open(scopeGuestUrl(src), "_blank");
+      window.open(src, "_blank");
     } finally {
       setDownloading(false);
     }
@@ -62,7 +60,7 @@ export default function ImageLightbox({ open, onClose, src }) {
     if (!open || !src) return;
     const img = new window.Image();
     img.onload = () => setLoadedImage({ src, w: img.naturalWidth, h: img.naturalHeight });
-    img.src = scopeGuestUrl(src);
+    img.src = src;
   }, [open, src]);
 
   useEffect(() => {
@@ -151,7 +149,7 @@ export default function ImageLightbox({ open, onClose, src }) {
 
             {src && (
               <Image
-                src={scopeGuestUrl(src)}
+                src={src}
                 alt="查看大图"
                 width={loadedImage?.src === src ? loadedImage.w : 1200}
                 height={loadedImage?.src === src ? loadedImage.h : 800}

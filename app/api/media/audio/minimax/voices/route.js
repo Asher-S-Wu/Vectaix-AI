@@ -1,5 +1,13 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
+import { creditErrorResponse } from "@/lib/server/credits/api";
+import { CreditError } from "@/lib/server/credits/errors";
+import { calculateMiniMaxTtsCost } from "@/lib/server/credits/pricing";
+import {
+  releaseMediaCredits,
+  reserveMediaCredits,
+  reviewMediaCredits,
+  settleMediaCredits,
+} from "@/lib/media/server/billing";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { resolvePublicAppUrl } from "@/lib/modelRoutes";
 import {
@@ -26,6 +34,7 @@ import { transcodeAudioClip } from "@/lib/media/server/audioTranscoding";
 import {
   createMinimaxVoice,
   deleteMinimaxVoice,
+  isMissingMinimaxVoiceError,
   listMinimaxSystemVoices,
 } from "@/lib/media/server/minimaxAudio";
 import { serializeMinimaxVoice } from "@/lib/media/server/minimaxAudioRecords";
@@ -43,6 +52,10 @@ import {
   deleteStoredFilesByOwner,
 } from "@/lib/server/storage/service";
 import MinimaxVoice from "@/models/MinimaxVoice";
+import {
+  assertMediaCreditOperationUnused,
+  requireMediaCreditOperation,
+} from "@/lib/media/server/creditOperation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,6 +80,15 @@ function publicMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("DASHSCOPE_BEIJING_API_KEY")) return "MiniMax 北京区域密钥尚未配置";
   return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+}
+
+function billingQuality(model) {
+  return model.endsWith("-turbo") ? "turbo" : "hd";
+}
+
+function isAmbiguousVoiceCloneError(error) {
+  return error?.name === "AbortError"
+    || ["NETWORK_ERROR", "INVALID_RESPONSE", "INVALID_USAGE", "MISSING_DEMO_AUDIO"].includes(String(error?.code || ""));
 }
 
 function readNumber(value) {
@@ -147,27 +169,65 @@ export async function POST(request) {
   let sourceOperationId = "";
   let profileId = "";
   let remoteVoiceId = "";
+  let userId = "";
+  let billingOperationId = "";
+  let reservation = null;
+  let billing = null;
+  let billingFinalized = false;
+  let upstreamCompleted = false;
+  let requestDispatched = false;
+  let upstreamRequestIds = [];
+  let preserveLocalRecord = false;
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    userId = user.userId;
     const limited = rateLimit(
       `media-minimax-voice-mutation:${user.userId}:${getClientIP(request)}`,
       VOICE_MUTATION_RATE_LIMIT,
     );
     if (!limited.success) return jsonMessage("声音复刻操作过于频繁，请稍后再试", 429);
+    const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
+    if (!parsed.ok) return parsed.response;
+    const input = parseCreateInput(parsed.body);
+    const creditOperation = requireMediaCreditOperation(request, {
+      userId: user.userId,
+      feature: "media_audio_minimax_voice_clone",
+      fingerprintInput: input,
+    });
+    billingOperationId = creditOperation.operationId;
+    await assertMediaCreditOperationUnused({
+      operationId: billingOperationId,
+      userId: user.userId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
     mediaWriteLease = await beginMediaWriteLease(user.userId);
     voiceCreationLease = await acquireVoiceCreationLease(user.userId);
     const existingCount = await MinimaxVoice.countDocuments({ userId: user.userId });
     if (existingCount >= MINIMAX_CUSTOM_VOICE_MAX_COUNT) {
       return jsonMessage(`每位用户最多保存 ${MINIMAX_CUSTOM_VOICE_MAX_COUNT} 个 MiniMax 复刻音色`, 409);
     }
-    const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
-    if (!parsed.ok) return parsed.response;
-    const input = parseCreateInput(parsed.body);
-    const accessError = modelAccessResponse(user, input.model);
-    if (accessError) return accessError;
-
+    const settings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
+    reservation = await reserveMediaCredits({
+      operationId: billingOperationId,
+      userId: user.userId,
+      feature: "media_audio_minimax_voice_clone",
+      provider: "minimax",
+      model: input.model,
+      estimate: calculateMiniMaxTtsCost({
+        characters: input.demoText.length,
+        quality: billingQuality(input.model),
+      }, settings),
+      settings,
+      usage: {
+        action: "voice_clone_demo",
+        characters: input.demoText.length,
+        quality: billingQuality(input.model),
+      },
+      executionClaimId: creditOperation.executionClaimId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
     sourceOperationId = crypto.randomUUID();
     const [source] = await claimAudioSources({
       userId: user.userId,
@@ -235,6 +295,7 @@ export async function POST(request) {
 
     const publicAppUrl = resolvePublicAppUrl();
     const audioUrl = `${publicAppUrl}/api/media/audio/minimax/voice-samples/${encodeURIComponent(profileId)}?token=${encodeURIComponent(token)}`;
+    await assertMediaWriteLeaseActive(mediaWriteLease);
     const upstream = await createMinimaxVoice({
       voiceId,
       audioUrl,
@@ -243,8 +304,33 @@ export async function POST(request) {
       languageBoost: input.languageBoost,
       noiseReduction: input.noiseReduction,
       volumeNormalization: input.volumeNormalization,
-    }, { signal: request.signal });
-    remoteVoiceId = voiceId;
+    }, {
+      signal: request.signal,
+      onRequestDispatched: () => {
+        requestDispatched = true;
+        remoteVoiceId = voiceId;
+      },
+    });
+    upstreamCompleted = true;
+    upstreamRequestIds = [upstream.requestId, upstream.traceId].filter(Boolean);
+    const settled = await settleMediaCredits({
+      reservation,
+      operationId: billingOperationId,
+      userId: user.userId,
+      actual: calculateMiniMaxTtsCost({
+        characters: upstream.characters,
+        quality: billingQuality(input.model),
+      }, reservation.settings),
+      usage: {
+        action: "voice_clone_demo",
+        characters: upstream.characters,
+        quality: billingQuality(input.model),
+        profileId,
+      },
+      upstreamRequestIds,
+    });
+    billing = settled.billing;
+    billingFinalized = true;
     await assertMediaWriteLeaseActive(mediaWriteLease);
     const demo = await saveAudioFromUrl({
       userId: user.userId,
@@ -274,29 +360,83 @@ export async function POST(request) {
     );
     if (!voice) throw new Error("保存 MiniMax 复刻音色失败");
     remoteVoiceId = "";
+    profileId = "";
     await deleteStoredFilesByIds({
       userId: user.userId,
       fileIds: [sample.fileId],
       ownerType: "voice-profile",
-      ownerId: profileId,
+      ownerId: voice.profileId,
+    }).catch((cleanupError) => {
+      console.error("[MiniMax Audio] cleanup accepted voice sample:", cleanupError);
     });
-    return Response.json({ success: true, voice: serializeMinimaxVoice(voice) }, { status: 201 });
+    return Response.json({ success: true, voice: serializeMinimaxVoice(voice), billing }, { status: 201 });
   } catch (error) {
-    if (remoteVoiceId) {
-      await deleteMinimaxVoice(remoteVoiceId).catch((cleanupError) => {
-        console.error("[MiniMax Audio] cleanup incomplete remote voice:", cleanupError);
-      });
+    if (reservation && !billingFinalized) {
+      try {
+        const result = upstreamCompleted || (requestDispatched && isAmbiguousVoiceCloneError(error))
+          ? await reviewMediaCredits({
+              reservation,
+              operationId: billingOperationId,
+              userId,
+              reason: upstreamCompleted
+                ? "MiniMax 音色已创建但本地处理未完成"
+                : "MiniMax 音色创建结果不明确",
+              usage: { action: "voice_clone_demo", profileId },
+              upstreamRequestIds: upstreamRequestIds.length
+                ? upstreamRequestIds
+                : [error?.requestId, error?.traceId].filter(Boolean),
+            })
+          : await releaseMediaCredits({
+              reservation,
+              operationId: billingOperationId,
+              userId,
+              usage: { action: "voice_clone_demo", profileId },
+              upstreamRequestIds: [error?.requestId].filter(Boolean),
+            });
+        billing = result.billing;
+        billingFinalized = true;
+      } catch (billingError) {
+        console.error("[MiniMax Audio] finalize voice clone billing:", billingError);
+      }
     }
-    if (profileId) {
+    if (remoteVoiceId) {
+      try {
+        await deleteMinimaxVoice(remoteVoiceId);
+        remoteVoiceId = "";
+      } catch (cleanupError) {
+        if (isMissingMinimaxVoiceError(cleanupError)) {
+          remoteVoiceId = "";
+        } else {
+          preserveLocalRecord = true;
+          await MinimaxVoice.updateOne(
+            { profileId, userId, status: "SUBMITTING" },
+            { $set: { status: "CLEANUP_PENDING", requestId: error?.requestId || "" } },
+            { runValidators: true },
+          ).catch(() => {});
+          console.error("[MiniMax Audio] cleanup incomplete remote voice:", cleanupError);
+        }
+      }
+    }
+    if (profileId && !preserveLocalRecord) {
       await MinimaxVoice.deleteOne({ profileId }).catch(() => {});
       await deleteStoredFilesByOwner({
-        userId: mediaWriteLease?.userId,
+        userId,
         ownerType: "voice-profile",
         ownerId: profileId,
       }).catch(() => {});
     }
     console.error("[MiniMax Audio] create voice:", { error, requestId: error?.requestId || "" });
-    return jsonMessage(publicMessage(error, "MiniMax 声音复刻失败"), errorStatus(error));
+    if (error instanceof CreditError) {
+      return creditErrorResponse(error, "MiniMax 声音复刻积分处理失败");
+    }
+    return Response.json(
+      {
+        success: false,
+        message: publicMessage(error, "MiniMax 声音复刻失败"),
+        ...(billing ? { billing } : {}),
+      },
+      { status: errorStatus(error) },
+    );
   } finally {
     if (sourceOperationId) {
       await deleteClaimedAudioSources({
@@ -316,4 +456,3 @@ export async function POST(request) {
     }
   }
 }
-

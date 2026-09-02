@@ -6,8 +6,9 @@ import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import { forbiddenResponse } from '@/lib/server/api/routeHelpers';
 import { deleteAllAuthSessionsForUser } from '@/lib/auth';
-import { deleteUserAndData } from '@/lib/server/guest/deleteUser';
+import { deleteUserAndData } from '@/lib/server/users/deleteUser';
 import { UserOperationLeaseError } from '@/lib/media/server/userOperationLeases';
+import { CreditError } from '@/lib/server/credits/errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export async function PATCH(req, context) {
 
     await dbConnect();
 
-    const user = await User.findOne({ _id: id, guestLinkId: { $exists: false } });
+    const user = await User.findOne({ _id: id });
     if (!user) {
         return Response.json({ error: '用户不存在' }, { status: 404 });
     }
@@ -57,6 +58,10 @@ export async function PATCH(req, context) {
                 isAdvancedUser: nextIsAdvancedUser,
             },
         });
+    }
+
+    if (isAdminEmail(user.email)) {
+        return Response.json({ error: '不能重置其他超级管理员的密码' }, { status: 403 });
     }
 
     // 生成随机密码（12 位，包含大小写字母和数字）
@@ -87,19 +92,24 @@ export async function DELETE(req, context) {
 
     await dbConnect();
 
-    const user = await User.exists({ _id: id, guestLinkId: { $exists: false } });
+    const user = await User.findById(id).select('email').lean();
     if (!user) return Response.json({ error: '用户不存在' }, { status: 404 });
+    if (isAdminEmail(user.email)) {
+        return Response.json({ error: '不能删除其他超级管理员账号' }, { status: 403 });
+    }
     try {
         await deleteUserAndData(id);
         return Response.json({ success: true });
     } catch (error) {
         console.error('[AdminUserDelete] 删除用户失败', { errorType: error?.name, code: error?.code });
+        const knownError = error instanceof UserOperationLeaseError || error instanceof CreditError;
         return Response.json(
             {
-                error: error instanceof UserOperationLeaseError ? error.message : '删除用户失败，账号已保持删除中状态，请稍后重试',
+                error: knownError ? error.message : '删除用户失败，账号已保持删除中状态，请稍后重试',
                 ...(error instanceof UserOperationLeaseError ? { code: error.code, reconciliation: error.reconciliation } : {}),
+                ...(error instanceof CreditError ? { code: error.code } : {}),
             },
-            { status: error instanceof UserOperationLeaseError ? error.statusCode : 500 },
+            { status: knownError ? error.statusCode : 500 },
         );
     }
 }

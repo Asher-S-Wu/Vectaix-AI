@@ -1,4 +1,3 @@
-import { scopeGuestUrl } from "@/lib/client/guestAccess";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -132,7 +131,7 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
     image.onload = () => {
       if (!cancelled) setLoadedSrc(src);
     };
-    image.src = scopeGuestUrl(src);
+    image.src = src;
 
     return () => {
       cancelled = true;
@@ -150,7 +149,7 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
       title="点击查看"
     >
       <Image
-        src={scopeGuestUrl(activeSrc)}
+        src={activeSrc}
         alt="图片附件"
         width={280}
         height={240}
@@ -179,15 +178,15 @@ export function AttachmentCard({ file, compact = false }) {
         <div className="truncate text-sm font-medium text-zinc-700 dark:text-zinc-300">{file.name}</div>
         <div className="truncate text-xs text-zinc-400">{formatAttachmentMeta(file)}</div>
         {file.category === "audio" && file.url ? (
-          <audio controls preload="metadata" src={scopeGuestUrl(file.url)} className="mt-2 h-8 w-full max-w-[320px]" />
+          <audio controls preload="metadata" src={file.url} className="mt-2 h-8 w-full max-w-[320px]" />
         ) : null}
         {file.category === "video" && file.url ? (
-          <video controls preload="metadata" src={scopeGuestUrl(file.url)} className="mt-2 max-h-48 w-full max-w-[320px] rounded-lg bg-black" />
+          <video controls preload="metadata" src={file.url} className="mt-2 max-h-48 w-full max-w-[320px] rounded-lg bg-black" />
         ) : null}
       </div>
       {downloadUrl ? (
         <a
-          href={scopeGuestUrl(downloadUrl)}
+          href={downloadUrl}
           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
           title="下载附件"
         >
@@ -288,7 +287,7 @@ export function Citations({ citations }) {
                     return (
                       <a
                         key={idx}
-                        href={scopeGuestUrl(citation.url)}
+                        href={citation.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 px-2.5 py-2 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 transition-colors"
@@ -340,7 +339,7 @@ export function ToolRunPreview({ tool }) {
           return (
             <a
               key={`${tool.id}-${index}`}
-              href={scopeGuestUrl(href)}
+              href={href}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/70 dark:bg-zinc-900/40 px-2.5 py-2 text-xs text-zinc-600 dark:text-zinc-300 hover:border-primary/40 hover:text-primary transition-colors"

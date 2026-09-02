@@ -1,4 +1,3 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import { getAuthPayload } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
@@ -56,11 +55,6 @@ export async function POST(request) {
     const model = String(formData.get("model") || "").trim();
     if (!(file instanceof File)) return jsonError("缺少上传文件");
     if (kind !== "chat" && kind !== "avatar") return jsonError("上传用途不合法");
-    if (kind === "chat") {
-      const accessError = modelAccessResponse(user, model);
-      if (accessError) return accessError;
-    }
-
     const originalName = String(file.name || "").trim();
     const extension = getFileExtension(originalName);
     if (!extension || !isSupportedUploadExtension(extension)) {

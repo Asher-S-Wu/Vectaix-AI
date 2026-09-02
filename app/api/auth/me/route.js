@@ -1,24 +1,25 @@
-import { endCurrentAuthSession, hasGuestRequestContext } from '@/lib/auth';
+import { endCurrentAuthSession } from '@/lib/auth';
 import { getCurrentUserWithAccess } from '@/lib/admin';
+import { getCreditSummary } from '@/lib/server/credits/service';
 
 export async function GET(request) {
   const user = await getCurrentUserWithAccess(request);
   if (!user) return Response.json({ user: null });
+  const credit = await getCreditSummary(user.userId);
 
   return Response.json({
+    credit,
     user: {
       id: user.userId,
       email: user.email,
       isAdmin: user.isAdmin,
       isAdvancedUser: user.isAdvancedUser,
+      credit,
     }
   });
 }
 
-export async function DELETE(request) {
-    if (await hasGuestRequestContext(request)) {
-        return Response.json({ error: '游客空间不能退出普通账号' }, { status: 403 });
-    }
+export async function DELETE() {
     await endCurrentAuthSession();
     return Response.json({ success: true });
 }

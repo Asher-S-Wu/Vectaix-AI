@@ -11,9 +11,10 @@ function generateNonce() {
 }
 
 function buildCsp(nonce) {
+  const developmentEval = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
+    `script-src 'self' 'nonce-${nonce}'${developmentEval}`,
     "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",

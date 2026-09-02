@@ -1,5 +1,20 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
+import { creditErrorResponse } from "@/lib/server/credits/api";
+import { CreditError } from "@/lib/server/credits/errors";
+import { calculateHappyHorseVideoCost } from "@/lib/server/credits/pricing";
+import {
+  getCreditSummary,
+  releaseCreditExecutionClaim,
+} from "@/lib/server/credits/service";
+import {
+  assertMediaCreditOperationUnused,
+  requireMediaCreditOperation,
+} from "@/lib/media/server/creditOperation";
+import {
+  releaseMediaCredits,
+  reserveMediaCredits,
+  reviewMediaCredits,
+} from "@/lib/media/server/billing";
 import {
   parseJsonRequest,
   requireUserRecord,
@@ -28,6 +43,7 @@ import { createHappyHorseVideoTask } from "@/lib/media/server/happyhorse/videos"
 import {
   applyHappyHorseTaskResult,
   failCreatedVideoTask,
+  finalizeHappyHorseTaskBilling,
   serializeVideoTask,
 } from "@/lib/media/server/happyhorse/taskRecords";
 import {
@@ -63,6 +79,7 @@ const TASK_INPUT_FIELDS = new Set([
   "resolution",
   "ratio",
   "duration",
+  "inputDurationSeconds",
   "audioSetting",
   "seed",
   "watermark",
@@ -165,6 +182,10 @@ function parseTaskInput(body) {
       throw new Error("视频编辑不支持设置画面比例或时长");
     }
     if (!Object.hasOwn(body, "audioSetting")) throw new Error("视频编辑缺少声音处理方式");
+    if (!Object.hasOwn(body, "inputDurationSeconds")) throw new Error("视频编辑缺少输入视频时长");
+  }
+  if (mode !== "edit" && body.inputDurationSeconds !== undefined) {
+    throw new Error("当前视频模式不支持输入视频时长");
   }
 
   const allowedResolutionSet = mode === "edit" ? ALLOWED_EDIT_RESOLUTIONS : ALLOWED_RESOLUTIONS;
@@ -186,6 +207,11 @@ function parseTaskInput(body) {
     const audioSetting = readString(body.audioSetting);
     if (!ALLOWED_AUDIO_SETTINGS.has(audioSetting)) throw new Error("不支持的声音处理方式");
     params.audioSetting = audioSetting;
+    const inputDurationSeconds = Number(body.inputDurationSeconds);
+    if (!Number.isFinite(inputDurationSeconds) || inputDurationSeconds < 3 || inputDurationSeconds > 60) {
+      throw new Error("输入视频时长必须在 3 至 60 秒之间");
+    }
+    params.inputDurationSeconds = Math.round(inputDurationSeconds * 1000) / 1000;
   } else if (body.audioSetting !== undefined) {
     throw new Error("当前模式不支持设置声音处理方式");
   }
@@ -225,6 +251,17 @@ async function loadAndValidateSources(userId, input) {
   )) {
     throw requestError("视频素材格式不正确、已被使用或超过 100MB");
   }
+  if (video && (!Number.isFinite(video.videoDuration) || video.videoDuration < 3 || video.videoDuration > 60)) {
+    throw requestError("无法确认视频素材的真实时长，请重新上传");
+  }
+  if (
+    input.mode === "edit"
+    && video
+    && Math.abs(video.videoDuration - input.params.inputDurationSeconds) > 0.5
+  ) {
+    throw requestError("提交的视频时长与服务器检测结果不一致，请重新选择素材");
+  }
+  if (input.mode === "edit" && video) input.params.inputDurationSeconds = video.videoDuration;
   return { fileIds, images: orderedImages, video };
 }
 
@@ -267,7 +304,12 @@ export async function GET(request) {
       .sort({ updatedAt: -1 })
       .limit(100)
       .lean();
-    return Response.json({ success: true, tasks: tasks.map(serializeVideoTask).filter(Boolean) });
+    const credit = await getCreditSummary(user.userId);
+    return Response.json({
+      success: true,
+      tasks: tasks.map(serializeVideoTask).filter(Boolean),
+      credit,
+    });
   } catch (error) {
     console.error("[Media Video] list tasks:", error);
     return jsonMessage(publicMessage(error, "读取视频任务失败"), 500);
@@ -279,12 +321,20 @@ export async function POST(request) {
   let task = null;
   let sourcesBound = false;
   let failureHandled = false;
+  let userId = "";
+  let operationId = "";
+  let reservation = null;
+  let billingFinalized = false;
+  let submissionStarted = false;
+  let requestDispatched = false;
+  let upstreamTaskId = "";
+  let upstreamTaskResponse = null;
+  let responseBilling = null;
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const accessError = modelAccessResponse(user, VIDEO_MODEL);
-    if (accessError) return accessError;
+    userId = user.userId;
 
     const limited = rateLimit(
       `media-video:${user.userId}:${getClientIP(request)}`,
@@ -300,7 +350,42 @@ export async function POST(request) {
     } catch (error) {
       return jsonMessage(publicMessage(error, "视频任务参数不正确"), 400);
     }
+    const creditOperation = requireMediaCreditOperation(request, {
+      userId: user.userId,
+      feature: "media_video_happyhorse",
+      fingerprintInput: input,
+    });
+    operationId = creditOperation.operationId;
+    await assertMediaCreditOperationUnused({
+      operationId,
+      userId: user.userId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
     const sources = await loadAndValidateSources(user.userId, input);
+    const settings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
+    const estimatedSeconds = input.mode === "edit"
+      ? input.params.inputDurationSeconds * 2
+      : input.params.duration;
+    reservation = await reserveMediaCredits({
+      operationId,
+      userId: user.userId,
+      feature: "media_video_happyhorse",
+      provider: "happyhorse",
+      model: VIDEO_MODELS[input.mode],
+      estimate: calculateHappyHorseVideoCost({
+        mode: input.mode === "edit" ? "edit" : "generation",
+        resolution: input.params.resolution,
+        billableSeconds: estimatedSeconds,
+      }, settings),
+      settings,
+      usage: {
+        mode: input.mode,
+        resolution: input.params.resolution,
+        estimatedSeconds,
+      },
+      executionClaimId: creditOperation.executionClaimId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
     mediaWriteLease = await beginMediaWriteLease(user.userId);
     const sourceAccess = sources.fileIds.length
       ? createVideoSourceAccess()
@@ -322,6 +407,14 @@ export async function POST(request) {
       },
       sourceAccessTokenHash: sourceAccess.tokenHash,
       sourceAccessTokenExpiresAt: sourceAccess.expiresAt,
+      billing: {
+        operationId,
+        status: reservation.transaction.status,
+        reservedPoints: reservation.transaction.reserved,
+        chargedPoints: 0,
+        refundedPoints: 0,
+      },
+      billingPricingSnapshot: reservation.pricingSnapshot,
     });
 
     if (sources.fileIds.length) {
@@ -347,14 +440,29 @@ export async function POST(request) {
 
     let upstreamTask;
     try {
+      submissionStarted = true;
+      await assertMediaWriteLeaseActive(mediaWriteLease);
+      const submissionMarkedAt = new Date();
+      const markedTask = await VideoGenerationTask.findOneAndUpdate(
+        { _id: task._id, status: "queued", upstreamTaskId: null },
+        { $set: { submissionDispatchedAt: submissionMarkedAt } },
+        { new: true },
+      ).select("+billingPricingSnapshot");
+      if (!markedTask) throw new Error("视频任务提交状态已变化");
+      task = markedTask;
+      await releaseCreditExecutionClaim(operationId, creditOperation.executionClaimId);
       upstreamTask = await createHappyHorseVideoTask({
         mode: input.mode,
         prompt: input.prompt,
         params: input.params,
         sourceUrls,
         signal: AbortSignal.timeout(TASK_SUBMISSION_TIMEOUT_MS),
+        onRequestDispatched: () => {
+          requestDispatched = true;
+        },
       });
-      const upstreamTaskId = readString(upstreamTask?.output?.task_id);
+      upstreamTaskResponse = upstreamTask;
+      upstreamTaskId = readString(upstreamTask?.output?.task_id);
       if (!upstreamTaskId) throw new Error("HappyHorse 未返回任务编号");
       await assertMediaWriteLeaseActive(mediaWriteLease);
       const localTaskId = task._id;
@@ -362,7 +470,7 @@ export async function POST(request) {
         { _id: localTaskId, status: "queued", upstreamTaskId: null },
         { $set: { upstreamTaskId, upstreamResponse: upstreamTask, upstreamUpdatedAt: new Date() } },
         { new: true },
-      );
+      ).select("+billingPricingSnapshot");
       if (!updatedTask) {
         task = await VideoGenerationTask.findById(localTaskId);
         const stateError = new Error("本地视频任务状态已失效，未保存上游任务编号");
@@ -374,6 +482,64 @@ export async function POST(request) {
         mediaWriteLease,
       });
     } catch (error) {
+      if (upstreamTaskId) {
+        failureHandled = true;
+        let recoveredTask = null;
+        try {
+          recoveredTask = await VideoGenerationTask.findOneAndUpdate(
+            { _id: task?._id, status: "queued", upstreamTaskId: null },
+            {
+              $set: {
+                upstreamTaskId,
+                upstreamResponse: upstreamTaskResponse,
+                upstreamUpdatedAt: new Date(),
+              },
+            },
+            { new: true },
+          ).select("+billingPricingSnapshot");
+          if (!recoveredTask && task?._id) {
+            const currentTask = await VideoGenerationTask.findById(task._id)
+              .select("+billingPricingSnapshot");
+            if (currentTask?.upstreamTaskId === upstreamTaskId) recoveredTask = currentTask;
+          }
+        } catch (recoveryError) {
+          console.error("[Media Video] persist created upstream task:", recoveryError);
+        }
+        if (recoveredTask) {
+          task = recoveredTask;
+          const serializedTask = serializeVideoTask(task);
+          const credit = await getCreditSummary(user.userId);
+          return Response.json({
+            success: false,
+            message: "供应商任务已创建，系统将在后台继续同步",
+            task: serializedTask,
+            billing: serializedTask?.billing
+              ? { ...serializedTask.billing, credit }
+              : null,
+            credit,
+          }, { status: 202 });
+        }
+
+        const reviewed = await reviewMediaCredits({
+          reservation,
+          operationId,
+          userId: user.userId,
+          reason: "HappyHorse 供应商任务已创建，但本地任务号保存失败",
+          usage: {
+            submissionStarted,
+            upstreamTaskId,
+            errorCode: error?.code || "",
+          },
+          upstreamRequestIds: [upstreamTaskId],
+        });
+        billingFinalized = true;
+        return Response.json({
+          success: false,
+          message: "供应商任务已创建，积分已转人工核对",
+          billing: reviewed.billing,
+          credit: reviewed.credit,
+        }, { status: 500 });
+      }
       if (sourcesBound) {
         failureHandled = true;
         task = await failCreatedVideoTask(task, error, { mediaWriteLease });
@@ -381,8 +547,49 @@ export async function POST(request) {
       throw error;
     }
 
-    return Response.json({ success: true, task: serializeVideoTask(task) }, { status: 201 });
+    const serializedTask = serializeVideoTask(task);
+    const credit = await getCreditSummary(user.userId);
+    const responseBilling = serializedTask?.billing
+      ? { ...serializedTask.billing, credit }
+      : null;
+    return Response.json({
+      success: true,
+      task: serializedTask,
+      billing: responseBilling,
+      credit,
+    }, { status: 201 });
   } catch (error) {
+    if (reservation && !billingFinalized && !task?.upstreamTaskId) {
+      try {
+        if (task) {
+          task = await finalizeHappyHorseTaskBilling(task, {
+            status: requestDispatched && !Number.isInteger(error?.upstreamStatus) ? "unknown" : "failed",
+            upstreamStatus: requestDispatched && !Number.isInteger(error?.upstreamStatus) ? "UNKNOWN" : "FAILED",
+            usage: { submissionStarted },
+          });
+          responseBilling = serializeVideoTask(task)?.billing || null;
+        } else {
+          const result = requestDispatched && !Number.isInteger(error?.upstreamStatus)
+            ? await reviewMediaCredits({
+                reservation,
+                operationId,
+                userId,
+                reason: "HappyHorse 任务提交结果不明确",
+                usage: { submissionStarted },
+              })
+            : await releaseMediaCredits({
+                reservation,
+                operationId,
+                userId,
+                usage: { submissionStarted },
+              });
+          billingFinalized = Boolean(result.billing);
+          responseBilling = result.billing;
+        }
+      } catch (billingError) {
+        console.error("[Media Video] finalize submission billing:", billingError);
+      }
+    }
     if (task && !failureHandled) {
       if (sourcesBound) {
         failureHandled = true;
@@ -394,12 +601,28 @@ export async function POST(request) {
       }
     }
     console.error("[Media Video] create task:", error);
+    if (error instanceof CreditError) {
+      return creditErrorResponse(error, "视频任务积分处理失败");
+    }
     const status = Number.isInteger(error?.status)
       ? error.status
       : Number.isInteger(error?.statusCode)
         ? error.statusCode
         : 500;
-    return jsonMessage(publicMessage(error, "视频任务创建失败"), status);
+    const credit = reservation
+      ? await getCreditSummary(userId).catch(() => null)
+      : null;
+    return Response.json(
+      {
+        success: false,
+        message: publicMessage(error, "视频任务创建失败"),
+        ...(responseBilling
+          ? { billing: { ...responseBilling, ...(credit ? { credit } : {}) } }
+          : {}),
+        ...(credit ? { credit } : {}),
+      },
+      { status },
+    );
   } finally {
     if (mediaWriteLease) {
       await endMediaWriteLease(mediaWriteLease).catch((error) => {

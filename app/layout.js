@@ -6,6 +6,7 @@ import { Inter } from 'next/font/google';
 import { ToastProvider } from './components/common/ToastProvider';
 import FadeScrollbarGlobal from './components/layout/FadeScrollbarGlobal';
 import { UI_THEME_MODE_KEY } from '@/lib/shared/storageKeys';
+import { CreditProvider } from '@/lib/client/credits/CreditContext';
 
 const inter = Inter({
     subsets: ['latin'],
@@ -58,14 +59,20 @@ export default async function RootLayout({ children }) {
     return (
         <html lang="zh-CN" className={inter.variable} suppressHydrationWarning>
             <head>
-                <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
+                <script
+                    nonce={nonce}
+                    suppressHydrationWarning
+                    dangerouslySetInnerHTML={{ __html: themeScript }}
+                />
             </head>
             <body>
                 <FadeScrollbarGlobal />
                 <ToastProvider>
-                    <div className="main-layout h-full">
-                        {children}
-                    </div>
+                    <CreditProvider>
+                        <div className="main-layout h-full">
+                            {children}
+                        </div>
+                    </CreditProvider>
                 </ToastProvider>
             </body>
         </html>

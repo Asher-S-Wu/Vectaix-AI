@@ -30,6 +30,8 @@ const VideoGenerationTaskSchema = new mongoose.Schema({
   params: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
   error: { type: mongoose.Schema.Types.Mixed, default: null },
   usage: { type: mongoose.Schema.Types.Mixed, default: null },
+  billing: { type: mongoose.Schema.Types.Mixed, default: null },
+  billingPricingSnapshot: { type: mongoose.Schema.Types.Mixed, default: null, select: false },
   upstreamResponse: { type: mongoose.Schema.Types.Mixed, default: null },
   videoFileId: { type: String, default: null },
   sourceAccessTokenHash: { type: String, default: null, select: false },
@@ -37,6 +39,7 @@ const VideoGenerationTaskSchema = new mongoose.Schema({
   sourceAccessRevokedAt: { type: Date, default: null },
   finalizationStartedAt: { type: Date, default: null },
   upstreamPolledAt: { type: Date, default: null },
+  submissionDispatchedAt: { type: Date, default: null },
   upstreamCreatedAt: { type: Date, default: null },
   upstreamUpdatedAt: { type: Date, default: null },
 }, { timestamps: true, autoIndex: false });

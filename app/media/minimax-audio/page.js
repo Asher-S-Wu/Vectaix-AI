@@ -1,7 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useGuestSession } from "@/lib/client/GuestSession";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -43,6 +42,7 @@ import {
 import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
 import { createMinimaxAudioVoicePageAdapter } from "@/lib/media/client/audioVoiceSelection.mjs";
 import { readLocalSetting, writeLocalSetting } from "@/lib/client/localSettings";
+import { useCredits } from "@/lib/client/credits/CreditContext";
 import {
   getMinimaxAudioModel,
   MINIMAX_AUDIO_DEFAULT_MODEL,
@@ -61,10 +61,10 @@ function merge(items, item) {
 }
 
 export default function MinimaxAudioWorkspacePage() {
-  const guest = useGuestSession();
+  const { pricing } = useCredits();
   const searchParams = useSearchParams();
   const requestedModel = searchParams.get("model");
-  const availableModels = MINIMAX_AUDIO_MODELS.filter((item) => !guest || guest.user.allowedModelIds.includes(item.id));
+  const availableModels = MINIMAX_AUDIO_MODELS;
   const reduceMotion = useReducedMotion();
   const textRef = useRef(null);
   const pendingAutoPlayGenerationIdRef = useRef("");
@@ -78,7 +78,7 @@ export default function MinimaxAudioWorkspacePage() {
   const [text, setText] = useState("");
   const [model, setModelState] = useState(() => {
     const saved = readLocalSetting("vectaix-minimax-model");
-    return availableModels.find((item) => item.id === requestedModel)?.id || availableModels.find((item) => item.id === saved)?.id || availableModels[0]?.id || (guest ? "" : MINIMAX_AUDIO_DEFAULT_MODEL);
+    return availableModels.find((item) => item.id === requestedModel)?.id || availableModels.find((item) => item.id === saved)?.id || availableModels[0]?.id || MINIMAX_AUDIO_DEFAULT_MODEL;
   });
   const modelAllowed = availableModels.some((item) => item.id === model);
   const setModel = (nextModel) => {
@@ -174,6 +174,30 @@ export default function MinimaxAudioWorkspacePage() {
   const allVoices = useMemo(() => [...systemVoices, ...customVoices], [systemVoices, customVoices]);
   const selectedVoice = allVoices.find((voice) => voice.voiceId === voiceId) || null;
   const latest = generations.find((item) => item.id === latestId) || null;
+  const selectedCustomVoice = customVoices.find((voice) => voice.voiceId === voiceId) || null;
+
+  useEffect(() => {
+    const markVoiceUnlocked = (event) => {
+      const unlockedVoiceId = event?.detail?.voiceId;
+      if (typeof unlockedVoiceId !== "string" || !unlockedVoiceId) return;
+      const unlockedVoices = customVoicesRef.current.map((voice) => (
+        voice.voiceId === unlockedVoiceId ? { ...voice, isUnlocked: true } : voice
+      ));
+      customVoicesRef.current = unlockedVoices;
+      setCustomVoices(unlockedVoices);
+    };
+    window.addEventListener("vectaix-minimax-voice-unlocked", markVoiceUnlocked);
+    return () => window.removeEventListener("vectaix-minimax-voice-unlocked", markVoiceUnlocked);
+  }, []);
+  const minimaxCharacterRate = model.includes("turbo")
+    ? pricing?.minimaxTts?.turboPer10000Characters
+    : pricing?.minimaxTts?.hdPer10000Characters;
+  const estimatedPoints = Number.isInteger(minimaxCharacterRate) && text.length > 0
+    ? Math.ceil((text.length / 10000) * minimaxCharacterRate)
+    : null;
+  const firstVoiceClonePoints = Number.isInteger(pricing?.minimaxTts?.firstVoiceClone)
+    ? pricing.minimaxTts.firstVoiceClone
+    : null;
   const history = latest ? generations.filter((item) => item.id !== latest.id) : generations;
 
   const closeVoicePicker = useCallback(() => setVoicePickerOpen(false), []);
@@ -226,6 +250,10 @@ export default function MinimaxAudioWorkspacePage() {
       setGenerationError("请选择一个音色");
       return;
     }
+    if (selectedCustomVoice?.unlockPending) {
+      setGenerationError("该音色的首次解锁费用正在核对，请等待管理员处理后再试");
+      return;
+    }
     setGenerating(true);
     try {
       const generation = await createMinimaxAudioGeneration({
@@ -243,6 +271,13 @@ export default function MinimaxAudioWorkspacePage() {
       setGenerations((current) => merge(current, generation));
       setLatestId(generation.id);
       setGenerationsError("");
+      if (selectedCustomVoice && !selectedCustomVoice.isUnlocked) {
+        const unlockedVoices = customVoicesRef.current.map((voice) => (
+          voice.id === selectedCustomVoice.id ? { ...voice, isUnlocked: true } : voice
+        ));
+        customVoicesRef.current = unlockedVoices;
+        setCustomVoices(unlockedVoices);
+      }
     } catch (error) {
       setGenerationError(error instanceof Error ? error.message : "MiniMax 语音生成失败");
     } finally {
@@ -543,12 +578,24 @@ export default function MinimaxAudioWorkspacePage() {
 
               <button
                 type="submit"
-                disabled={!modelAllowed || generating || voicesLoading || !voiceId}
+                disabled={!modelAllowed || generating || voicesLoading || !voiceId || selectedCustomVoice?.unlockPending}
                 className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60"
               >
                 {generating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <WandSparkles className="h-5 w-5" />}
                 {generating ? "正在生成语音…" : "生成语音"}
               </button>
+              {Number.isInteger(estimatedPoints) ? (
+                <p className="text-center text-xs text-zinc-500">
+                  预计约消耗 {estimatedPoints.toLocaleString("zh-CN")} 积分
+                  {selectedCustomVoice?.unlockPending
+                    ? "；该音色的首次解锁费用正在核对，暂不能重复提交"
+                    : selectedCustomVoice && !selectedCustomVoice.isUnlocked
+                      ? (firstVoiceClonePoints === null
+                        ? "；复刻音色首次合成会另计解锁费用"
+                        : `；复刻音色首次合成另约 ${firstVoiceClonePoints.toLocaleString("zh-CN")} 积分`)
+                    : ""}
+                </p>
+              ) : null}
               <div className="sr-only" aria-live="polite">
                 {generating ? "正在生成语音，请稍候" : latest ? "语音已经生成并保存" : ""}
               </div>
@@ -606,6 +653,7 @@ export default function MinimaxAudioWorkspacePage() {
             onRename={handleRenameVoice}
             onDelete={handleDeleteVoice}
             onRefresh={loadVoices}
+            pricing={pricing}
           />
         </div>
       )}

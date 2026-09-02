@@ -1,5 +1,4 @@
 import Conversation from '@/models/Conversation';
-import { modelAccessResponse } from '@/lib/server/guest/access';
 import { sanitizeImportedConversation } from '@/lib/server/conversations/sanitize';
 import { bindStoredFiles, collectStoredFileIds } from '@/lib/server/storage/service';
 import { TEXT_CHAT_MAX_REQUEST_BYTES } from '@/lib/server/chat/routeConstants';
@@ -48,8 +47,6 @@ export async function POST(req) {
         const body = parsed.body;
 
         const conversationInput = sanitizeImportedConversation(body, 0, user.userId);
-        const accessError = modelAccessResponse(user, conversationInput.model);
-        if (accessError) return accessError;
         const created = await Conversation.create({
             ...conversationInput,
             pinned: Boolean(conversationInput.pinned),

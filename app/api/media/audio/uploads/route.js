@@ -11,10 +11,6 @@ import {
   AUDIO_UPLOAD_RATE_LIMIT,
   AUDIO_UPLOAD_PURPOSES,
 } from "@/lib/media/shared/audioUploads";
-import { AUDIO_MODEL } from "@/lib/media/shared/models";
-import { MINIMAX_AUDIO_MODEL_IDS } from "@/lib/media/shared/minimaxAudio";
-import { DOUBAO_AUDIO_MODEL } from "@/lib/media/shared/doubaoAudio";
-import { anyModelAccessResponse } from "@/lib/server/guest/access";
 import {
   cleanupExpiredAudioSourceUploads,
   createAudioSourceUpload,
@@ -30,12 +26,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const EXTENSION_SET = new Set(AUDIO_UPLOAD_EXTENSIONS);
-const PURPOSE_MODELS = Object.freeze({
-  [AUDIO_UPLOAD_PURPOSES.VOICE_CLONE]: [AUDIO_MODEL],
-  [AUDIO_UPLOAD_PURPOSES.MINIMAX_VOICE_CLONE]: MINIMAX_AUDIO_MODEL_IDS,
-  [AUDIO_UPLOAD_PURPOSES.DOUBAO_VOICE_LIBRARY]: [DOUBAO_AUDIO_MODEL],
-});
-
 function jsonMessage(message, status = 400) {
   return Response.json({ success: false, message }, { status });
 }
@@ -83,8 +73,6 @@ export async function POST(request) {
 
     const purpose = new URL(request.url).searchParams.get("purpose") || "";
     if (!isAudioUploadPurpose(purpose)) return jsonMessage("音频用途无效");
-    const accessError = anyModelAccessResponse(user, PURPOSE_MODELS[purpose]);
-    if (accessError) return accessError;
     const originalName = readOriginalName(request);
     if (!originalName) return jsonMessage("音频文件名格式错误");
     const extension = getFileExtension(originalName);

@@ -62,14 +62,13 @@
 
 ### 🤖 Multi-Model Intelligence
 
-Access 7 chat models through a unified interface. Switching models starts a new topic so each model keeps a clean, independent context.
+Access 6 chat models through a unified interface. Switching models starts a new topic so each model keeps a clean, independent context.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-5.6 Sol** | OpenAI | 1.05M | Text, Image | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 1M | Text, Image | ✅ | ✅ |
 | **Gemini 3.7 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
-| **Abliterated Model Large** | Abliteration AI | 1M | Text | ✅ | ✅ |
 | **Grok 4.6** | xAI | 500K | Text, Image | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 1M | Text, Image | ✅ | ✅ |
 | **Qwen 3.8 Max** | Alibaba Cloud | 1M | Text, Image | ✅ | ✅ |
@@ -241,7 +240,7 @@ vectaix-ai/
 | **Backend** | Next.js API Routes · Node.js · SSE (Server-Sent Events) Streaming |
 | **Database** | MongoDB with Mongoose ODM |
 | **Storage** | Zeabur mounted disk (private media files) |
-| **AI Providers** | OpenRouter · Abliteration · Alibaba Cloud Model Studio |
+| **AI Providers** | OpenRouter · Alibaba Cloud Model Studio |
 | **Auth** | MongoDB server sessions · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **Deployment** | Zeabur native Next.js service (single instance) |
@@ -275,7 +274,6 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
 | `OPENROUTER_API_KEY` | — | Shared OpenRouter API key for the GPT, Grok, Claude, Gemini, and Kimi K3 chat models |
-| `ABLIT_KEY` | — | Abliteration API key (`ak_...`) for Abliterated Model Large |
 | `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen 3.8 Max, Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
 | `DASHSCOPE_BEIJING_API_KEY` | — | Beijing-region Alibaba Cloud Model Studio API key for MiniMax Speech 2.8 HD / Turbo |
 | `AI_MEDIAKIT_API_KEY` | — | API key for AI MediaKit video enhancement (large-model edition); configure when enabled |

@@ -1,18 +1,17 @@
 import dbConnect from '@/lib/db';
-import { getUserAccessFlags } from '@/lib/admin';
+import { getUserAccessFlags, isAdminEmail } from '@/lib/admin';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-import { hasGuestRequestContext, startAuthSession } from '@/lib/auth';
+import { startAuthSession } from '@/lib/auth';
 import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import { isValidEmail, normalizeEmail, validatePassword } from '@/lib/server/auth/validation';
+import { initializeUserCredits } from '@/lib/server/credits/migration';
+import { getCreditSummary } from '@/lib/server/credits/service';
 
 const REGISTER_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 
 export async function POST(req) {
     try {
-        if (await hasGuestRequestContext(req)) {
-            return Response.json({ error: '游客空间不支持账号注册' }, { status: 403 });
-        }
         const clientIP = getClientIP(req);
         const rateLimitKey = `register:${clientIP}`;
         const { success, resetTime } = rateLimit(rateLimitKey, REGISTER_RATE_LIMIT);
@@ -54,6 +53,9 @@ export async function POST(req) {
         if (!isValidEmail(normalizedEmail)) {
             return Response.json({ error: '请输入有效的邮箱地址' }, { status: 400 });
         }
+        if (isAdminEmail(normalizedEmail)) {
+            return Response.json({ error: '该邮箱为系统保留的管理员邮箱，不能公开注册' }, { status: 403 });
+        }
 
         const passwordCheck = validatePassword(password);
         if (!passwordCheck.valid) {
@@ -64,7 +66,7 @@ export async function POST(req) {
             return Response.json({ error: '两次输入的密码不一致' }, { status: 400 });
         }
 
-        const existingUser = await User.findOne({ email: normalizedEmail, guestLinkId: { $exists: false } });
+        const existingUser = await User.findOne({ email: normalizedEmail });
         if (existingUser) {
             return Response.json({ error: '该邮箱已注册' }, { status: 400 });
         }
@@ -75,13 +77,17 @@ export async function POST(req) {
             password: hashedPassword,
         });
 
+        await initializeUserCredits(user._id);
         await startAuthSession(user._id);
+        const credit = await getCreditSummary(user._id);
 
         return Response.json({
             success: true,
+            credit,
             user: {
                 id: user._id,
                 email: user.email,
+                credit,
                 ...getUserAccessFlags(user),
             }
         });

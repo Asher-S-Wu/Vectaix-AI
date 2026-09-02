@@ -18,17 +18,27 @@ const SessionSchema = new mongoose.Schema({
     required: true,
     index: { expires: 0 },
   },
-  guestLinkId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "GuestLink",
-    index: true,
-  },
-  guestLinkRevision: {
-    type: String,
-    required: function requireGuestRevision() { return Boolean(this.guestLinkId); },
-  },
 }, { timestamps: true });
 
 SessionSchema.index({ userId: 1, expiresAt: 1 });
 
-export default mongoose.models.Session || mongoose.model("Session", SessionSchema);
+const Session = mongoose.models.Session || mongoose.model("Session", SessionSchema);
+
+export async function ensureSessionIndexes() {
+  const collection = Session.collection;
+  let indexes = [];
+  try {
+    indexes = await collection.indexes();
+  } catch (error) {
+    if (error?.code !== 26 && error?.codeName !== "NamespaceNotFound") throw error;
+  }
+  for (const index of indexes) {
+    const fields = Object.keys(index.key || {});
+    if (fields.includes("guestLinkId") || fields.includes("guestLinkRevision")) {
+      await collection.dropIndex(index.name);
+    }
+  }
+  await Session.createIndexes();
+}
+
+export default Session;

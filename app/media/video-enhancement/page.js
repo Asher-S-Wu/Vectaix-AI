@@ -22,6 +22,7 @@ import {
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
 import MediaSelect from "@/app/components/media/MediaSelect";
 import VideoEnhancementTaskCard from "@/app/components/media/VideoEnhancementTaskCard";
+import { useCredits } from "@/lib/client/credits/CreditContext";
 import {
   abandonVideoEnhancementUpload,
   confirmVideoEnhancementUpload,
@@ -124,11 +125,48 @@ function formatBytes(value) {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+function readVideoDuration(source) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const objectUrl = source instanceof File ? URL.createObjectURL(source) : "";
+    const cleanup = () => {
+      video.onloadedmetadata = null;
+      video.onerror = null;
+      video.removeAttribute("src");
+      video.load();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+    const timer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("无法读取视频时长"));
+    }, 10_000);
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      const duration = Number(video.duration);
+      window.clearTimeout(timer);
+      cleanup();
+      if (!Number.isFinite(duration) || duration <= 0) {
+        reject(new Error("无法读取视频时长"));
+        return;
+      }
+      resolve(duration);
+    };
+    video.onerror = () => {
+      window.clearTimeout(timer);
+      cleanup();
+      reject(new Error("无法读取视频时长"));
+    };
+    video.src = objectUrl || String(source);
+  });
+}
+
 export default function VideoEnhancementPage() {
+  const { pricing } = useCredits();
   const [sourceType, setSourceType] = useState("upload");
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedMimeType, setSelectedMimeType] = useState("");
   const [urlInput, setUrlInput] = useState("");
+  const [sourceDurationSeconds, setSourceDurationSeconds] = useState("");
   const [resolution, setResolution] = useState("1080p");
   const [fpsMode, setFpsMode] = useState("original");
   const [fpsValue, setFpsValue] = useState("30");
@@ -226,27 +264,35 @@ export default function VideoEnhancementPage() {
     if (nextSourceType === sourceType || phase === "submitting") return;
     if (isSubmitting) clearPendingUpload("switch");
     setSourceType(nextSourceType);
+    setSourceDurationSeconds("");
     setFormError("");
     setSuccessMessage("");
   };
 
-  const handleFileChange = (event) => {
+  const handleFileChange = async (event) => {
     const file = event.target.files?.[0] || null;
     setFormError("");
     setSuccessMessage("");
     if (!file) {
       setSelectedFile(null);
       setSelectedMimeType("");
+      setSourceDurationSeconds("");
       return;
     }
     try {
       const metadata = validateVideoFile(file);
       setSelectedFile(file);
       setSelectedMimeType(metadata.mimeType);
+      const duration = await readVideoDuration(file);
+      if (duration < 1 || duration > 60) {
+        throw new Error("原片时长必须在 1 到 60 秒之间");
+      }
+      setSourceDurationSeconds(String(Math.ceil(duration)));
     } catch (error) {
       event.target.value = "";
       setSelectedFile(null);
       setSelectedMimeType("");
+      setSourceDurationSeconds("");
       setFormError(getErrorMessage(error, "无法使用这个视频文件"));
     }
   };
@@ -254,6 +300,7 @@ export default function VideoEnhancementPage() {
   const removeSelectedFile = () => {
     setSelectedFile(null);
     setSelectedMimeType("");
+    setSourceDurationSeconds("");
     setFormError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -295,6 +342,10 @@ export default function VideoEnhancementPage() {
         fileMetadata = validateVideoFile(selectedFile);
       } else {
         source = { type: "url", url: validatePublicVideoUrl(urlInput) };
+      }
+      const duration = Number(sourceDurationSeconds);
+      if (!Number.isInteger(duration) || duration < 1 || duration > 60) {
+        throw new Error("请填写 1 到 60 秒之间的原片时长");
       }
     } catch (error) {
       setFormError(getErrorMessage(error, "请检查填写内容"));
@@ -345,6 +396,7 @@ export default function VideoEnhancementPage() {
           ? { mode: "level", value: bitrateLevel }
           : { mode: "exact", value: Number(exactBitrate) },
         ...(fpsMode === "exact" ? { fps: Number(fpsValue) } : {}),
+        sourceDurationSeconds: Number(sourceDurationSeconds),
       };
 
       setPhase("submitting");
@@ -533,8 +585,21 @@ export default function VideoEnhancementPage() {
                   value={urlInput}
                   onChange={(event) => {
                     setUrlInput(event.target.value);
+                    setSourceDurationSeconds("");
                     setFormError("");
                     setSuccessMessage("");
+                  }}
+                  onBlur={async () => {
+                    if (!urlInput.trim() || sourceDurationSeconds) return;
+                    try {
+                      const safeUrl = validatePublicVideoUrl(urlInput);
+                      const duration = await readVideoDuration(safeUrl);
+                      if (duration >= 1 && duration <= 60 && mountedRef.current) {
+                        setSourceDurationSeconds(String(Math.ceil(duration)));
+                      }
+                    } catch {
+                      // 公网地址无法可靠读取元数据时，由用户填写时长。
+                    }
                   }}
                   disabled={isSubmitting}
                   placeholder="https://example.com/video.mp4"
@@ -544,6 +609,24 @@ export default function VideoEnhancementPage() {
               <p className="mt-2 text-xs leading-5 text-zinc-500">仅支持公开的 HTTPS 地址，不能带账号密码、网址片段或特殊端口。</p>
             </div>
           )}
+
+          <div>
+            <label htmlFor="video-enhancement-duration" className="mb-2 block text-sm font-medium">原片时长（秒）</label>
+            <input
+              id="video-enhancement-duration"
+              type="number"
+              min="1"
+              max="60"
+              step="1"
+              value={sourceDurationSeconds}
+              onChange={(event) => setSourceDurationSeconds(event.target.value)}
+              readOnly={sourceType === "upload"}
+              disabled={isSubmitting}
+              placeholder={sourceType === "upload" ? "选择文件后自动读取" : "无法自动读取时请手动填写"}
+              className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 read-only:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:read-only:bg-zinc-950"
+            />
+            <p className="mt-2 text-xs text-zinc-500">仅支持 1 到 60 秒；网址无法自动读取时需要手动填写。</p>
+          </div>
 
           <div className="border-t border-zinc-100 pt-5 dark:border-zinc-800">
             <div className="mb-4 flex items-center gap-3">
@@ -731,6 +814,9 @@ export default function VideoEnhancementPage() {
               {isSubmitting ? PHASE_LABELS[phase] || "正在提交" : "开始画质增强"}
             </button>
           </div>
+          {Number.isInteger(pricing?.mediaKit?.perMinute) ? (
+            <p className="text-center text-xs text-zinc-500">普通用户统一按 60 秒上限冻结 {pricing.mediaKit.perMinute.toLocaleString("zh-CN")} 积分，完成后按结果时长退回差额</p>
+          ) : null}
         </form>
 
         <aside className="space-y-4 lg:sticky lg:top-24">

@@ -1,15 +1,12 @@
 "use client";
 
 
-import { useGuestSession } from "@/lib/client/GuestSession";
-import { guestWorkspaceHref } from "@/lib/client/guestAccess";
-import { getGuestModels } from "@/lib/shared/guestModels";
-import GuestToolbar from "@/app/components/guest/GuestToolbar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { UI_THEME_MODE_KEY } from "@/lib/shared/storageKeys";
+import CreditShell from "@/app/components/credits/CreditShell";
 
 const THEME_CHANGE_EVENT = "vectaix-theme-change";
 const THEME_MODE_CYCLE = ["system", "light", "dark"];
@@ -57,8 +54,6 @@ const MODE_META = {
 
 export default function MediaHeader() {
   const pathname = usePathname();
-  const guest = useGuestSession();
-  const guestModels = guest ? getGuestModels(guest.user.allowedModelIds) : [];
   const mode = useSyncExternalStore(
     subscribeTheme,
     getModeSnapshot,
@@ -84,22 +79,25 @@ export default function MediaHeader() {
     { href: "/media/audio", label: "Qwen 语音" },
     { href: "/media/minimax-audio", label: "MiniMax 语音" },
     { href: "/media/doubao-audio", label: "豆包语音" },
-  ].filter((item) => !guest || guestModels.some((model) => model.href === item.href));
+  ];
 
   return (
     <header className="sticky top-0 z-40 glass-effect border-b border-zinc-200/50">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
-        <div className="min-w-0">
-          <h1 className="text-base sm:text-lg font-semibold leading-tight">媒体工作台</h1>
-          <p className="hidden sm:block text-xs text-zinc-500">图片、视频、画质增强与音频创作</p>
+        <div className="flex w-full min-w-0 items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-semibold leading-tight">媒体工作台</h1>
+            <p className="hidden sm:block text-xs text-zinc-500">图片、视频、画质增强与音频创作</p>
+          </div>
+          <CreditShell />
         </div>
-        <nav className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar">
+        <nav className="flex w-full items-center gap-1.5 overflow-x-auto no-scrollbar sm:gap-2">
           {navItems.map((item) => {
-            const active = pathname === guestWorkspaceHref(item.href);
+            const active = pathname === item.href;
             return (
               <Link
                 key={item.href}
-                href={guestWorkspaceHref(item.href)}
+                href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                   active
@@ -111,12 +109,12 @@ export default function MediaHeader() {
               </Link>
             );
           })}
-          {(!guest || guestModels.some((model) => model.type === "chat")) && <Link
-            href={guestWorkspaceHref("/")}
+          <Link
+            href="/"
             className="shrink-0 rounded-xl px-3 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 transition-colors"
           >
             返回聊天
-          </Link>}
+          </Link>
           <button
             type="button"
             onClick={cycleTheme}
@@ -127,7 +125,6 @@ export default function MediaHeader() {
             <ModeIcon size={18} />
           </button>
         </nav>
-        <GuestToolbar />
       </div>
     </header>
   );

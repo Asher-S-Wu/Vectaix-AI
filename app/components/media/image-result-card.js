@@ -1,6 +1,5 @@
 'use client';
 
-import { scopeGuestUrl } from "@/lib/client/guestAccess";
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, ImageIcon, Maximize2 } from 'lucide-react';
@@ -33,7 +32,7 @@ export default function ImageResultCard({ imageUrl, title = '生成的图片' })
             放大
           </button>
           <a
-            href={scopeGuestUrl(imageUrl)}
+            href={imageUrl}
             download
             className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-500 hover:text-primary hover:bg-primary/5 transition-colors"
             title="下载图片"
@@ -50,9 +49,9 @@ export default function ImageResultCard({ imageUrl, title = '生成的图片' })
         title="点击查看大图"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={scopeGuestUrl(imageUrl)} alt={title} className="mx-auto max-h-[640px] w-auto max-w-full object-contain" />
+        <img src={imageUrl} alt={title} className="mx-auto max-h-[640px] w-auto max-w-full object-contain" />
       </button>
-      <ImageLightbox open={lightboxOpen} onClose={() => setLightboxOpen(false)} src={scopeGuestUrl(imageUrl)} />
+      <ImageLightbox open={lightboxOpen} onClose={() => setLightboxOpen(false)} src={imageUrl} />
     </motion.div>
   );
 }

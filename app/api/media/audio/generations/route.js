@@ -1,5 +1,16 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
-import crypto from "node:crypto";
+import { creditErrorResponse } from "@/lib/server/credits/api";
+import { CreditError } from "@/lib/server/credits/errors";
+import { calculateQwenTtsCost } from "@/lib/server/credits/pricing";
+import {
+  releaseMediaCredits,
+  reserveMediaCredits,
+  reviewMediaCredits,
+  settleMediaCredits,
+} from "@/lib/media/server/billing";
+import {
+  assertMediaCreditOperationUnused,
+  requireMediaCreditOperation,
+} from "@/lib/media/server/creditOperation";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   requireUserRecord,
@@ -15,7 +26,10 @@ import {
   AUDIO_TEXT_MAX_LENGTH,
   getPresetAudioVoice,
 } from "@/lib/media/shared/models";
-import { synthesizeSpeech } from "@/lib/media/server/qwenAudio";
+import {
+  isExplicitQwenAudioRejection,
+  synthesizeSpeech,
+} from "@/lib/media/server/qwenAudio";
 import { serializeAudioGeneration } from "@/lib/media/server/audioRecords";
 import {
   assertMediaWriteLeaseActive,
@@ -182,12 +196,18 @@ export async function GET(request) {
 
 export async function POST(request) {
   let mediaWriteLease = null;
+  let reservation = null;
+  let userId = "";
+  let requestDispatched = false;
+  let upstreamComplete = false;
+  let billingFinalized = false;
+  let billing = null;
+  let upstreamRequestIds = [];
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const accessError = modelAccessResponse(user, AUDIO_MODEL);
-    if (accessError) return accessError;
+    userId = user.userId;
     mediaWriteLease = await beginMediaWriteLease(user.userId);
 
     const contentLength = Number(request.headers.get("content-length") || 0);
@@ -211,16 +231,67 @@ export async function POST(request) {
       return jsonMessage("请求体格式错误", 400);
     }
     const input = parseGenerationInput(body);
+    const creditOperation = requireMediaCreditOperation(request, {
+      userId: user.userId,
+      feature: "qwen_tts_generate",
+      fingerprintInput: input,
+    });
+    const operationId = creditOperation.operationId;
+    await assertMediaCreditOperationUnused({
+      operationId,
+      userId: user.userId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
     const voice = await resolveOwnedVoice({
       userId: user.userId,
       voiceId: input.voiceId,
       languageHint: input.languageHint,
     });
+    try {
+      const settings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
+      const estimate = calculateQwenTtsCost({ characters: input.text.length }, settings);
+      reservation = await reserveMediaCredits({
+        operationId,
+        userId: user.userId,
+        feature: "qwen_tts_generate",
+        provider: "qwen",
+        model: AUDIO_MODEL,
+        estimate,
+        settings,
+        usage: { characters: input.text.length },
+        executionClaimId: creditOperation.executionClaimId,
+        requestFingerprint: creditOperation.requestFingerprint,
+      });
+    } catch (error) {
+      return creditErrorResponse(error, "语音生成积分预留失败");
+    }
 
+    await assertMediaWriteLeaseActive(mediaWriteLease);
     const upstream = await synthesizeSpeech({
       ...input,
       voiceId: voice.voiceId,
-    }, { signal: request.signal });
+    }, {
+      signal: request.signal,
+      onRequestDispatched: () => {
+        requestDispatched = true;
+      },
+      onUpstreamComplete: () => {
+        upstreamComplete = true;
+      },
+    });
+
+    upstreamRequestIds = upstream.requestId ? [upstream.requestId] : [];
+    const actual = calculateQwenTtsCost({ characters: upstream.usageCharacters }, reservation.settings);
+    const settled = await settleMediaCredits({
+      reservation,
+      operationId,
+      userId: user.userId,
+      actual,
+      usage: { characters: upstream.usageCharacters },
+      upstreamRequestIds,
+    });
+    billing = settled.billing;
+    billingFinalized = true;
 
     const generationId = crypto.randomUUID();
     let generation;
@@ -271,10 +342,48 @@ export async function POST(request) {
     return Response.json({
       success: true,
       generation: serializeAudioGeneration(generation),
+      billing,
     }, { status: 201 });
   } catch (error) {
+    if (reservation && userId && !billingFinalized) {
+      try {
+        const result = !requestDispatched || isExplicitQwenAudioRejection(error)
+          ? await releaseMediaCredits({
+              reservation,
+              operationId: reservation.transaction.operationId,
+              userId,
+              upstreamRequestIds: [error?.requestId].filter(Boolean),
+            })
+          : await reviewMediaCredits({
+              reservation,
+              operationId: reservation.transaction.operationId,
+              userId,
+              reason: upstreamComplete
+                ? "语音上游已成功，但用量或结算未能确认"
+                : "语音上游请求已发出，但生成结果不明确",
+              usage: { requestId: error?.requestId || "" },
+              upstreamRequestIds: upstreamRequestIds.length
+                ? upstreamRequestIds
+                : [error?.requestId].filter(Boolean),
+            });
+        billing = result.billing;
+        billingFinalized = true;
+      } catch (billingError) {
+        console.error("[Media Audio] finalize generation billing:", billingError);
+      }
+    }
     console.error("[Media Audio] create generation:", error);
-    return jsonMessage(getPublicErrorMessage(error, "语音生成失败"), getErrorStatus(error));
+    if (error instanceof CreditError && !reservation) {
+      return creditErrorResponse(error, "语音生成积分预留失败");
+    }
+    return Response.json(
+      {
+        success: false,
+        message: getPublicErrorMessage(error, "语音生成失败"),
+        ...(billing ? { billing } : {}),
+      },
+      { status: getErrorStatus(error) },
+    );
   } finally {
     if (mediaWriteLease) {
       await endMediaWriteLease(mediaWriteLease).catch((leaseError) => {

@@ -1,5 +1,13 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
+import { creditErrorResponse } from "@/lib/server/credits/api";
+import { CreditError } from "@/lib/server/credits/errors";
+import { calculateMiniMaxTtsCost } from "@/lib/server/credits/pricing";
+import {
+  releaseMediaCredits,
+  reserveMediaCredits,
+  reviewMediaCredits,
+  settleMediaCredits,
+} from "@/lib/media/server/billing";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   parseJsonRequest,
@@ -29,6 +37,15 @@ import { saveAudioFromUrl } from "@/lib/media/storage";
 import { deleteStoredFilesByOwner } from "@/lib/server/storage/service";
 import MinimaxAudioGeneration from "@/models/MinimaxAudioGeneration";
 import MinimaxVoice from "@/models/MinimaxVoice";
+import {
+  claimMinimaxVoiceUnlock,
+  completeMinimaxVoiceUnlockClaim,
+  releaseMinimaxVoiceUnlockClaim,
+} from "@/lib/media/server/minimaxUnlockClaims";
+import {
+  assertMediaCreditOperationUnused,
+  requireMediaCreditOperation,
+} from "@/lib/media/server/creditOperation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,6 +71,15 @@ function publicMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("DASHSCOPE_BEIJING_API_KEY")) return "MiniMax 北京区域密钥尚未配置";
   return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+}
+
+function billingQuality(model) {
+  return model.endsWith("-turbo") ? "turbo" : "hd";
+}
+
+function isAmbiguousSynthesisError(error) {
+  return error?.name === "AbortError"
+    || ["NETWORK_ERROR", "INVALID_RESPONSE", "INVALID_USAGE", "MISSING_AUDIO"].includes(String(error?.code || ""));
 }
 
 function readNumber(value, fallback) {
@@ -101,15 +127,25 @@ function parseInput(body) {
   return input;
 }
 
-async function resolveVoice({ userId, voiceId, signal }) {
+async function findCustomVoice({ userId, voiceId }) {
   const custom = await MinimaxVoice.findOne({
     userId,
     voiceId,
     status: "READY",
   }).lean();
   if (custom) {
-    return { voiceId: custom.voiceId, voiceName: custom.displayName, voiceKind: "custom" };
+    return {
+      profileId: custom.profileId,
+      voiceId: custom.voiceId,
+      voiceName: custom.displayName,
+      voiceKind: "custom",
+      unlockedAt: custom.unlockedAt || null,
+    };
   }
+  return null;
+}
+
+async function resolveSystemVoice({ voiceId, signal }) {
   const { voices } = await listMinimaxSystemVoices({ signal });
   const system = voices.find((voice) => voice.voiceId === voiceId);
   if (!system) throw Object.assign(new Error("不支持的音色"), { status: 400 });
@@ -153,10 +189,22 @@ export async function GET(request) {
 
 export async function POST(request) {
   let mediaWriteLease = null;
+  let userId = "";
+  let operationId = "";
+  let reservation = null;
+  let billing = null;
+  let billingFinalized = false;
+  let unlockClaimed = false;
+  let chargeFirstVoiceClone = false;
+  let upstreamCompleted = false;
+  let requestDispatched = false;
+  let upstreamRequestIds = [];
+  let unlockProfileId = "";
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
+    userId = user.userId;
     const limited = rateLimit(
       `media-minimax-audio-generation:${user.userId}:${getClientIP(request)}`,
       GENERATION_RATE_LIMIT,
@@ -165,11 +213,114 @@ export async function POST(request) {
     const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
     if (!parsed.ok) return parsed.response;
     const input = parseInput(parsed.body);
-    const accessError = modelAccessResponse(user, input.model);
-    if (accessError) return accessError;
-    const voice = await resolveVoice({ userId: user.userId, voiceId: input.voiceId, signal: request.signal });
+    const creditOperation = requireMediaCreditOperation(request, {
+      userId: user.userId,
+      feature: "media_audio_minimax_generation",
+      fingerprintInput: input,
+    });
+    operationId = creditOperation.operationId;
+    await assertMediaCreditOperationUnused({
+      operationId,
+      userId: user.userId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
+    const customVoice = await findCustomVoice({ userId: user.userId, voiceId: input.voiceId });
+    let voice = customVoice || {
+      voiceId: input.voiceId,
+      voiceName: "系统音色",
+      voiceKind: "system",
+      unlockedAt: null,
+    };
+    if (voice.voiceKind === "custom" && !voice.unlockedAt) {
+      unlockProfileId = voice.profileId;
+      const unlock = await claimMinimaxVoiceUnlock({
+        userId: user.userId,
+        profileId: voice.profileId,
+        operationId,
+      });
+      unlockClaimed = unlock.claimed;
+      chargeFirstVoiceClone = unlock.firstVoiceClone;
+    }
+    try {
+      const settings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
+      reservation = await reserveMediaCredits({
+        operationId,
+        userId: user.userId,
+        feature: "media_audio_minimax_generation",
+        provider: "minimax",
+        model: input.model,
+        estimate: calculateMiniMaxTtsCost({
+          characters: input.text.length,
+          quality: billingQuality(input.model),
+          firstVoiceClone: chargeFirstVoiceClone,
+        }, settings),
+        settings,
+        usage: {
+          characters: input.text.length,
+          quality: billingQuality(input.model),
+          firstVoiceClone: chargeFirstVoiceClone,
+          voiceKind: voice.voiceKind,
+          voiceId: voice.voiceId,
+        },
+        executionClaimId: creditOperation.executionClaimId,
+        requestFingerprint: creditOperation.requestFingerprint,
+      });
+    } catch (error) {
+      if (unlockClaimed) {
+        await releaseMinimaxVoiceUnlockClaim({
+          userId: user.userId,
+          profileId: unlockProfileId,
+          operationId,
+        }).catch(() => {});
+        unlockClaimed = false;
+      }
+      throw error;
+    }
+    if (!customVoice) {
+      voice = await resolveSystemVoice({ voiceId: input.voiceId, signal: request.signal });
+    }
     mediaWriteLease = await beginMediaWriteLease(user.userId);
-    const upstream = await synthesizeMinimaxSpeech({ ...input, voiceId: voice.voiceId }, { signal: request.signal });
+    await assertMediaWriteLeaseActive(mediaWriteLease);
+    const upstream = await synthesizeMinimaxSpeech(
+      { ...input, voiceId: voice.voiceId },
+      {
+        signal: request.signal,
+        onRequestDispatched: () => {
+          requestDispatched = true;
+        },
+      },
+    );
+    upstreamCompleted = true;
+    upstreamRequestIds = [upstream.requestId, upstream.traceId].filter(Boolean);
+    const settled = await settleMediaCredits({
+      reservation,
+      operationId,
+      userId: user.userId,
+      actual: calculateMiniMaxTtsCost({
+        characters: upstream.characters,
+        quality: billingQuality(input.model),
+        firstVoiceClone: chargeFirstVoiceClone,
+      }, reservation.settings),
+      usage: {
+        characters: upstream.characters,
+        quality: billingQuality(input.model),
+        firstVoiceClone: chargeFirstVoiceClone,
+        voiceKind: voice.voiceKind,
+        voiceId: voice.voiceId,
+      },
+      upstreamRequestIds,
+    });
+    billing = settled.billing;
+    billingFinalized = true;
+    if (unlockClaimed && ["settled", "released"].includes(settled.transaction?.status)) {
+      const unlocked = await completeMinimaxVoiceUnlockClaim({
+        userId: user.userId,
+        profileId: unlockProfileId,
+        operationId,
+      });
+      if (!unlocked) throw new Error("保存自定义音色首次解锁状态失败");
+      unlockClaimed = false;
+    }
     const generationId = crypto.randomUUID();
     let generation;
     try {
@@ -206,14 +357,66 @@ export async function POST(request) {
     return Response.json({
       success: true,
       generation: serializeMinimaxAudioGeneration(generation),
+      billing,
     }, { status: 201 });
   } catch (error) {
+    if (reservation && !billingFinalized) {
+      try {
+        const result = upstreamCompleted || (requestDispatched && isAmbiguousSynthesisError(error))
+          ? await reviewMediaCredits({
+              reservation,
+              operationId,
+              userId,
+              reason: upstreamCompleted
+                ? "MiniMax 已完成生成但本地解锁或结算状态异常"
+                : "MiniMax 语音生成结果不明确",
+              usage: { upstreamCompleted },
+              upstreamRequestIds: upstreamRequestIds.length
+                ? upstreamRequestIds
+                : [error?.requestId, error?.traceId].filter(Boolean),
+            })
+          : await releaseMediaCredits({
+              reservation,
+              operationId,
+              userId,
+              usage: { failedBeforeCompletion: true },
+              upstreamRequestIds: [error?.requestId, error?.traceId].filter(Boolean),
+            });
+        billing = result.billing;
+        billingFinalized = true;
+      } catch (billingError) {
+        console.error("[MiniMax Audio] finalize generation billing:", billingError);
+      }
+    }
+    if (
+      unlockClaimed
+      && !upstreamCompleted
+      && (!requestDispatched || !isAmbiguousSynthesisError(error))
+    ) {
+      await releaseMinimaxVoiceUnlockClaim({
+        userId,
+        profileId: unlockProfileId,
+        operationId,
+      }).catch((claimError) => {
+        console.error("[MiniMax Audio] release first unlock claim:", claimError);
+      });
+    }
     console.error("[MiniMax Audio] create generation:", {
       error,
       requestId: error?.requestId || "",
       traceId: error?.traceId || "",
     });
-    return jsonMessage(publicMessage(error, "MiniMax 语音生成失败"), errorStatus(error));
+    if (error instanceof CreditError) {
+      return creditErrorResponse(error, "MiniMax 语音生成积分处理失败");
+    }
+    return Response.json(
+      {
+        success: false,
+        message: publicMessage(error, "MiniMax 语音生成失败"),
+        ...(billing ? { billing } : {}),
+      },
+      { status: errorStatus(error) },
+    );
   } finally {
     if (mediaWriteLease) {
       await endMediaWriteLease(mediaWriteLease).catch((error) => {

@@ -1,6 +1,5 @@
 'use client';
 
-import { scopeGuestUrl } from "@/lib/client/guestAccess";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -22,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import ConfirmModal from '@/app/components/modals/ConfirmModal';
+import { useCredits } from '@/lib/client/credits/CreditContext';
 import {
   createVideoTask,
   deleteVideoSource,
@@ -94,6 +94,13 @@ function formatDuration(value) {
   return Number.isFinite(duration) && duration > 0 ? `${duration} 秒` : '';
 }
 
+function ceilEstimatedPoints(value) {
+  if (!Number.isFinite(value) || value < 0) return null;
+  const nearestInteger = Math.round(value);
+  const tolerance = Number.EPSILON * Math.max(1, Math.abs(value));
+  return Math.ceil(Math.abs(value - nearestInteger) <= tolerance ? nearestInteger : value);
+}
+
 function formatRatio(value) {
   return VIDEO_ASPECT_RATIO_OPTIONS.find((option) => option.id === value)?.label || value || '';
 }
@@ -130,7 +137,7 @@ function readImageMetadata(file) {
       finish();
       reject(new Error(`无法读取图片「${file.name}」`));
     };
-    image.src = scopeGuestUrl(objectUrl);
+    image.src = objectUrl;
   });
 }
 
@@ -259,7 +266,7 @@ function PreviewImage({ file, alt }) {
     };
   }, [file]);
   if (!src) return null;
-  return <NextImage src={scopeGuestUrl(src)} alt={alt} fill sizes="180px" unoptimized className="object-cover" />;
+  return <NextImage src={src} alt={alt} fill sizes="180px" unoptimized className="object-cover" />;
 }
 
 function PreviewVideo({ file }) {
@@ -276,7 +283,7 @@ function PreviewVideo({ file }) {
     };
   }, [file]);
   if (!src) return null;
-  return <video src={scopeGuestUrl(src)} muted controls playsInline className="h-48 w-full bg-black object-contain" />;
+  return <video src={src} muted controls playsInline className="h-48 w-full bg-black object-contain" />;
 }
 
 function StatusBadge({ status }) {
@@ -354,8 +361,8 @@ function TaskCard({ task, acting, stale, onRefresh, onDelete }) {
       {errorText ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{errorText}</div> : null}
       {task.videoUrl ? (
         <div className="mt-4 space-y-3">
-          <video controls playsInline className="w-full overflow-hidden rounded-xl border border-zinc-200 bg-black dark:border-zinc-700" src={scopeGuestUrl(task.videoUrl)}>您的浏览器不支持视频播放。</video>
-          <a href={scopeGuestUrl(`${task.videoUrl}?download=1`)} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+          <video controls playsInline className="w-full overflow-hidden rounded-xl border border-zinc-200 bg-black dark:border-zinc-700" src={task.videoUrl}>您的浏览器不支持视频播放。</video>
+          <a href={`${task.videoUrl}?download=1`} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
             <Download className="h-4 w-4" /> 下载视频
           </a>
         </div>
@@ -365,6 +372,7 @@ function TaskCard({ task, acting, stale, onRefresh, onDelete }) {
 }
 
 export default function VideoGenerationPage() {
+  const { pricing } = useCredits();
   const [mode, setMode] = useState('text');
   const [prompt, setPrompt] = useState('');
   const [ratio, setRatio] = useState('16:9');
@@ -391,6 +399,14 @@ export default function VideoGenerationPage() {
   const currentModel = VIDEO_MODELS[mode];
   const imageLimit = mode === 'first-frame' ? 1 : mode === 'reference' ? 9 : mode === 'edit' ? 5 : 0;
   const availableResolutions = mode === 'edit' ? VIDEO_EDIT_RESOLUTION_OPTIONS : VIDEO_RESOLUTION_OPTIONS;
+  const resolutionKey = resolution.replace(/P$/i, '');
+  const estimatedSeconds = mode === 'edit' ? Number(video?.duration || 0) * 2 : duration;
+  const estimatedRate = mode === 'edit'
+    ? pricing?.happyHorse?.editRawPointsPerSecond?.[resolutionKey]
+    : pricing?.happyHorse?.generationRawPointsPerSecond?.[resolutionKey];
+  const estimatedPoints = Number.isFinite(estimatedRate) && estimatedRate >= 0 && estimatedSeconds > 0
+    ? ceilEstimatedPoints(estimatedRate * estimatedSeconds)
+    : null;
 
   const loadTasks = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setTasksLoading(true);
@@ -542,6 +558,7 @@ export default function VideoGenerationPage() {
         ...(seed === '' ? {} : { seed: Number(seed) }),
       };
       if (mode !== 'edit') input.duration = duration;
+      if (mode === 'edit') input.inputDurationSeconds = video.duration;
       if (mode === 'text' || mode === 'reference') input.ratio = ratio;
       if (mode === 'edit') input.audioSetting = audioSetting;
 
@@ -684,6 +701,7 @@ export default function VideoGenerationPage() {
             {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
             {isSubmitting ? '正在检查并上传素材…' : '创建视频任务'}
           </button>
+          {Number.isInteger(estimatedPoints) ? <p className="text-center text-xs text-zinc-500">预计约冻结 {estimatedPoints.toLocaleString('zh-CN')} 积分，任务完成后按供应商实际计费时长结算</p> : null}
         </form>
       </div>
 

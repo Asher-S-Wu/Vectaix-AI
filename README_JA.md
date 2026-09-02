@@ -62,14 +62,13 @@
 
 ### 🤖 マルチモデルインテリジェンス
 
-7つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しいトピックが開始され、各モデルのコンテキストが独立して保たれます。
+6つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しいトピックが開始され、各モデルのコンテキストが独立して保たれます。
 
 | モデル | プロバイダー | コンテキスト | 入力タイプ | 思考 | ウェブ検索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-5.6 Sol** | OpenAI | 1.05M | テキスト、画像 | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 1M | テキスト、画像 | ✅ | ✅ |
 | **Gemini 3.7 Flash** | Google | 1M | テキスト、画像、音声、動画 | ✅ | ✅ |
-| **Abliterated Model Large** | Abliteration AI | 1M | テキスト | ✅ | ✅ |
 | **Grok 4.6** | xAI | 500K | テキスト、画像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 1M | テキスト、画像 | ✅ | ✅ |
 | **Qwen 3.8 Max** | Alibaba Cloud | 1M | テキスト、画像 | ✅ | ✅ |
@@ -240,7 +239,7 @@ vectaix-ai/
 | **バックエンド** | Next.js API Routes · Node.js · SSE（Server-Sent Events）ストリーミング |
 | **データベース** | MongoDB + Mongoose ODM |
 | **ストレージ** | Zeabur マウントディスク（プライベートメディア） |
-| **AIプロバイダー** | OpenRouter · Abliteration · Alibaba Cloud Model Studio |
+| **AIプロバイダー** | OpenRouter · Alibaba Cloud Model Studio |
 | **認証** | MongoDBサーバーセッション · bcryptjs |
 | **レンダリング** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **デプロイ** | Zeabur ネイティブ Next.js サービス（単一インスタンス） |
@@ -274,7 +273,6 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | マウントディスクのパス。Zeabur では `/data/vectaix` |
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
 | `OPENROUTER_API_KEY` | — | GPT、Grok、Claude、Gemini、Kimi K3の各チャットモデルで共用するOpenRouter APIキー |
-| `ABLIT_KEY` | — | Abliterated Model Large 用の Abliteration APIキー（`ak_...`） |
 | `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max、Qwen Image 3.0 Pro、HappyHorse動画、Qwen Audio 3.0 TTS Plus 用のシンガポール地域Alibaba Cloud Model Studio APIキー |
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 用の北京地域Alibaba Cloud Model Studio APIキー |
 | `AI_MEDIAKIT_API_KEY` | — | AI MediaKit画質向上（大規模モデル版）用のAPIキー。有効にする場合に設定 |

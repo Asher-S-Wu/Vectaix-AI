@@ -1,5 +1,4 @@
 "use client";
-import { scopeGuestUrl } from "@/lib/client/guestAccess";
 
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -145,12 +144,17 @@ export function mapMinimaxSystemVoice(voice) {
 }
 
 export function mapMinimaxCustomVoice(voice) {
+  const unlockBadge = voice.isUnlocked
+    ? "已解锁"
+    : voice.unlockPending
+      ? "首次解锁核对中"
+      : "首次使用另计解锁费";
   return {
     id: voice.id,
     voiceId: voice.voiceId,
     name: voice.displayName,
     subtitle: "我的复刻音色",
-    badges: [],
+    badges: [unlockBadge],
     canPreview: Boolean(voice.demoAudioUrl),
     canRename: true,
     previewUrl: voice.demoAudioUrl || "",
@@ -513,7 +517,7 @@ export default function VoicePicker({
     if (!audio) return;
 
     const startPlayback = (src) => {
-      audio.src = scopeGuestUrl(src);
+      audio.src = src;
       const playPromise = audio.play();
       if (playPromise) {
         playPromise.catch((error) => {

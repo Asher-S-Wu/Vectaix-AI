@@ -36,8 +36,13 @@ export function buildConversationWriteCondition(conversationId, userId, writePer
   return {
     _id: conversationId,
     userId,
-    updatedAt: { $lte: new Date(writePermitTime) },
+    updatedAt: new Date(writePermitTime),
   };
+}
+
+export function nextConversationWriteTime(writePermitTime) {
+  const permit = Number.isFinite(writePermitTime) ? writePermitTime : 0;
+  return new Date(Math.max(Date.now(), permit + 1));
 }
 
 export async function rollbackConversationTurn({
@@ -46,14 +51,15 @@ export async function rollbackConversationTurn({
   createdConversationForRequest = false,
   isRegenerateMode = false,
   previousMessages = [],
-  previousUpdatedAt,
   userMessageId,
+  modelMessageId,
   writePermitTime,
   newlyBoundFileIds = [],
 }) {
   if (!conversationId || !userId) return false;
 
   const writeCondition = buildConversationWriteCondition(conversationId, userId, writePermitTime);
+  const rollbackTime = nextConversationWriteTime(writePermitTime);
 
   if (createdConversationForRequest) {
     const result = await Conversation.deleteOne(writeCondition);
@@ -72,7 +78,7 @@ export async function rollbackConversationTurn({
     const restored = await Conversation.findOneAndUpdate(writeCondition, {
       $set: {
         messages: Array.isArray(previousMessages) ? previousMessages : [],
-        updatedAt: previousUpdatedAt ? new Date(previousUpdatedAt) : new Date(),
+        updatedAt: rollbackTime,
       },
     });
     if (restored) {
@@ -86,14 +92,16 @@ export async function rollbackConversationTurn({
     return Boolean(restored);
   }
 
-  if (!userMessageId) return false;
+  const messageIds = [userMessageId, modelMessageId]
+    .filter((value) => typeof value === "string" && value);
+  if (messageIds.length === 0) return false;
 
   const updated = await Conversation.findOneAndUpdate(writeCondition, {
     $pull: {
-      messages: { id: userMessageId },
+      messages: { id: { $in: messageIds } },
     },
     $set: {
-      updatedAt: previousUpdatedAt ? new Date(previousUpdatedAt) : new Date(),
+      updatedAt: rollbackTime,
     },
   });
   if (updated) {

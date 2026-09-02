@@ -117,6 +117,7 @@ export default function VoiceClonePanel({
   onDelete,
   onRefreshVoice,
   onRefreshList,
+  pricing,
 }) {
   const reduceMotion = useReducedMotion();
   const [displayName, setDisplayName] = useState("");
@@ -138,6 +139,9 @@ export default function VoiceClonePanel({
   const atLimit = voices.length >= CUSTOM_VOICE_MAX_COUNT;
   const formDisabled = loading || creating || atLimit;
   const voiceActionActive = creating || Boolean(actingVoiceId);
+  const voiceClonePoints = Number.isInteger(pricing?.qwenTts?.voiceClone)
+    ? pricing.qwenTts.voiceClone
+    : null;
 
   const handleCreate = async (event) => {
     event.preventDefault();
@@ -398,6 +402,12 @@ export default function VoiceClonePanel({
 
               <AudioFormError message={formError} />
 
+              {voiceClonePoints !== null ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                  创建音色预计消耗 {voiceClonePoints.toLocaleString("zh-CN")} 积分。
+                </p>
+              ) : null}
+
               {atLimit ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700" role="status">
                   已保存 {CUSTOM_VOICE_MAX_COUNT} 个音色。删除不再使用的音色后，才能继续创建。
@@ -598,6 +608,9 @@ export default function VoiceClonePanel({
             uploadAccept={AUDIO_UPLOAD_ACCEPT}
             nameMaxLength={40}
             validateFile={getFileError}
+            billingNote={voiceClonePoints === null
+              ? ""
+              : `更换样本并重新制作预计消耗 ${voiceClonePoints.toLocaleString("zh-CN")} 积分。`}
           />
         ) : null}
       </AnimatePresence>

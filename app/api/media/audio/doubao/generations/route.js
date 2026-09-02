@@ -1,5 +1,13 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
+import { creditErrorResponse } from "@/lib/server/credits/api";
+import { CreditError } from "@/lib/server/credits/errors";
+import { calculateSeedAudioCost } from "@/lib/server/credits/pricing";
+import {
+  releaseMediaCredits,
+  reserveMediaCredits,
+  reviewMediaCredits,
+  settleMediaCredits,
+} from "@/lib/media/server/billing";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   parseJsonRequest,
@@ -38,6 +46,10 @@ import {
 import DoubaoAudioGeneration from "@/models/DoubaoAudioGeneration";
 import DoubaoVoice from "@/models/DoubaoVoice";
 import StoredFile from "@/models/StoredFile";
+import {
+  assertMediaCreditOperationUnused,
+  requireMediaCreditOperation,
+} from "@/lib/media/server/creditOperation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,6 +72,11 @@ function publicMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("DOUBAO_AUDIO_API_KEY")) return "豆包音频服务密钥尚未配置";
   return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+}
+
+function isAmbiguousSynthesisError(error) {
+  return error?.name === "AbortError"
+    || ["NETWORK_ERROR", "INVALID_RESPONSE"].includes(String(error?.code || ""));
 }
 
 function readNumber(value, defaultValue) {
@@ -230,12 +247,19 @@ export async function GET(request) {
 
 export async function POST(request) {
   let mediaWriteLease = null;
+  let userId = "";
+  let operationId = "";
+  let reservation = null;
+  let billing = null;
+  let billingFinalized = false;
+  let upstreamCompleted = false;
+  let requestDispatched = false;
+  let upstreamRequestIds = [];
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const accessError = modelAccessResponse(user, DOUBAO_AUDIO_MODEL);
-    if (accessError) return accessError;
+    userId = user.userId;
     const limited = rateLimit(
       `media-doubao-audio-generation:${user.userId}:${getClientIP(request)}`,
       GENERATION_RATE_LIMIT,
@@ -248,12 +272,36 @@ export async function POST(request) {
         : parsed.response;
     }
     const input = parseGenerationInput(parsed.body);
+    const creditOperation = requireMediaCreditOperation(request, {
+      userId: user.userId,
+      feature: "media_audio_seed_generation",
+      fingerprintInput: input,
+    });
+    operationId = creditOperation.operationId;
+    await assertMediaCreditOperationUnused({
+      operationId,
+      userId: user.userId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
     const reference = await resolveOwnedVoiceReference({
       userId: user.userId,
       profileId: input.voiceId,
     });
-
+    const settings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
+    reservation = await reserveMediaCredits({
+      operationId,
+      userId: user.userId,
+      feature: "media_audio_seed_generation",
+      provider: "doubao",
+      model: DOUBAO_AUDIO_MODEL,
+      estimate: calculateSeedAudioCost({ durationSeconds: 120 }, settings),
+      settings,
+      usage: { reservedDurationSeconds: 120, voiceId: reference.voice.profileId },
+      executionClaimId: creditOperation.executionClaimId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
     mediaWriteLease = await beginMediaWriteLease(user.userId);
+    await assertMediaWriteLeaseActive(mediaWriteLease);
     const upstream = await synthesizeDoubaoSpeech({
       textPrompt: input.textPrompt,
       referenceAudioBase64: reference.buffer.toString("base64"),
@@ -262,7 +310,28 @@ export async function POST(request) {
       speechRate: input.speechRate,
       loudnessRate: input.loudnessRate,
       pitchRate: input.pitchRate,
-    }, { signal: request.signal });
+    }, {
+      signal: request.signal,
+      onRequestDispatched: () => {
+        requestDispatched = true;
+      },
+    });
+    upstreamCompleted = true;
+    upstreamRequestIds = [upstream.requestId, upstream.upstreamLogId].filter(Boolean);
+    const settled = await settleMediaCredits({
+      reservation,
+      operationId,
+      userId: user.userId,
+      actual: calculateSeedAudioCost({ durationSeconds: upstream.originalDuration }, reservation.settings),
+      usage: {
+        durationSeconds: upstream.originalDuration,
+        outputDurationSeconds: upstream.duration,
+        voiceId: reference.voice.profileId,
+      },
+      upstreamRequestIds,
+    });
+    billing = settled.billing;
+    billingFinalized = true;
     await assertVoiceStillReady({ userId: user.userId, ...reference });
 
     const generationId = crypto.randomUUID();
@@ -315,14 +384,53 @@ export async function POST(request) {
     return Response.json({
       success: true,
       generation: serializeDoubaoAudioGeneration(generation),
+      billing,
     }, { status: 201 });
   } catch (error) {
+    if (reservation && !billingFinalized) {
+      try {
+        const result = upstreamCompleted || (requestDispatched && isAmbiguousSynthesisError(error))
+          ? await reviewMediaCredits({
+              reservation,
+              operationId,
+              userId,
+              reason: upstreamCompleted
+                ? "豆包语音已生成但本地处理未完成"
+                : "豆包语音生成结果不明确",
+              usage: { reservedDurationSeconds: 120 },
+              upstreamRequestIds: upstreamRequestIds.length
+                ? upstreamRequestIds
+                : [error?.requestId, error?.upstreamLogId].filter(Boolean),
+            })
+          : await releaseMediaCredits({
+              reservation,
+              operationId,
+              userId,
+              usage: { reservedDurationSeconds: 120 },
+              upstreamRequestIds: [error?.requestId, error?.upstreamLogId].filter(Boolean),
+            });
+        billing = result.billing;
+        billingFinalized = true;
+      } catch (billingError) {
+        console.error("[Doubao Audio] finalize generation billing:", billingError);
+      }
+    }
     console.error("[Doubao Audio] create generation:", {
       error,
       requestId: error?.requestId || "",
       upstreamLogId: error?.upstreamLogId || "",
     });
-    return jsonMessage(publicMessage(error, "豆包语音生成失败"), errorStatus(error));
+    if (error instanceof CreditError) {
+      return creditErrorResponse(error, "豆包语音生成积分处理失败");
+    }
+    return Response.json(
+      {
+        success: false,
+        message: publicMessage(error, "豆包语音生成失败"),
+        ...(billing ? { billing } : {}),
+      },
+      { status: errorStatus(error) },
+    );
   } finally {
     if (mediaWriteLease) {
       await endMediaWriteLease(mediaWriteLease).catch((error) => {

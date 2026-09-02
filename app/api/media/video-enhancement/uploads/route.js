@@ -1,4 +1,3 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   parseJsonRequest,
@@ -68,8 +67,6 @@ export async function POST(request) {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const accessError = modelAccessResponse(user, VIDEO_ENHANCEMENT_MODEL);
-    if (accessError) return accessError;
     if (isRateLimited(request, user.userId)) {
       return jsonMessage("上传凭证申请过于频繁，请稍后再试", 429);
     }

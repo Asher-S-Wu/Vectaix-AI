@@ -1,5 +1,4 @@
 "use client";
-import { scopeGuestUrl } from "@/lib/client/guestAccess";
 
 
 import { useCallback, useState } from "react";
@@ -344,7 +343,7 @@ export default function DoubaoVoiceLibraryPanel({
                         </button>
                       </div>
                     </div>
-                    <audio controls preload="metadata" src={scopeGuestUrl(voice.audioUrl)} className="mt-3 h-10 w-full" aria-label={`${voice.displayName} 的试听音频`}>
+                    <audio controls preload="metadata" src={voice.audioUrl} className="mt-3 h-10 w-full" aria-label={`${voice.displayName} 的试听音频`}>
                       你的浏览器不支持音频播放。
                     </audio>
                     <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">

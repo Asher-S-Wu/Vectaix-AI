@@ -11,12 +11,16 @@ import {
   endMediaWriteLease,
 } from "@/lib/media/server/userOperationLeases";
 import VideoEnhancementTask from "@/models/VideoEnhancementTask";
+import { getCreditSummary } from "@/lib/server/credits/service";
+import { syncMediaKitVideoEnhancementTask } from "@/lib/media/server/mediaKit/reconciler";
+import { syncMediaTaskBillingByOperation } from "@/lib/media/server/billing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const TERMINAL_STATUSES = Object.freeze(["completed", "failed", "canceled"]);
 const ACTIVE_STATUSES = new Set(["submitting", "running", "finalizing"]);
+const FINAL_BILLING_STATUSES = new Set(["settled", "released", "rejected"]);
 const TASK_DELETION_CLEANUP_TIMEOUT_MS = 10 * 1000;
 const PUBLIC_TASK_FIELDS = [
   "_id",
@@ -25,10 +29,13 @@ const PUBLIC_TASK_FIELDS = [
   "sourceType",
   "sourceName",
   "sourceHost",
+  "sourceDurationSeconds",
+  "sourceDurationVerified",
   "settings",
   "videoFileId",
   "result",
   "error",
+  "billing",
   "createdAt",
   "updatedAt",
   "lastSyncedAt",
@@ -76,13 +83,29 @@ export async function GET(request, context) {
     if (!user) return unauthorizedResponse("未登录");
     const id = await getTaskId(context);
     if (!mongoose.isValidObjectId(id)) return jsonMessage("任务编号无效", 400);
-    const task = await VideoEnhancementTask.findOne({
+    let task = await VideoEnhancementTask.findOne({
       _id: id,
       userId: user.userId,
       deletionRequestedAt: null,
-    }).select(PUBLIC_TASK_FIELDS).lean();
+    }).select(`${PUBLIC_TASK_FIELDS} +upstreamTaskId +billingPricingSnapshot +lease.owner nextPollAt`).lean();
     if (!task) return jsonMessage("视频画质增强任务不存在", 404);
-    return Response.json({ success: true, task: serializeVideoEnhancementTask(task) });
+    if (ACTIVE_STATUSES.has(task.status)) {
+      await syncMediaKitVideoEnhancementTask(task);
+      task = await VideoEnhancementTask.findOne({
+        _id: id,
+        userId: user.userId,
+        deletionRequestedAt: null,
+      }).select(PUBLIC_TASK_FIELDS).lean();
+      if (!task) return jsonMessage("视频画质增强任务不存在", 404);
+    }
+    const serializedTask = serializeVideoEnhancementTask(task);
+    const credit = await getCreditSummary(user.userId);
+    return Response.json({
+      success: true,
+      task: serializedTask,
+      billing: serializedTask?.billing ? { ...serializedTask.billing, credit } : null,
+      credit,
+    });
   } catch (error) {
     console.error("[AI MediaKit] get enhancement task failed", safeErrorDetails(error));
     return jsonMessage("读取视频画质增强任务失败", 500);
@@ -101,6 +124,33 @@ export async function DELETE(request, context) {
     if (!mongoose.isValidObjectId(id)) return jsonMessage("任务编号无效", 400);
     taskId = id;
 
+    let currentTask = await VideoEnhancementTask.findOne({
+      _id: id,
+      userId: user.userId,
+    }).select("_id userId status billing +deletionRequestedAt").lean();
+    if (!currentTask) return jsonMessage("视频画质增强任务不存在", 404);
+    if (ACTIVE_STATUSES.has(currentTask.status)) {
+      return jsonMessage("提交中、处理中或正在保存的任务不能删除", 409);
+    }
+    if (
+      currentTask.billing?.operationId
+      && !FINAL_BILLING_STATUSES.has(currentTask.billing.status)
+    ) {
+      await syncMediaTaskBillingByOperation(currentTask.billing.operationId);
+      currentTask = await VideoEnhancementTask.findOne({
+        _id: id,
+        userId: user.userId,
+      }).select("_id userId status billing +deletionRequestedAt").lean();
+      if (!currentTask || !FINAL_BILLING_STATUSES.has(currentTask.billing?.status)) {
+        return jsonMessage(
+          currentTask?.billing?.status === "review_required"
+            ? "该任务的积分仍待管理员核对，暂不能删除"
+            : "该任务的积分仍在结算，请稍后再删除",
+          409,
+        );
+      }
+    }
+
     mediaWriteLease = await beginMediaWriteLease(user.userId);
     await assertMediaWriteLeaseActive(mediaWriteLease);
     const requestedAt = new Date();
@@ -110,6 +160,10 @@ export async function DELETE(request, context) {
         userId: user.userId,
         status: { $in: TERMINAL_STATUSES },
         deletionRequestedAt: null,
+        $or: [
+          { "billing.operationId": { $exists: false } },
+          { "billing.status": { $in: Array.from(FINAL_BILLING_STATUSES) } },
+        ],
       },
       { $set: { deletionRequestedAt: requestedAt } },
       { new: true, runValidators: true },

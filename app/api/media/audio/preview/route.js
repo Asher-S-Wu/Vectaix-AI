@@ -1,5 +1,17 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
+import { creditErrorResponse, creditHeaders } from "@/lib/server/credits/api";
+import { CreditError } from "@/lib/server/credits/errors";
+import { calculateQwenTtsCost } from "@/lib/server/credits/pricing";
+import {
+  releaseMediaCredits,
+  reserveMediaCredits,
+  reviewMediaCredits,
+  settleMediaCredits,
+} from "@/lib/media/server/billing";
+import {
+  assertMediaCreditOperationUnused,
+  requireMediaCreditOperation,
+} from "@/lib/media/server/creditOperation";
 import {
   parseJsonRequest,
   requireUserRecord,
@@ -7,7 +19,10 @@ import {
 } from "@/lib/server/api/routeHelpers";
 import { AUDIO_MODEL, getPresetAudioVoice } from "@/lib/media/shared/models";
 import { getVoicePreviewText } from "@/lib/media/shared/voicePreview";
-import { synthesizeSpeech } from "@/lib/media/server/qwenAudio";
+import {
+  isExplicitQwenAudioRejection,
+  synthesizeSpeech,
+} from "@/lib/media/server/qwenAudio";
 import { downloadAliyunAudio } from "@/lib/media/storage";
 import CustomVoice from "@/models/CustomVoice";
 
@@ -68,12 +83,18 @@ async function resolvePreviewVoice({ userId, voiceId }) {
 }
 
 export async function POST(request) {
+  let reservation = null;
+  let userId = "";
+  let requestDispatched = false;
+  let upstreamComplete = false;
+  let billingFinalized = false;
+  let billing = null;
+  let upstreamRequestIds = [];
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const accessError = modelAccessResponse(user, AUDIO_MODEL);
-    if (accessError) return accessError;
+    userId = user.userId;
     const limited = rateLimit(
       `media-audio-preview:${user.userId}:${getClientIP(request)}`,
       PREVIEW_RATE_LIMIT,
@@ -85,27 +106,115 @@ export async function POST(request) {
     const voiceId = typeof parsed.body?.voiceId === "string" ? parsed.body.voiceId.trim() : "";
     if (!voiceId) return jsonMessage("请选择音色");
 
+    const creditOperation = requireMediaCreditOperation(request, {
+      userId: user.userId,
+      feature: "qwen_tts_preview",
+      fingerprintInput: { voiceId },
+    });
+    const operationId = creditOperation.operationId;
+    await assertMediaCreditOperationUnused({
+      operationId,
+      userId: user.userId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
     const voice = await resolvePreviewVoice({ userId: user.userId, voiceId });
+    const previewText = getVoicePreviewText(voice.languages);
+    try {
+      const settings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
+      const estimate = calculateQwenTtsCost({ characters: previewText.length }, settings);
+      reservation = await reserveMediaCredits({
+        operationId,
+        userId: user.userId,
+        feature: "qwen_tts_preview",
+        provider: "qwen",
+        model: AUDIO_MODEL,
+        estimate,
+        settings,
+        usage: { characters: previewText.length },
+        executionClaimId: creditOperation.executionClaimId,
+        requestFingerprint: creditOperation.requestFingerprint,
+      });
+    } catch (error) {
+      return creditErrorResponse(error, "试听积分预留失败");
+    }
     const upstream = await synthesizeSpeech({
-      text: getVoicePreviewText(voice.languages),
+      text: previewText,
       voiceId: voice.voiceId,
       format: "mp3",
       sampleRate: 24000,
       languageHint: voice.languageHint,
-    }, { signal: request.signal });
+    }, {
+      signal: request.signal,
+      onRequestDispatched: () => {
+        requestDispatched = true;
+      },
+      onUpstreamComplete: () => {
+        upstreamComplete = true;
+      },
+    });
+    upstreamRequestIds = upstream.requestId ? [upstream.requestId] : [];
+    const actual = calculateQwenTtsCost({ characters: upstream.usageCharacters }, reservation.settings);
+    const settled = await settleMediaCredits({
+      reservation,
+      operationId,
+      userId: user.userId,
+      actual,
+      usage: { characters: upstream.usageCharacters },
+      upstreamRequestIds,
+    });
+    billing = settled.billing;
+    billingFinalized = true;
     const audio = await downloadAliyunAudio(upstream.audioUrl, { signal: request.signal });
     return new Response(audio.body, {
       status: 200,
       headers: {
         "Content-Type": audio.headers.get("content-type") || "audio/mpeg",
         "Cache-Control": "private, max-age=300",
+        ...creditHeaders(settled.credit),
       },
     });
   } catch (error) {
+    if (reservation && userId && !billingFinalized) {
+      try {
+        const result = !requestDispatched || isExplicitQwenAudioRejection(error)
+          ? await releaseMediaCredits({
+              reservation,
+              operationId: reservation.transaction.operationId,
+              userId,
+              upstreamRequestIds: [error?.requestId].filter(Boolean),
+            })
+          : await reviewMediaCredits({
+              reservation,
+              operationId: reservation.transaction.operationId,
+              userId,
+              reason: upstreamComplete
+                ? "试听上游已成功，但用量或结算未能确认"
+                : "试听上游请求已发出，但生成结果不明确",
+              usage: { requestId: error?.requestId || "" },
+              upstreamRequestIds: upstreamRequestIds.length
+                ? upstreamRequestIds
+                : [error?.requestId].filter(Boolean),
+            });
+        billing = result.billing;
+        billingFinalized = true;
+      } catch (billingError) {
+        console.error("[Media Audio] finalize preview billing:", billingError);
+      }
+    }
     if (error?.name === "AbortError") {
       return jsonMessage("试听已取消", 499);
     }
     console.error("[Media Audio] preview voice:", error);
-    return jsonMessage(getPublicErrorMessage(error, "试听失败"), getErrorStatus(error));
+    if (error instanceof CreditError && !reservation) {
+      return creditErrorResponse(error, "试听积分预留失败");
+    }
+    return Response.json(
+      {
+        success: false,
+        message: getPublicErrorMessage(error, "试听失败"),
+        ...(billing ? { billing } : {}),
+      },
+      { status: getErrorStatus(error) },
+    );
   }
 }

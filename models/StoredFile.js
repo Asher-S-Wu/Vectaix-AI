@@ -92,6 +92,11 @@ const StoredFileSchema = new mongoose.Schema({
     type: Number,
     default: null,
   },
+  videoDuration: {
+    type: Number,
+    min: 0.001,
+    default: null,
+  },
 }, { timestamps: true });
 
 StoredFileSchema.index({ userId: 1, ownerType: 1, createdAt: 1 });

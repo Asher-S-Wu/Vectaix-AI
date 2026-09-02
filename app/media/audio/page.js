@@ -42,6 +42,7 @@ import {
 import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
 import { createQwenAudioVoicePageAdapter } from "@/lib/media/client/audioVoiceSelection.mjs";
 import { readLocalSetting, writeLocalSetting } from "@/lib/client/localSettings";
+import { useCredits } from "@/lib/client/credits/CreditContext";
 import {
   AUDIO_FORMAT_OPTIONS,
   AUDIO_INSTRUCTION_MAX_LENGTH,
@@ -81,6 +82,7 @@ function mergeVoice(items, nextVoice) {
 }
 
 export default function AudioWorkspacePage() {
+  const { pricing } = useCredits();
   const reduceMotion = useReducedMotion();
   const textAreaRef = useRef(null);
   const pendingAutoPlayGenerationIdRef = useRef("");
@@ -395,6 +397,9 @@ export default function AudioWorkspacePage() {
     && languageHint
     && !selectedVoice.languages.includes(languageHint),
   );
+  const estimatedPoints = pricing?.qwenTts && text.length > 0
+    ? Math.ceil((text.length / 10000) * pricing.qwenTts.per10000Characters)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -636,6 +641,9 @@ export default function AudioWorkspacePage() {
                 {generating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <WandSparkles className="h-5 w-5" />}
                 {generating ? "正在生成语音…" : "生成语音"}
               </button>
+              {Number.isInteger(estimatedPoints) ? (
+                <p className="text-center text-xs text-zinc-500">预计约消耗 {estimatedPoints.toLocaleString("zh-CN")} 积分，完成后按实际字符数结算</p>
+              ) : null}
               <div className="sr-only" aria-live="polite">
                 {generating ? "正在生成语音，请稍候" : latestGeneration ? "语音已经生成并保存" : ""}
               </div>
@@ -691,6 +699,7 @@ export default function AudioWorkspacePage() {
             onDelete={handleDeleteVoice}
             onRefreshVoice={handleRefreshVoice}
             onRefreshList={loadVoices}
+            pricing={pricing}
           />
         </div>
       )}

@@ -1,5 +1,4 @@
 "use client";
-import { scopeGuestUrl } from "@/lib/client/guestAccess";
 
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,7 +22,6 @@ import {
 import { deleteTemporaryFile, uploadPrivateFile } from "@/lib/client/uploadFile";
 import { apiJson } from "@/lib/client/apiClient";
 import { useToast } from "../common/ToastProvider";
-import GuestAccessModal from "./GuestAccessModal";
 import UserManagementModal from "./UserManagementModal";
 
 export default function ProfileModal({
@@ -44,8 +42,6 @@ export default function ProfileModal({
   onEmailChange,
 }) {
   const toast = useToast();
-  const isGuest = user?.kind === "guest";
-  const [showGuestAccess, setShowGuestAccess] = useState(false);
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showAppearance, setShowAppearance] = useState(false);
@@ -73,7 +69,7 @@ export default function ProfileModal({
   }, [user?.email]);
 
   const avatarFileInputRef = useRef(null);
-  const canManageUsers = Boolean(isAdmin) && !isGuest;
+  const canManageUsers = Boolean(isAdmin);
   const savedNickname = typeof nickname === "string" ? nickname : "";
   const hasNicknameChanges = nicknameDraft !== savedNickname;
 
@@ -125,11 +121,11 @@ export default function ProfileModal({
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event) => {
-      if (event.key === "Escape" && !showUserManagement && !showGuestAccess) onClose();
+      if (event.key === "Escape" && !showUserManagement) onClose();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, showUserManagement, showGuestAccess, onClose]);
+  }, [open, showUserManagement, onClose]);
 
   const saveNickname = async () => {
     if (!hasNicknameChanges || !onNicknameChange) return;
@@ -244,7 +240,7 @@ export default function ProfileModal({
                 title="点击更换头像"
               >
                 {avatar ? (
-                  <NextImage src={scopeGuestUrl(avatar)} alt="用户头像" fill sizes="64px" unoptimized className="object-cover" />
+                  <NextImage src={avatar} alt="用户头像" fill sizes="64px" unoptimized className="object-cover" />
                 ) : (
                   <div className="w-full h-full bg-zinc-500 flex items-center justify-center text-xl font-semibold text-white">
                     {emailInitial}
@@ -262,7 +258,7 @@ export default function ProfileModal({
               <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
                 {savedNickname || user?.name || currentEmail}
               </p>
-              <p className="text-sm text-zinc-500 mt-1">{isGuest ? "共享设置" : "个人中心"}</p>
+              <p className="text-sm text-zinc-500 mt-1">个人中心</p>
             </div>
 
             <div className="space-y-3">
@@ -308,7 +304,7 @@ export default function ProfileModal({
                           </button>
                         )}
                       </div>
-                      {!isGuest && <>
+                      <>
                       <div>
                         <label className="text-xs text-zinc-500 font-medium mb-1.5 block flex items-center gap-1">
                           <Mail size={11} /> 邮箱
@@ -340,12 +336,12 @@ export default function ProfileModal({
                           </div>
                         )}
                       </div>
-                      </>}
+                      </>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-              {!isGuest && <>
+              <>
               <button
                 onClick={() => setShowChangePassword(!showChangePassword)}
                 className="w-full flex items-center justify-between bg-zinc-50 hover:bg-zinc-100 rounded-xl p-4 border border-zinc-100 transition-colors"
@@ -406,7 +402,7 @@ export default function ProfileModal({
                   </motion.div>
                 )}
               </AnimatePresence>
-              </>}
+              </>
               <button
                 onClick={() => setShowAppearance(!showAppearance)}
                 className="w-full flex items-center justify-between bg-zinc-50 hover:bg-zinc-100 rounded-xl p-4 border border-zinc-100 transition-colors"
@@ -502,7 +498,6 @@ export default function ProfileModal({
                   </motion.div>
                 )}
               </AnimatePresence>
-              {canManageUsers && <button type="button" onClick={() => setShowGuestAccess(true)} className="w-full flex items-center justify-between bg-zinc-50 hover:bg-zinc-100 rounded-xl p-4 border border-zinc-100 transition-colors"><span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2"><Users size={14} /> 游客访问</span><ChevronRight size={16} className="text-zinc-400" /></button>}
               {canManageUsers && (
                 <button
                   onClick={() => setShowUserManagement(true)}
@@ -519,7 +514,6 @@ export default function ProfileModal({
         </motion.div>
       )}
     </AnimatePresence>
-    {canManageUsers && <GuestAccessModal open={showGuestAccess} onClose={() => setShowGuestAccess(false)} />}
     <UserManagementModal
       open={showUserManagement}
       onClose={() => setShowUserManagement(false)}

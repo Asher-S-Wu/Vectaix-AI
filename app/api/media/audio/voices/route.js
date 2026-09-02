@@ -1,5 +1,17 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
+import { calculateQwenVoiceCloneCost } from "@/lib/server/credits/pricing";
+import { creditErrorResponse } from "@/lib/server/credits/api";
+import { CreditError } from "@/lib/server/credits/errors";
+import {
+  releaseMediaCredits,
+  reserveMediaCredits,
+  reviewMediaCredits,
+  settleMediaCredits,
+} from "@/lib/media/server/billing";
+import {
+  assertMediaCreditOperationUnused,
+  requireMediaCreditOperation,
+} from "@/lib/media/server/creditOperation";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   parseJsonRequest,
@@ -86,6 +98,41 @@ function createVoicePrefix() {
     .toString(36)
     .padStart(8, "0");
   return `vx${randomPart}`;
+}
+
+async function persistCreatedVoiceIdentity({
+  profileId,
+  userId,
+  mutationId,
+  voiceId,
+  requestId,
+}) {
+  const persisted = await CustomVoice.findOneAndUpdate(
+    {
+      profileId,
+      userId,
+      model: AUDIO_MODEL,
+      mutationId,
+    },
+    {
+      $set: {
+        voiceId,
+        status: "DEPLOYING",
+        lastRequestId: requestId || null,
+        remoteCreateUncertain: false,
+      },
+    },
+    { new: true, runValidators: true },
+  ).select("+mutationId +remoteCreateUncertain");
+  if (persisted) return persisted;
+  const current = await CustomVoice.findOne({
+    profileId,
+    userId,
+    model: AUDIO_MODEL,
+    voiceId,
+  }).select("+mutationId +remoteCreateUncertain");
+  if (current) return current;
+  throw new Error("保存复刻音色标识失败");
 }
 
 function normalizedSampleName(originalName) {
@@ -177,20 +224,21 @@ export async function POST(request) {
   let profileId = "";
   let userId = "";
   let createdUpstreamVoiceId = "";
+  let knownUpstreamVoiceId = "";
   let preserveLocalRecord = false;
   let mediaWriteLease = null;
   let voiceCreationLease = null;
   let sourceOperationId = "";
+  let billingOperationId = "";
+  let reservation = null;
+  let billing = null;
+  let billingFinalized = false;
+  let upstreamRequestIds = [];
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const accessError = modelAccessResponse(user, AUDIO_MODEL);
-    if (accessError) return accessError;
     userId = user.userId;
-    mediaWriteLease = await beginMediaWriteLease(user.userId);
-    voiceCreationLease = await acquireVoiceCreationLease(user.userId);
-
     const clientIP = getClientIP(request);
     const limited = rateLimit(
       `media-audio-voice:${user.userId}:${clientIP}`,
@@ -200,6 +248,24 @@ export async function POST(request) {
       return jsonMessage("声音复刻操作过于频繁，请稍后再试", 429);
     }
 
+    const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
+    if (!parsed.ok) return parsed.response;
+    const input = readCreateVoiceInput(parsed.body);
+    const creditOperation = requireMediaCreditOperation(request, {
+      userId: user.userId,
+      feature: "qwen_voice_clone_create",
+      fingerprintInput: input,
+    });
+    billingOperationId = creditOperation.operationId;
+    await assertMediaCreditOperationUnused({
+      operationId: billingOperationId,
+      userId: user.userId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
+
+    mediaWriteLease = await beginMediaWriteLease(user.userId);
+    voiceCreationLease = await acquireVoiceCreationLease(user.userId);
+
     const existingCount = await CustomVoice.countDocuments({
       userId: user.userId,
       model: AUDIO_MODEL,
@@ -208,9 +274,19 @@ export async function POST(request) {
       return jsonMessage(`每位用户最多保存 ${CUSTOM_VOICE_LIMIT} 个复刻音色`, 409);
     }
 
-    const parsed = await parseJsonRequest(request, "请求内容格式错误", MAX_JSON_BYTES);
-    if (!parsed.ok) return parsed.response;
-    const input = readCreateVoiceInput(parsed.body);
+    const settings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
+    reservation = await reserveMediaCredits({
+      operationId: billingOperationId,
+      userId: user.userId,
+      feature: "media_audio_voice_clone",
+      provider: "qwen",
+      model: AUDIO_MODEL,
+      estimate: calculateQwenVoiceCloneCost(settings),
+      settings,
+      usage: { action: "create" },
+      executionClaimId: creditOperation.executionClaimId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
 
     sourceOperationId = crypto.randomUUID();
     const [source] = await claimAudioSources({
@@ -304,7 +380,10 @@ export async function POST(request) {
         ownerId: profileId,
       });
       profileId = "";
-      return jsonMessage(`每位用户最多保存 ${CUSTOM_VOICE_LIMIT} 个复刻音色`, 409);
+      throw Object.assign(
+        new Error(`每位用户最多保存 ${CUSTOM_VOICE_LIMIT} 个复刻音色`),
+        { status: 409 },
+      );
     }
 
     const publicAppUrl = resolvePublicAppUrl();
@@ -329,6 +408,7 @@ export async function POST(request) {
 
     let upstream;
     try {
+      await assertMediaWriteLeaseActive(mediaWriteLease);
       upstream = await createCustomVoice({
         audioUrl,
         languageHint: input.languageHint,
@@ -379,33 +459,42 @@ export async function POST(request) {
       throw error;
     }
     createdUpstreamVoiceId = upstream.voiceId;
-
-    let voice;
-    let upstreamVoiceAttached = false;
-    try {
-      await assertMediaWriteLeaseActive(mediaWriteLease);
-      const attached = await CustomVoice.updateOne(
-        {
+    knownUpstreamVoiceId = upstream.voiceId;
+    upstreamRequestIds = [upstream.requestId].filter(Boolean);
+    let durableVoice = null;
+    let persistenceError = null;
+    for (let attempt = 0; attempt < 2 && !durableVoice; attempt += 1) {
+      try {
+        await assertMediaWriteLeaseActive(mediaWriteLease);
+        durableVoice = await persistCreatedVoiceIdentity({
           profileId,
           userId: user.userId,
-          model: AUDIO_MODEL,
           mutationId,
-        },
-        {
-          $set: {
-            voiceId: upstream.voiceId,
-            status: "DEPLOYING",
-            lastRequestId: upstream.requestId || null,
-            remoteCreateUncertain: false,
-          },
-        },
-      );
-      if (attached.matchedCount !== 1) {
-        throw new Error("保存复刻音色标识失败");
+          voiceId: upstream.voiceId,
+          requestId: upstream.requestId,
+        });
+      } catch (error) {
+        persistenceError = error;
       }
-      upstreamVoiceAttached = true;
-      createdUpstreamVoiceId = "";
+    }
+    if (!durableVoice) throw persistenceError || new Error("保存复刻音色标识失败");
+    preserveLocalRecord = true;
+    createdUpstreamVoiceId = "";
 
+    const settled = await settleMediaCredits({
+      reservation,
+      operationId: billingOperationId,
+      userId: user.userId,
+      actual: calculateQwenVoiceCloneCost(reservation.settings),
+      usage: { action: "create", profileId, upstreamVoiceId: upstream.voiceId },
+      upstreamRequestIds,
+    });
+    billing = settled.billing;
+    billingFinalized = true;
+
+    let voice;
+    try {
+      await assertMediaWriteLeaseActive(mediaWriteLease);
       voice = await CustomVoice.findOneAndUpdate(
         {
           profileId,
@@ -426,50 +515,9 @@ export async function POST(request) {
         { new: true },
       );
       if (!voice) {
-        preserveLocalRecord = true;
         throw new Error("保存复刻音色状态失败");
       }
     } catch (persistError) {
-      if (upstreamVoiceAttached) {
-        preserveLocalRecord = true;
-        throw persistError;
-      }
-      try {
-        await deleteCustomVoice(upstream.voiceId);
-        createdUpstreamVoiceId = "";
-      } catch (compensationError) {
-        preserveLocalRecord = true;
-        try {
-          const recovered = await CustomVoice.updateOne(
-            {
-              profileId,
-              userId: user.userId,
-              model: AUDIO_MODEL,
-            },
-            {
-              $set: {
-                voiceId: upstream.voiceId,
-                status: "DEPLOYING",
-                lastRequestId: upstream.requestId || null,
-                remoteCreateUncertain: false,
-              },
-              $unset: {
-                mutationId: 1,
-                mutationStartedAt: 1,
-              },
-            },
-          );
-          if (recovered.matchedCount !== 1) {
-            throw new Error("未找到需要保留的复刻音色记录");
-          }
-        } catch (recoveryError) {
-          console.error(
-            `[Media Audio] CRITICAL orphan voice ${upstream.voiceId}:`,
-            recoveryError,
-          );
-        }
-        console.error("[Media Audio] compensate failed voice creation:", compensationError);
-      }
       throw persistError;
     }
 
@@ -477,8 +525,65 @@ export async function POST(request) {
     return Response.json({
       success: true,
       voice: serializeCustomVoice(voice),
+      billing,
     }, { status: 201 });
   } catch (error) {
+    if (reservation && !billingFinalized) {
+      try {
+        const result = isAmbiguousVoiceCreationError(error)
+          || preserveLocalRecord
+          || Boolean(createdUpstreamVoiceId)
+          ? await reviewMediaCredits({
+              reservation,
+              operationId: billingOperationId,
+              userId,
+              reason: "Qwen 自定义音色创建结果不明确",
+              usage: {
+                action: "create",
+                profileId,
+                ...(knownUpstreamVoiceId ? { upstreamVoiceId: knownUpstreamVoiceId } : {}),
+              },
+              upstreamRequestIds: upstreamRequestIds.length
+                ? upstreamRequestIds
+                : [error?.requestId].filter(Boolean),
+            })
+          : await releaseMediaCredits({
+              reservation,
+              operationId: billingOperationId,
+              userId,
+              usage: { action: "create", profileId },
+              upstreamRequestIds: [error?.requestId].filter(Boolean),
+            });
+        billing = result.billing;
+        billingFinalized = true;
+      } catch (billingError) {
+        console.error("[Media Audio] finalize voice clone billing:", billingError);
+      }
+    }
+    if (createdUpstreamVoiceId) {
+      try {
+        await persistCreatedVoiceIdentity({
+          profileId,
+          userId,
+          mutationId,
+          voiceId: createdUpstreamVoiceId,
+          requestId: upstreamRequestIds[0] || "",
+        });
+        preserveLocalRecord = true;
+        createdUpstreamVoiceId = "";
+      } catch (recoveryError) {
+        try {
+          await deleteCustomVoice(createdUpstreamVoiceId);
+          createdUpstreamVoiceId = "";
+        } catch (cleanupError) {
+          preserveLocalRecord = true;
+          console.error("[Media Audio] persist or cleanup remote voice:", {
+            recoveryError,
+            cleanupError,
+          });
+        }
+      }
+    }
     if (profileId && userId && !preserveLocalRecord && !createdUpstreamVoiceId) {
       try {
         await deleteStoredFilesByOwner({
@@ -496,7 +601,17 @@ export async function POST(request) {
       }
     }
     console.error("[Media Audio] create custom voice:", error);
-    return jsonMessage(getPublicErrorMessage(error, "声音复刻失败"), getErrorStatus(error));
+    if (error instanceof CreditError) {
+      return creditErrorResponse(error, "声音复刻积分处理失败");
+    }
+    return Response.json(
+      {
+        success: false,
+        message: getPublicErrorMessage(error, "声音复刻失败"),
+        ...(billing ? { billing } : {}),
+      },
+      { status: getErrorStatus(error) },
+    );
   } finally {
     if (sourceOperationId && userId) {
       await deleteClaimedAudioSources({

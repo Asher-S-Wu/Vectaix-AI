@@ -1,5 +1,4 @@
 "use client";
-import { scopeGuestUrl } from "@/lib/client/guestAccess";
 
 
 import { useState } from "react";
@@ -47,7 +46,7 @@ function ProviderMark({ provider, size }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       aria-hidden
-      src={scopeGuestUrl(logo)}
+      src={logo}
       alt=""
       width={size}
       height={size}

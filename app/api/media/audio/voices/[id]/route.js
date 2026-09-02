@@ -1,5 +1,17 @@
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import crypto from "node:crypto";
+import { calculateQwenVoiceCloneCost } from "@/lib/server/credits/pricing";
+import { creditErrorResponse } from "@/lib/server/credits/api";
+import { CreditError } from "@/lib/server/credits/errors";
+import {
+  releaseMediaCredits,
+  reserveMediaCredits,
+  reviewMediaCredits,
+  settleMediaCredits,
+} from "@/lib/media/server/billing";
+import {
+  assertMediaCreditOperationUnused,
+  requireMediaCreditOperation,
+} from "@/lib/media/server/creditOperation";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   parseJsonRequest,
@@ -387,21 +399,38 @@ export async function PATCH(request, context) {
   let upstreamAccepted = false;
   let mediaWriteLease = null;
   let sourceOperationId = "";
+  let billingOperationId = "";
+  let reservation = null;
+  let billing = null;
+  let billingFinalized = false;
+  let upstreamRequestIds = [];
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const accessError = modelAccessResponse(user, AUDIO_MODEL);
-    if (accessError) return accessError;
     userId = user.userId;
-    mediaWriteLease = await beginMediaWriteLease(user.userId);
-
     profileId = await getProfileId(context);
+    rateLimitVoiceRequest(request, user.userId, profileId, true);
+    const input = await parsePatchInput(request);
+    let creditOperation = null;
+    if (input.sampleUploadId) {
+      creditOperation = requireMediaCreditOperation(request, {
+        userId: user.userId,
+        feature: "qwen_voice_clone_replace",
+        fingerprintInput: { profileId, ...input },
+      });
+      billingOperationId = creditOperation.operationId;
+      await assertMediaCreditOperationUnused({
+        operationId: billingOperationId,
+        userId: user.userId,
+        requestFingerprint: creditOperation.requestFingerprint,
+      });
+    }
+
+    mediaWriteLease = await beginMediaWriteLease(user.userId);
     const voice = await findOwnedVoice(user.userId, profileId);
     if (!voice) return jsonMessage("复刻音色不存在", 404);
 
-    rateLimitVoiceRequest(request, user.userId, profileId, true);
-    const input = await parsePatchInput(request);
     if (!input.sampleUploadId) {
       await assertMediaWriteLeaseActive(mediaWriteLease);
       const renamed = await CustomVoice.findOneAndUpdate(
@@ -431,6 +460,20 @@ export async function PATCH(request, context) {
         409,
       );
     }
+
+    const settings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
+    reservation = await reserveMediaCredits({
+      operationId: billingOperationId,
+      userId: user.userId,
+      feature: "media_audio_voice_clone",
+      provider: "qwen",
+      model: AUDIO_MODEL,
+      estimate: calculateQwenVoiceCloneCost(settings),
+      settings,
+      usage: { action: "replace_sample", profileId },
+      executionClaimId: creditOperation.executionClaimId,
+      requestFingerprint: creditOperation.requestFingerprint,
+    });
 
     sourceOperationId = crypto.randomUUID();
     const [source] = await claimAudioSources({
@@ -533,11 +576,13 @@ export async function PATCH(request, context) {
     const audioUrl = `${publicAppUrl}/api/media/audio/voice-samples/${encodeURIComponent(profileId)}?token=${encodeURIComponent(token)}`;
     let upstream;
     try {
+      await assertMediaWriteLeaseActive(mediaWriteLease);
       upstream = await updateCustomVoice({
         voiceId: lockedVoice.voiceId,
         audioUrl,
       });
       upstreamAccepted = true;
+      upstreamRequestIds = [upstream.requestId].filter(Boolean);
     } catch (error) {
       if (isAmbiguousVoiceUpdateError(error)) {
         // 请求可能已经到达阿里云，保留新样本与待核对标记，不能回滚成旧的可用状态。
@@ -568,6 +613,16 @@ export async function PATCH(request, context) {
       }
       throw error;
     }
+    const settled = await settleMediaCredits({
+      reservation,
+      operationId: billingOperationId,
+      userId: user.userId,
+      actual: calculateQwenVoiceCloneCost(reservation.settings),
+      usage: { action: "replace_sample", profileId },
+      upstreamRequestIds,
+    });
+    billing = settled.billing;
+    billingFinalized = true;
     const previousSampleFileId = previous.sampleFileId;
 
     await assertMediaWriteLeaseActive(mediaWriteLease);
@@ -614,8 +669,34 @@ export async function PATCH(request, context) {
       }
     }
 
-    return Response.json({ success: true, voice: serializeCustomVoice(completedVoice) });
+    return Response.json({ success: true, voice: serializeCustomVoice(completedVoice), billing });
   } catch (error) {
+    if (reservation && !billingFinalized) {
+      try {
+        const result = upstreamAccepted
+          ? await reviewMediaCredits({
+              reservation,
+              operationId: billingOperationId,
+              userId,
+              reason: "Qwen 自定义音色样本更换结果不明确",
+              usage: { action: "replace_sample", profileId },
+              upstreamRequestIds: upstreamRequestIds.length
+                ? upstreamRequestIds
+                : [error?.requestId].filter(Boolean),
+            })
+          : await releaseMediaCredits({
+              reservation,
+              operationId: billingOperationId,
+              userId,
+              usage: { action: "replace_sample", profileId },
+              upstreamRequestIds: [error?.requestId].filter(Boolean),
+            });
+        billing = result.billing;
+        billingFinalized = true;
+      } catch (billingError) {
+        console.error("[Media Audio] finalize voice replacement billing:", billingError);
+      }
+    }
     let canDeleteNewSample = Boolean(newSample && !replacementLocked);
     if (replacementLocked && !upstreamAccepted && previous && userId && profileId && mutationId) {
       try {
@@ -658,9 +739,16 @@ export async function PATCH(request, context) {
       }
     }
     console.error("[Media Audio] update custom voice:", error);
-    return jsonMessage(
-      getPublicErrorMessage(error, "更新复刻音色失败"),
-      getErrorStatus(error),
+    if (error instanceof CreditError) {
+      return creditErrorResponse(error, "音色更新积分处理失败");
+    }
+    return Response.json(
+      {
+        success: false,
+        message: getPublicErrorMessage(error, "更新复刻音色失败"),
+        ...(billing ? { billing } : {}),
+      },
+      { status: getErrorStatus(error) },
     );
   } finally {
     if (sourceOperationId && userId) {

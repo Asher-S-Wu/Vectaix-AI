@@ -2,10 +2,10 @@ import {
   deleteConversationForUser,
   getConversationForUser,
   isValidConversationId,
+  updateConversationMessageTimeline,
   updateConversationForUser,
 } from "@/lib/server/conversations/service";
 import { TEXT_CHAT_MAX_REQUEST_BYTES } from '@/lib/server/chat/routeConstants';
-import { modelAccessResponse } from '@/lib/server/guest/access';
 import {
   assertRequestSize,
   parseJsonRequest,
@@ -73,15 +73,6 @@ export async function PUT(req, context) {
   const body = parsed.body;
 
   try {
-    if (user.kind === "guest" && body?.model !== undefined) {
-      const current = await getConversationForUser(id, user.userId);
-      if (!current) return Response.json({ error: "Not found" }, { status: 404 });
-      const nextModel = typeof body.model === "string" ? body.model.trim() : body.model;
-      if (nextModel !== current.model) {
-        const accessError = modelAccessResponse(user, nextModel);
-        if (accessError) return accessError;
-      }
-    }
     const conversation = await updateConversationForUser(id, user.userId, body);
     const nextConversation = conversation?.toObject?.() || conversation;
     if (!nextConversation) {
@@ -89,6 +80,41 @@ export async function PUT(req, context) {
     }
 
     return Response.json({ conversation: nextConversation });
+  } catch (error) {
+    return Response.json({ error: error?.message || "更新失败" }, { status: 400 });
+  }
+}
+
+export async function PATCH(req, context) {
+  const id = await getRouteId(context);
+  if (!isValidConversationId(id)) {
+    return Response.json({ error: "Invalid id" }, { status: 400 });
+  }
+
+  const oversizeResponse = assertRequestSize(req, TEXT_CHAT_MAX_REQUEST_BYTES);
+  if (oversizeResponse) return oversizeResponse;
+
+  const user = await requireConversationUser(req);
+  if (!user) return unauthorizedResponse();
+
+  const parsed = await parseJsonRequest(req, "Invalid JSON", TEXT_CHAT_MAX_REQUEST_BYTES);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.body;
+  if (
+    !body
+    || typeof body !== "object"
+    || Array.isArray(body)
+    || Object.keys(body).some((key) => !["messageId", "thinkingTimeline"].includes(key))
+    || !Object.hasOwn(body, "messageId")
+    || !Object.hasOwn(body, "thinkingTimeline")
+  ) {
+    return Response.json({ error: "Invalid message patch" }, { status: 400 });
+  }
+
+  try {
+    const updated = await updateConversationMessageTimeline(id, user.userId, body);
+    if (!updated) return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json({ success: true });
   } catch (error) {
     return Response.json({ error: error?.message || "更新失败" }, { status: 400 });
   }

@@ -182,17 +182,8 @@ export function getStoredPartsFromMessage(msg, { includeThoughtSignature = false
 function sanitizeStoredMessage(msg) {
     if (!msg || typeof msg !== 'object') return null;
     if (msg.role !== 'user' && msg.role !== 'model') return null;
-    const hasEmptySourceParts = msg.parts === undefined || (Array.isArray(msg.parts) && msg.parts.length === 0);
-    const isContentOnlyModelText = (
-        msg.role === 'model'
-        && msg.type === 'text'
-        && isNonEmptyString(msg.content)
-        && hasEmptySourceParts
-    );
-    const normalizedParts = isContentOnlyModelText
-        ? null
-        : getStoredPartsFromMessage(msg);
-    if (!isContentOnlyModelText && (!normalizedParts || normalizedParts.length === 0)) return null;
+    const normalizedParts = getStoredPartsFromMessage(msg);
+    if (!normalizedParts || normalizedParts.length === 0) return null;
     const out = {
         role: msg.role,
         content: typeof msg.content === 'string' ? msg.content : '',
@@ -204,7 +195,7 @@ function sanitizeStoredMessage(msg) {
     if (Array.isArray(msg.tools) && msg.tools.length > 0) out.tools = msg.tools;
     if (Array.isArray(msg.thinkingTimeline) && msg.thinkingTimeline.length > 0) out.thinkingTimeline = msg.thinkingTimeline;
     if (msg.providerState && typeof msg.providerState === 'object') out.providerState = msg.providerState;
-    if (normalizedParts?.length) out.parts = normalizedParts;
+    out.parts = normalizedParts;
     return out;
 }
 
@@ -238,14 +229,7 @@ export function sanitizeStoredMessagesStrict(messages) {
             throw createValidationError(`messages[${i}].thought too long`);
         }
 
-        const isContentOnlyModelText = (
-            normalized.role === 'model'
-            && normalized.type === 'text'
-            && isNonEmptyString(normalized.content)
-            && !Array.isArray(normalized.parts)
-        );
-
-        if (!isContentOnlyModelText && (!Array.isArray(normalized.parts) || normalized.parts.length === 0)) {
+        if (!Array.isArray(normalized.parts) || normalized.parts.length === 0) {
             throw createValidationError(`messages[${i}].parts required`);
         }
 

@@ -40,7 +40,7 @@ const MinimaxVoiceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["SUBMITTING", "READY"],
+    enum: ["SUBMITTING", "READY", "CLEANUP_PENDING"],
     default: "SUBMITTING",
     required: true,
     index: true,
@@ -64,11 +64,43 @@ const MinimaxVoiceSchema = new mongoose.Schema({
   sampleTokenExpiresAt: { type: Date, default: null },
   demoFileId: { type: String, default: null, index: true },
   requestId: { type: String, default: "", maxlength: 200 },
+  claimOperationId: { type: String, default: null },
+  claimStartedAt: { type: Date, default: null },
+  unlockedAt: { type: Date, default: null, index: true },
   consentConfirmedAt: { type: Date, required: true },
 }, { timestamps: true });
 
+MinimaxVoiceSchema.pre("validate", function validateUnlockClaim() {
+  const hasOperation = typeof this.claimOperationId === "string" && this.claimOperationId.length > 0;
+  const hasStartedAt = this.claimStartedAt instanceof Date;
+  if (hasOperation !== hasStartedAt) {
+    this.invalidate("claimOperationId", "首次解锁 claim 必须同时包含操作编号和开始时间");
+  }
+  if (this.unlockedAt && hasOperation) {
+    this.invalidate("claimOperationId", "已解锁音色不能保留首次解锁 claim");
+  }
+});
+
 MinimaxVoiceSchema.index({ userId: 1, status: 1, createdAt: -1 });
+MinimaxVoiceSchema.index(
+  { claimOperationId: 1 },
+  {
+    name: "minimax_voice_unlock_claim_unique",
+    unique: true,
+    partialFilterExpression: { claimOperationId: { $type: "string" } },
+  },
+);
+MinimaxVoiceSchema.index(
+  { claimStartedAt: 1 },
+  {
+    name: "minimax_voice_unlock_claim_stale",
+    partialFilterExpression: { claimOperationId: { $type: "string" } },
+  },
+);
 
 export default mongoose.models.MinimaxVoice
   || mongoose.model("MinimaxVoice", MinimaxVoiceSchema);
 
+export async function ensureMinimaxVoiceIndexes() {
+  await (mongoose.models.MinimaxVoice || mongoose.model("MinimaxVoice", MinimaxVoiceSchema)).createIndexes();
+}

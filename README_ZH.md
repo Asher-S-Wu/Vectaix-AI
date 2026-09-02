@@ -62,14 +62,13 @@
 
 ### 🤖 多模型智能
 
-支持 7 个聊天模型，通过统一界面访问。对话中切换模型时会新建话题，避免不同模型的上下文相互混淆。
+支持 6 个聊天模型，通过统一界面访问。对话中切换模型时会新建话题，避免不同模型的上下文相互混淆。
 
 | 模型 | 供应商 | 上下文窗口 | 输入类型 | 深度思考 | 联网搜索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-5.6 Sol** | OpenAI | 105 万 | 文本、图像 | ✅ | ✅ |
 | **Claude Opus 5** | Anthropic | 100 万 | 文本、图像 | ✅ | ✅ |
 | **Gemini 3.7 Flash** | Google | 100 万 | 文本、图像、音频、视频 | ✅ | ✅ |
-| **Abliterated Model Large** | Abliteration AI | 100 万 | 文本 | ✅ | ✅ |
 | **Grok 4.6** | xAI | 50 万 | 文本、图像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 100 万 | 文本、图像 | ✅ | ✅ |
 | **Qwen 3.8 Max** | 阿里云 | 100 万 | 文本、图像 | ✅ | ✅ |
@@ -240,7 +239,7 @@ vectaix-ai/
 | **后端** | Next.js API Routes · Node.js · SSE（Server-Sent Events）流式传输 |
 | **数据库** | MongoDB + Mongoose ODM |
 | **存储** | Zeabur 挂载硬盘（私有媒体文件） |
-| **AI 供应商** | OpenRouter · Abliteration · 阿里云百炼 |
+| **AI 供应商** | OpenRouter · 阿里云百炼 |
 | **认证** | MongoDB 服务端会话 · bcryptjs |
 | **渲染** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **部署** | Zeabur 原生 Next.js 服务（单实例） |
@@ -274,7 +273,6 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | 挂载硬盘目录，Zeabur 使用 `/data/vectaix` |
 | `ADMIN_EMAILS` | — | 管理员邮箱，多个邮箱使用英文逗号分隔 |
 | `OPENROUTER_API_KEY` | — | GPT、Grok、Claude、Gemini、Kimi K3 等聊天模型共用的 OpenRouter API 密钥 |
-| `ABLIT_KEY` | — | Abliterated Model Large 使用的 Abliteration API 密钥（`ak_...`） |
 | `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max、Qwen Image 3.0 Pro、HappyHorse 视频和 Qwen Audio 3.0 TTS Plus 使用的新加坡区域阿里云百炼 API 密钥 |
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 使用的北京区域阿里云百炼 API 密钥 |
 | `AI_MEDIAKIT_API_KEY` | — | AI MediaKit 画质增强（大模型版）使用的 API Key，实际启用时配置 |

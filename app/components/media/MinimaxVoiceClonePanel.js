@@ -1,5 +1,4 @@
 "use client";
-import { scopeGuestUrl } from "@/lib/client/guestAccess";
 
 
 import { useState } from "react";
@@ -61,6 +60,7 @@ export default function MinimaxVoiceClonePanel({
   onRename,
   onDelete,
   onRefresh,
+  pricing,
 }) {
   const reduceMotion = useReducedMotion();
   const [displayName, setDisplayName] = useState("");
@@ -84,6 +84,15 @@ export default function MinimaxVoiceClonePanel({
   const atLimit = voices.length >= MINIMAX_CUSTOM_VOICE_MAX_COUNT;
   const formDisabled = !modelAllowed || loading || creating || atLimit;
   const voiceActionActive = creating || Boolean(deletingId);
+  const demoRate = model.endsWith("-turbo")
+    ? pricing?.minimaxTts?.turboPer10000Characters
+    : pricing?.minimaxTts?.hdPer10000Characters;
+  const demoEstimatedPoints = Number.isInteger(demoRate) && demoText.trim().length > 0
+    ? Math.ceil((demoText.trim().length / 10000) * demoRate)
+    : null;
+  const firstClonePoints = Number.isInteger(pricing?.minimaxTts?.firstVoiceClone)
+    ? pricing.minimaxTts.firstVoiceClone
+    : null;
 
   const resetSample = () => {
     setSampleFile(null);
@@ -319,7 +328,12 @@ export default function MinimaxVoiceClonePanel({
               </div>
 
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-700" role="note">
-                创建时生成的试听会按试听文字正常计费；首次使用复刻音色正式合成时，会收取 9.9 元音色复刻费用。
+                {demoEstimatedPoints === null
+                  ? "创建时生成的试听会按试听文字计费。"
+                  : `本次创建试听预计约 ${demoEstimatedPoints.toLocaleString("zh-CN")} 积分。`}
+                {firstClonePoints === null
+                  ? "首次使用复刻音色合成时另收首次解锁费用。"
+                  : `首次使用复刻音色合成时另约 ${firstClonePoints.toLocaleString("zh-CN")} 积分。`}
               </div>
 
               <label className="flex items-start gap-3 rounded-xl border border-zinc-200 p-4 text-sm leading-6 dark:border-zinc-700">
@@ -501,7 +515,7 @@ export default function MinimaxVoiceClonePanel({
                       <audio
                         controls
                         preload="metadata"
-                        src={scopeGuestUrl(voice.demoAudioUrl)}
+                        src={voice.demoAudioUrl}
                         className="mt-3 h-10 w-full"
                         aria-label={`${voice.displayName} 的试听音频`}
                       >

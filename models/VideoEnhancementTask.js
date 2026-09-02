@@ -124,6 +124,19 @@ const VideoEnhancementTaskSchema = new mongoose.Schema({
       message: "视频来源域名不符合要求",
     },
   },
+  sourceDurationSeconds: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 60,
+    immutable: true,
+  },
+  sourceDurationVerified: {
+    type: Boolean,
+    required: true,
+    default: false,
+    immutable: true,
+  },
   settings: { type: SettingsSchema, required: true, immutable: true },
   clientToken: {
     type: String,
@@ -161,6 +174,7 @@ const VideoEnhancementTaskSchema = new mongoose.Schema({
   upstreamCreatedAt: { type: Date, default: null },
   lastSyncedAt: { type: Date, default: null },
   finalizationStartedAt: { type: Date, default: null },
+  submissionDispatchedAt: { type: Date, default: null },
   deletionRequestedAt: { type: Date, default: null, select: false },
   videoFileId: {
     type: String,
@@ -178,6 +192,8 @@ const VideoEnhancementTaskSchema = new mongoose.Schema({
     },
   },
   result: { type: ResultSchema, default: null },
+  billing: { type: mongoose.Schema.Types.Mixed, default: null },
+  billingPricingSnapshot: { type: mongoose.Schema.Types.Mixed, default: null, select: false },
   error: { type: ErrorSchema, default: null },
 }, {
   timestamps: true,

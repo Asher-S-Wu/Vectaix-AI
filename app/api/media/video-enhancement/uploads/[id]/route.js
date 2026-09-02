@@ -1,5 +1,3 @@
-import { VIDEO_ENHANCEMENT_MODEL } from "@/lib/media/shared/videoEnhancement";
-import { modelAccessResponse } from "@/lib/server/guest/access";
 import mongoose from "mongoose";
 import {
   requireUserRecord,
@@ -54,8 +52,6 @@ export async function PATCH(request, context) {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const accessError = modelAccessResponse(user, VIDEO_ENHANCEMENT_MODEL);
-    if (accessError) return accessError;
     const id = await getTicketId(context);
     if (!mongoose.isValidObjectId(id)) return jsonMessage("上传凭证编号无效", 400);
     if (request.body !== null) return jsonMessage("此请求不能包含请求内容", 400);
