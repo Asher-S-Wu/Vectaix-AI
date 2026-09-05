@@ -57,7 +57,7 @@ export async function GET(request, context) {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    let task = await loadOwnedTask(await getTaskId(context), user.userId);
+    const task = await loadOwnedTask(await getTaskId(context), user.userId);
     if (!task) return jsonMessage("任务不存在", 404);
 
     let current = task;
@@ -108,7 +108,7 @@ export async function DELETE(request, context) {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
     if (!user) return unauthorizedResponse("未登录");
-    const task = await loadOwnedTask(await getTaskId(context), user.userId);
+    let task = await loadOwnedTask(await getTaskId(context), user.userId);
     if (!task) return jsonMessage("任务不存在", 404);
     if (["queued", "in_progress", "finalizing"].includes(task.status)) {
       return jsonMessage("排队中、生成中或正在保存的任务不能删除", 409);
