@@ -89,10 +89,12 @@
 
 具备实时互联网访问能力，支持智能多轮浏览。
 
-- **智能搜索** — 通过 Exa Search 发现最新、相关的网页来源
-- **网页内容提取** — 通过 Exa Contents 将选定页面提取为干净的 Markdown
+- **智能搜索** — 通过免费的 TinyFish Search 查找最新网页，搜索语言跟随当前提问
+- **网页内容提取** — 通过免费的 TinyFish Fetch 将选定页面提取为干净的 Markdown
 - **多页浏览** — 单次会话中抓取多个页面
 - **行内引用** — 每个论点都有可溯源的参考链接
+
+搜索和网页读取不额外扣积分；AI 阅读资料和生成回答仍按模型用量计费。
 
 <br/>
 
@@ -277,10 +279,12 @@ vectaix-ai/
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 使用的北京区域阿里云百炼 API 密钥 |
 | `AI_MEDIAKIT_API_KEY` | — | AI MediaKit 画质增强（大模型版）使用的 API Key，实际启用时配置 |
 | `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址，供 HappyHorse 和 MiniMax 声音复刻读取输入素材 |
-| `EXA_API_KEY` | — | Exa Search 与 Contents 使用的 API 密钥 |
+| `TINYFISH_API_KEY` | — | TinyFish 免费 Search 与 Fetch 接口共用的 API 密钥，启用联网时必需 |
 
 > [!TIP]
 > 请为实际启用的模型或功能配置对应密钥；缺少密钥时接口会返回明确的配置错误。
+
+更新联网服务时，在 Zeabur 配置 `TINYFISH_API_KEY` 并移除旧联网密钥变量，再替换旧实例。新版本启动时会删除数据库中的旧联网费率并保留历史账单；迁移后不要让旧版本继续提供服务。
 
 <br/>
 

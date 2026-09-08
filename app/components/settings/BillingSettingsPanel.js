@@ -14,13 +14,13 @@ const GENERAL_FIELDS = Object.freeze([
 ]);
 
 const RATE_FIELDS = Object.freeze([
-  { path: ["rates", "chat", "gpt-6-astra", "inputPerMillion"], label: "GPT-6 Astra 输入", unit: "美元 / 百万 token" },
-  { path: ["rates", "chat", "gpt-6-astra", "cachedInputPerMillion"], label: "GPT-6 Astra 缓存输入", unit: "美元 / 百万 token" },
-  { path: ["rates", "chat", "gpt-6-astra", "cacheWritePerMillion"], label: "GPT-6 Astra 缓存写入", unit: "美元 / 百万 token" },
-  { path: ["rates", "chat", "gpt-6-astra", "outputPerMillion"], label: "GPT-6 Astra 输出", unit: "美元 / 百万 token" },
-  { path: ["rates", "chat", "gpt-6-astra", "longContextThreshold"], label: "GPT 长上下文起算值", unit: "输入 token", step: 1 },
-  { path: ["rates", "chat", "gpt-6-astra", "longInputMultiplier"], label: "GPT 长上下文输入倍数", unit: "倍", step: 0.01 },
-  { path: ["rates", "chat", "gpt-6-astra", "longOutputMultiplier"], label: "GPT 长上下文输出倍数", unit: "倍", step: 0.01 },
+  { path: ["rates", "chat", "gpt-6-astra", "inputPerMillion"], label: "GPT-6 Astra 输入预估", unit: "美元 / 百万 token" },
+  { path: ["rates", "chat", "gpt-6-astra", "cachedInputPerMillion"], label: "GPT-6 Astra 缓存输入预估", unit: "美元 / 百万 token" },
+  { path: ["rates", "chat", "gpt-6-astra", "cacheWritePerMillion"], label: "GPT-6 Astra 缓存写入预估", unit: "美元 / 百万 token" },
+  { path: ["rates", "chat", "gpt-6-astra", "outputPerMillion"], label: "GPT-6 Astra 输出预估", unit: "美元 / 百万 token" },
+  { path: ["rates", "chat", "gpt-6-astra", "longContextThreshold"], label: "GPT 长上下文预估起算值", unit: "输入 token", step: 1 },
+  { path: ["rates", "chat", "gpt-6-astra", "longInputMultiplier"], label: "GPT 长上下文输入预估倍数", unit: "倍", step: 0.01 },
+  { path: ["rates", "chat", "gpt-6-astra", "longOutputMultiplier"], label: "GPT 长上下文输出预估倍数", unit: "倍", step: 0.01 },
   { path: ["rates", "chat", "claude-opus-5", "inputPerMillion"], label: "Claude Opus 5 输入", unit: "美元 / 百万 token" },
   { path: ["rates", "chat", "claude-opus-5", "outputPerMillion"], label: "Claude Opus 5 输出", unit: "美元 / 百万 token" },
   { path: ["rates", "chat", "google/gemini-3.8-flash", "inputPerMillion"], label: "Gemini 3.8 Flash 输入", unit: "美元 / 百万 token" },
@@ -34,8 +34,6 @@ const RATE_FIELDS = Object.freeze([
   { path: ["rates", "chat", "qwen-3.8-max-0902", "inputPerMillion"], label: "Qwen 3.8 Max 0902 输入", unit: "美元 / 百万 token" },
   { path: ["rates", "chat", "qwen-3.8-max-0902", "cachedInputPerMillion"], label: "Qwen 3.8 Max 0902 缓存输入", unit: "美元 / 百万 token" },
   { path: ["rates", "chat", "qwen-3.8-max-0902", "outputPerMillion"], label: "Qwen 3.8 Max 0902 输出", unit: "美元 / 百万 token" },
-  { path: ["rates", "exa", "search20Usd"], label: "Exa 搜索（20 条）", unit: "美元 / 次" },
-  { path: ["rates", "exa", "contentsUsd"], label: "Exa 网页读取", unit: "美元 / 页" },
   { path: ["rates", "qwenImage", "outputCny", "1K"], label: "Qwen 图片 1K 输出", unit: "元 / 张" },
   { path: ["rates", "qwenImage", "outputCny", "2K"], label: "Qwen 图片 2K 输出", unit: "元 / 张" },
   { path: ["rates", "qwenImage", "inputImageCny"], label: "Qwen 图片参考图", unit: "元 / 张" },
@@ -208,7 +206,8 @@ export default function BillingSettingsPanel({ active }) {
       </section>
 
       <section>
-        <h3 className="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">模型实际费率</h3>
+        <h3 className="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">模型费率与预估</h3>
+        <p className="mb-3 text-xs text-zinc-400">GPT-6 Astra 的费率仅用于预估聊天预算，实际积分按 OpenRouter 返回的费用、当前汇率和成本安全系数计算。</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {RATE_FIELDS.map((field) => <NumberField key={field.label} field={field} settings={settings} onChange={updateNumber} />)}
         </div>

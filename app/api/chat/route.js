@@ -61,10 +61,8 @@ import {
   HEARTBEAT_INTERVAL_MS,
 } from "@/lib/server/chat/routeConstants";
 import { parseJsonRequest } from "@/lib/server/api/routeHelpers";
-import { WebBrowsingApiName } from "@/lib/shared/webBrowsing";
 import {
   calculateChatCost,
-  calculateExaCost,
   createPricingSnapshot,
   getChatReservationPoints,
   pointsFromUsd,
@@ -88,8 +86,6 @@ export const dynamic = "force-dynamic";
 
 const MIN_CHAT_OUTPUT_TOKENS = 256;
 const MAX_CHAT_RESERVATION_POINTS = 1000;
-const MAX_RESERVED_EXA_SEARCHES = WEB_BROWSING_MAX_ROUNDS;
-const MAX_RESERVED_EXA_CONTENTS = WEB_BROWSING_MAX_ROUNDS;
 
 function canonicalize(value) {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
@@ -113,7 +109,7 @@ function usageTokenCount(usage, primary, alternate) {
   return Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
-function calculateAccumulatedCosts({ model, provider, usageRecords, exaUsage, settings, requestFingerprint }) {
+function calculateAccumulatedCosts({ model, provider, usageRecords, settings, requestFingerprint }) {
   const records = usageRecords.filter((record) => record?.usage && typeof record.usage === "object");
   if (records.length !== usageRecords.length) throw new Error("模型用量记录不完整");
 
@@ -121,24 +117,24 @@ function calculateAccumulatedCosts({ model, provider, usageRecords, exaUsage, se
   let outputTokens = 0;
   let cachedInputTokens = 0;
   let cacheWriteTokens = 0;
-  let openRouterUsageCost = null;
+  let openRouterUsageCost = provider === "qwen" ? null : 0;
   let chatCostUsd = 0;
-  if (provider === "openai" || provider === "qwen") {
-    for (const record of records) {
-      const input = usageTokenCount(record.usage, "input_tokens", "prompt_tokens");
-      const output = usageTokenCount(record.usage, "output_tokens", "completion_tokens");
+  for (const record of records) {
+    const input = usageTokenCount(record.usage, "input_tokens", "prompt_tokens");
+    const output = usageTokenCount(record.usage, "output_tokens", "completion_tokens");
+    if (input !== null) inputTokens += input;
+    if (output !== null) outputTokens += output;
+    const tokenDetails = record.usage?.input_tokens_details || record.usage?.prompt_tokens_details;
+    const recordCachedInputTokens = usageTokenCount(tokenDetails, "cached_tokens", "cached_tokens") ?? 0;
+    const recordCacheWriteTokens = usageTokenCount(
+      record.usage,
+      "cache_write_tokens",
+      "cache_write_input_tokens",
+    ) ?? usageTokenCount(tokenDetails, "cache_write_tokens", "cache_write_tokens") ?? 0;
+    cachedInputTokens += recordCachedInputTokens;
+    cacheWriteTokens += recordCacheWriteTokens;
+    if (provider === "qwen") {
       if (input === null || output === null) throw new Error("模型返回的 token 用量不完整");
-      inputTokens += input;
-      outputTokens += output;
-      const tokenDetails = record.usage?.input_tokens_details || record.usage?.prompt_tokens_details;
-      const recordCachedInputTokens = usageTokenCount(tokenDetails, "cached_tokens", "cached_tokens") ?? 0;
-      const recordCacheWriteTokens = usageTokenCount(
-        record.usage,
-        "cache_write_tokens",
-        "cache_write_input_tokens",
-      ) ?? usageTokenCount(tokenDetails, "cache_write_tokens", "cache_write_tokens") ?? 0;
-      cachedInputTokens += recordCachedInputTokens;
-      cacheWriteTokens += recordCacheWriteTokens;
       chatCostUsd += calculateChatCost({
         model,
         inputTokens: input,
@@ -146,30 +142,25 @@ function calculateAccumulatedCosts({ model, provider, usageRecords, exaUsage, se
         cachedInputTokens: recordCachedInputTokens,
         cacheWriteTokens: recordCacheWriteTokens,
       }, settings).costUsd;
-    }
-  } else {
-    openRouterUsageCost = 0;
-    for (const record of records) {
+    } else {
       const rawCost = record.usage.cost;
       const numericCost = typeof rawCost === "string" ? Number(rawCost) : rawCost;
-      const input = usageTokenCount(record.usage, "input_tokens", "prompt_tokens");
-      const output = usageTokenCount(record.usage, "output_tokens", "completion_tokens");
-      if (input !== null) inputTokens += input;
-      if (output !== null) outputTokens += output;
-      if (!Number.isFinite(numericCost) || numericCost < 0) {
+      if (
+        (typeof rawCost === "string" && !rawCost.trim())
+        || !Number.isFinite(numericCost)
+        || numericCost < 0
+      ) {
         throw new Error("OpenRouter 未返回本轮 usage.cost");
       }
       openRouterUsageCost += numericCost;
+      chatCostUsd += numericCost;
     }
-    chatCostUsd = openRouterUsageCost;
   }
 
-  const exaCost = calculateExaCost(exaUsage, settings);
-  const actualCostUsd = chatCostUsd + exaCost.costUsd;
   return {
-    chargedPoints: pointsFromUsd(actualCostUsd, settings),
-    actualCostCny: actualCostUsd * settings.usdToCny,
-    actualCostUsd,
+    chargedPoints: pointsFromUsd(chatCostUsd, settings),
+    actualCostCny: chatCostUsd * settings.usdToCny,
+    actualCostUsd: chatCostUsd,
     usage: {
       model,
       requestFingerprint,
@@ -179,7 +170,6 @@ function calculateAccumulatedCosts({ model, provider, usageRecords, exaUsage, se
       outputTokens,
       ...(openRouterUsageCost === null ? {} : { openRouterUsageCost }),
       usageRecords,
-      exa: { ...exaUsage },
     },
   };
 }
@@ -522,11 +512,8 @@ export async function POST(req) {
           cacheWriteTokens: estimatedCacheWriteTokens,
           outputTokens: MIN_CHAT_OUTPUT_TOKENS,
         }, billingSettings);
-        const reservedExaCost = calculateExaCost(enableWebSearch
-          ? { searchRequests: MAX_RESERVED_EXA_SEARCHES, contentRequests: MAX_RESERVED_EXA_CONTENTS }
-          : { searchRequests: 0, contentRequests: 0 }, billingSettings);
         const minimumRequiredPoints = pointsFromUsd(
-          initialPassCost.costUsd + reservedExaCost.costUsd,
+          initialPassCost.costUsd,
           billingSettings,
         );
         if (minimumRequiredPoints > reservationPoints) {
@@ -723,14 +710,6 @@ export async function POST(req) {
         let billingFinalized = false;
         const citations = [];
         const toolRecords = [];
-        const exaUsage = {
-          searchRequests: 0,
-          contentRequests: 0,
-          dispatchedRequests: 0,
-          rejectedRequests: 0,
-          uncertainRequests: 0,
-          pendingRequests: 0,
-        };
         const observedUpstreamIds = new Set();
         let sendEvent;
         let sendBillingEvent;
@@ -776,7 +755,6 @@ export async function POST(req) {
             requestFingerprint,
             usageRecords,
             upstreamRequestCount,
-            exa: { ...exaUsage },
             upstreamRequestIds: Array.from(observedUpstreamIds),
           });
 
@@ -784,13 +762,10 @@ export async function POST(req) {
             if (billingFinalized) return null;
             const upstreamRequestIds = Array.from(observedUpstreamIds);
             const hasUnmeteredUpstream = upstreamRequestCount > usageRecords.length;
-            const hasUncertainExa = exaUsage.uncertainRequests > 0 || exaUsage.pendingRequests > 0;
             let transaction;
-            if (hasUnmeteredUpstream || hasUncertainExa) {
+            if (hasUnmeteredUpstream) {
               transaction = await markReviewRequired(operationId, {
-                reason: reason || (hasUncertainExa
-                  ? "Exa 请求已发出，但无法确认是否产生费用"
-                  : "上游模型请求已发出，但没有取得完整用量"),
+                reason: reason || "上游模型请求已发出，但没有取得完整用量",
                 usage: billingUsage(),
               });
               const credit = await getCreditSummary(user.userId);
@@ -799,14 +774,13 @@ export async function POST(req) {
               return { transaction, credit, reviewRequired: true };
             }
 
-            if (usageRecords.length > 0 || exaUsage.searchRequests > 0 || exaUsage.contentRequests > 0) {
+            if (usageRecords.length > 0) {
               let costs;
               try {
                 costs = calculateAccumulatedCosts({
                   model,
                   provider,
                   usageRecords,
-                  exaUsage,
                   settings: billingSettings,
                   requestFingerprint,
                 });
@@ -851,7 +825,6 @@ export async function POST(req) {
               model,
               provider,
               usageRecords,
-              exaUsage,
               settings: billingSettings,
               requestFingerprint,
             });
@@ -865,25 +838,9 @@ export async function POST(req) {
               cacheWriteTokens: estimatedCacheWriteTokens,
               outputTokens,
             }, billingSettings).costUsd;
-            const roundState = roundController?.getRoundState();
-            const remainingSearchRequests = enableWebSearch
-              ? Math.max(0, (roundState?.maxRounds ?? MAX_RESERVED_EXA_SEARCHES)
-                - (roundState?.currentRound ?? exaUsage.searchRequests))
-              : 0;
-            const currentRoundCanRead = Boolean(
-              roundState?.currentRoundHasSearch && !roundState?.currentRoundHasReader,
-            );
-            const remainingContentRequests = enableWebSearch
-              ? remainingSearchRequests + (currentRoundCanRead ? 1 : 0)
-              : 0;
-            const remainingExaCost = calculateExaCost({
-              searchRequests: remainingSearchRequests,
-              contentRequests: Math.min(MAX_RESERVED_EXA_CONTENTS, remainingContentRequests),
-            }, billingSettings);
             const canAfford = (outputTokens) => {
               return pointsFromUsd(
                 knownCosts.actualCostUsd
-                  + remainingExaCost.costUsd
                   + estimatedPassCostUsd(outputTokens),
                 billingSettings,
               ) <= reservationPoints;
@@ -891,7 +848,6 @@ export async function POST(req) {
             if (!canAfford(MIN_CHAT_OUTPUT_TOKENS)) {
               const minimumRequiredPoints = pointsFromUsd(
                 knownCosts.actualCostUsd
-                  + remainingExaCost.costUsd
                   + estimatedPassCostUsd(MIN_CHAT_OUTPUT_TOKENS),
                 billingSettings,
               );
@@ -985,22 +941,6 @@ export async function POST(req) {
                 pushCitations,
                 round: reservation.round,
                 signal: req?.signal,
-                onExaRequestState(state) {
-                  if (state === "dispatched") {
-                    exaUsage.dispatchedRequests += 1;
-                    exaUsage.pendingRequests += 1;
-                    return;
-                  }
-                  exaUsage.pendingRequests = Math.max(0, exaUsage.pendingRequests - 1);
-                  if (state === "confirmed") {
-                    if (call?.name === WebBrowsingApiName.search) exaUsage.searchRequests += 1;
-                    else exaUsage.contentRequests += 1;
-                  } else if (state === "rejected") {
-                    exaUsage.rejectedRequests += 1;
-                  } else {
-                    exaUsage.uncertainRequests += 1;
-                  }
-                },
               });
               toolRecords.push(toolExecution.toolRecord);
               if (toolExecution.result?.success === false) {

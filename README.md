@@ -89,10 +89,12 @@ Dedicated media models:
 
 Real-time access to the internet with intelligent multi-round browsing capabilities.
 
-- **Smart Search** — Discover fresh, relevant sources with Exa Search
-- **Page Content** — Extract selected pages as clean Markdown with Exa Contents
+- **Smart Search** — Discover fresh sources with free TinyFish Search in the language of the current question
+- **Page Content** — Extract selected pages as clean Markdown with free TinyFish Fetch
 - **Multi-Page Browsing** — Crawl multiple pages in a single session
 - **Inline Citations** — Every claim backed by traceable source references
+
+Search and page fetching incur no additional credit charge. Model usage for reading sources and generating answers is still billed.
 
 <br/>
 
@@ -278,10 +280,12 @@ vectaix-ai/
 | `DASHSCOPE_BEIJING_API_KEY` | — | Beijing-region Alibaba Cloud Model Studio API key for MiniMax Speech 2.8 HD / Turbo |
 | `AI_MEDIAKIT_API_KEY` | — | API key for AI MediaKit video enhancement (large-model edition); configure when enabled |
 | `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app, used by HappyHorse and MiniMax voice cloning to read input media |
-| `EXA_API_KEY` | — | API key for Exa Search and Contents |
+| `TINYFISH_API_KEY` | — | Shared API key for free TinyFish Search and Fetch; required when web browsing is enabled |
 
 > [!TIP]
 > Configure the key for every model or feature you enable. Missing keys return a clear configuration error.
+
+When updating web browsing, configure `TINYFISH_API_KEY` in Zeabur and remove the previous web service key before replacing the old instance. Startup removes the old web rates from the database while preserving historical bills. Do not keep the old version serving traffic after this migration.
 
 <br/>
 
