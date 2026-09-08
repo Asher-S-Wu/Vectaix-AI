@@ -25,6 +25,7 @@ const UserSettingsSchema = new mongoose.Schema({
         default: ''
     },
     systemPrompts: [SystemPromptSchema],
+    memoryEnabled: { type: Boolean, default: true },
     updatedAt: {
         type: Date,
         default: Date.now

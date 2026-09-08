@@ -7,6 +7,8 @@ import { useSyncExternalStore } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { UI_THEME_MODE_KEY } from "@/lib/shared/storageKeys";
 import CreditShell from "@/app/components/credits/CreditShell";
+import ModeSwitcher from "@/app/components/layout/ModeSwitcher";
+import { MEDIA_WORKSPACES } from "@/lib/media/shared/workspaces";
 
 const THEME_CHANGE_EVENT = "vectaix-theme-change";
 const THEME_MODE_CYCLE = ["system", "light", "dark"];
@@ -72,27 +74,27 @@ export default function MediaHeader() {
   };
 
   const ModeIcon = MODE_META[mode]?.icon || Monitor;
-  const navItems = [
-    { href: "/media/image", label: "图片生成" },
-    { href: "/media/video", label: "视频生成" },
-    { href: "/media/video-enhancement", label: "画质增强" },
-    { href: "/media/audio", label: "Qwen 语音" },
-    { href: "/media/minimax-audio", label: "MiniMax 语音" },
-    { href: "/media/doubao-audio", label: "豆包语音" },
-  ];
 
   return (
     <header className="sticky top-0 z-40 glass-effect border-b border-zinc-200/50">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
-        <div className="flex w-full min-w-0 items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-base sm:text-lg font-semibold leading-tight">媒体工作台</h1>
-            <p className="hidden sm:block text-xs text-zinc-500">图片、视频、画质增强与音频创作</p>
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
+          <ModeSwitcher />
+          <div className="ml-auto flex items-center gap-1.5">
+            <CreditShell />
+            <button
+              type="button"
+              onClick={cycleTheme}
+              aria-label={`主题模式：${MODE_META[mode]?.label}，点击切换`}
+              title={`主题：${MODE_META[mode]?.label}`}
+              className="shrink-0 rounded-xl p-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 transition-colors"
+            >
+              <ModeIcon size={18} />
+            </button>
           </div>
-          <CreditShell />
         </div>
-        <nav className="flex w-full items-center gap-1.5 overflow-x-auto no-scrollbar sm:gap-2">
-          {navItems.map((item) => {
+        {pathname !== "/media" && <nav aria-label="媒体工作台" className="flex w-full items-center gap-1.5 overflow-x-auto no-scrollbar sm:gap-2">
+          {MEDIA_WORKSPACES.map((item) => {
             const active = pathname === item.href;
             return (
               <Link
@@ -109,22 +111,7 @@ export default function MediaHeader() {
               </Link>
             );
           })}
-          <Link
-            href="/"
-            className="shrink-0 rounded-xl px-3 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 transition-colors"
-          >
-            返回聊天
-          </Link>
-          <button
-            type="button"
-            onClick={cycleTheme}
-            aria-label={`主题模式：${MODE_META[mode]?.label}，点击切换`}
-            title={`主题：${MODE_META[mode]?.label}`}
-            className="shrink-0 rounded-xl p-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 transition-colors"
-          >
-            <ModeIcon size={18} />
-          </button>
-        </nav>
+        </nav>}
       </div>
     </header>
   );

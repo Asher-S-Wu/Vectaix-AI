@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_bg_force_dark" />
+    <!-- [T-android-dark-app-icon-from-ios] Forced "Dark" variant always uses the
+         dark M artwork (see the day variant). Pointing at the explicit
+         always-dark drawable rather than @mipmap/ic_launcher_foreground keeps the
+         pinned Dark icon identical whether the system is in light or dark mode. -->
+    <foreground>
+        <inset
+            android:drawable="@mipmap/ic_launcher_foreground_dark"
+            android:inset="15%" />
+    </foreground>
+    <!-- T-android-themed-icons: monochrome layer (see day variant). -->
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
+</adaptive-icon>

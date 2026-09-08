@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="stylesheet" href="katex.min.css">
+<script src="katex.min.js"></script>
+<script src="mhchem.min.js"></script>
+<style>
+  /* T208 Layer A: lock font scale so the formula bitmap matches its
+     reported CSS-px size on devices where the user has enlarged system
+     font scale. WebView normally honours the system font scale (the
+     same way Compose `sp` does), but the bitmap reporter assumes 1px =
+     1dp via initial-scale=1.0; if the WebView applies an extra
+     accessibility multiplier the formula renders larger than the
+     reported width/height and Image displays it at that inflated size.
+     `text-size-adjust: 100%` neutralises the accessibility multiplier;
+     `font: 16px/1.2 sans-serif !important` forces a known baseline. */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: transparent;
+    overflow: hidden;
+  }
+  #math {
+    display: inline-block;
+    padding: 2px 4px;
+  }
+  body.dark #math { color: #fff; }
+  body.light #math { color: #000; }
+
+  /* [T-android-latex-tag-overlap] Equation numbers (\tag, \tag*, and the
+     auto-numbering of \begin{align}) render as
+     `.katex-html > .tag { position: absolute; right: 0 }` — see katex.min.css.
+     `right: 0` resolves against the containing block, and #math is
+     `inline-block`, i.e. shrink-to-fit: the container collapses to the width
+     of the formula itself, so "the right edge" IS the end of the formula and
+     the number is painted directly on top of it. On `E = mc^2 \tag{1}` the
+     tag landed at x=46..69 while the body ran to x=69 — 23px of overlap,
+     which is the reported "m(1)c²" mash-up.
+
+     Giving the row a real width fixes it without touching KaTeX: min-width
+     stops the collapse so `right: 0` has somewhere to go, and the
+     padding-right reserves a gutter for the number to sit in. Scoped to
+     `.has-tag`, set by renderMath() only when a tag is actually present, so
+     every untagged formula keeps its existing shrink-to-fit geometry and its
+     cached bitmap size is unchanged.
+
+     A class rather than `:has()`: `:has()` needs a Chromium 105+ WebView, and
+     this must behave identically on older devices — the reporter is on a
+     Xiaomi phone whose WebView version we do not control. */
+  #math.has-tag .katex-display > .katex > .katex-html {
+    min-width: 100%;
+    padding-right: 3.5em;
+  }
+</style>
+</head>
+<body>
+<span id="math"></span>
+<script>
+function renderMath(latex, displayMode, fontSize, isDark) {
+  try {
+    document.body.className = isDark ? 'dark' : 'light';
+    var el = document.getElementById('math');
+    el.style.fontSize = fontSize + 'px';
+    katex.render(latex, el, {
+      // T208 Layer C: throwOnError=true so render failures land in the
+      // catch block and report as errors to the bridge — the Kotlin side
+      // then falls through to the small-monospace text fallback. With
+      // throwOnError=false, KaTeX rendered the raw source as `\large` red
+      // text inside the bitmap, which displayed at the bitmap's natural
+      // dp size = visually huge.
+      displayMode: displayMode,
+      throwOnError: true,
+      strict: false,
+      trust: true,
+      output: 'html'
+    });
+    // [T-android-latex-tag-overlap] Flag rows that carry an equation number so
+    // the CSS above can reserve a gutter for it. Done here rather than with a
+    // `:has()` selector for WebView-version independence (see the stylesheet).
+    //
+    // Set BEFORE the measurement below: the class changes the element's width,
+    // and getBoundingClientRect() has to report the post-fix geometry or the
+    // snapshot bitmap would be cropped to the old, narrower box and clip the
+    // number straight back off.
+    el.classList.toggle('has-tag', !!el.querySelector('.katex-html > .tag'));
+    document.fonts.ready.then(function() {
+      // T208-6: Wait for one paint cycle after the DOM update so the
+      // WebView's display list reflects the new formula before Android
+      // calls wv.draw(canvas). Without rAF, the bridge fired immediately
+      // after layout, but the next render's snapshot then captured the
+      // PREVIOUS frame's pixels — every cell ended up showing the
+      // formula from the cell above it. requestAnimationFrame schedules
+      // a callback after the next paint commit.
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          var rect = el.getBoundingClientRect();
+          AndroidBridge.onRendered(Math.ceil(rect.width), Math.ceil(rect.height), '');
+        });
+      });
+    });
+  } catch (e) {
+    AndroidBridge.onRendered(0, 0, e.message || 'render error');
+  }
+}
+</script>
+</body>
+</html>

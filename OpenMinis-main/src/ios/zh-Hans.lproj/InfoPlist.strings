@@ -1,0 +1,20 @@
+/* Info.plist permission strings — 简体中文 */
+
+"NSLocationWhenInUseUsageDescription" = "Minis 使用您的位置信息来记录 AI 会话的发起地点。";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Minis 使用后台定位来保持 AI 任务在后台持续运行。位置数据仅用于记录会话连接历史。";
+"NSCalendarsUsageDescription" = "Minis 需要访问日历，以便 AI 智能体查询您的日程、检查空闲时间并代您创建日程。";
+"NSCalendarsFullAccessUsageDescription" = "Minis 需要访问日历，以便 AI 智能体查询您的日程、检查空闲时间并代您创建日程。";
+"NSRemindersUsageDescription" = "Minis 需要访问提醒事项，以便 AI 智能体代您查询和创建提醒。";
+"NSRemindersFullAccessUsageDescription" = "Minis 需要访问提醒事项，以便 AI 智能体代您查询和创建提醒。";
+"NSCameraUsageDescription" = "Minis 需要使用相机来拍摄照片用于 AI 对话。";
+"NSPhotoLibraryUsageDescription" = "Minis 需要访问相册以将图片添加到 AI 对话中。";
+"NSPhotoLibraryAddUsageDescription" = "Minis 需要权限来将视频和图片保存到您的相册。";
+"NSHealthShareUsageDescription" = "Minis 需要访问健康数据，以便 AI 智能体代您读取步数、心率、睡眠和运动等数据。";
+"NSHealthUpdateUsageDescription" = "Minis 需要写入健康数据的权限，以便 AI 智能体代您记录步数、体重和饮水量等数据。";
+"NSContactsUsageDescription" = "Minis 需要访问通讯录，以便 AI 智能体代您搜索、查看和管理联系人。";
+"NSAppleMusicUsageDescription" = "Minis 需要访问媒体资料库，以便 AI 智能体搜索音乐并代您控制播放。";
+"NSMicrophoneUsageDescription" = "Minis 需要使用麦克风进行语音转文字输入。";
+"NSSpeechRecognitionUsageDescription" = "Minis 使用语音识别将您的语音转换为文字消息。";
+"NSHomeKitUsageDescription" = "Minis 需要访问 HomeKit，以便 AI 智能体代您查询和控制智能家居设备。";
+"NSAlarmKitUsageDescription" = "Minis 使用闹钟功能，以便 AI 智能体代您设置闹钟和计时器。";
+"NSLocalNetworkUsageDescription" = "虚拟机需要网络访问以进行 SLIRP 网络连接";

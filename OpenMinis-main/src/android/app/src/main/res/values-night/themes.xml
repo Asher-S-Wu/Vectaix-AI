@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- T153 — dark-mode window theme.
+     The default values/themes.xml inherits from `Material.Light.NoActionBar`,
+     so even on a system in dark mode the first frame shown by the OS (cold
+     start, Activity recreation, OS-driven cross-fades between Activities)
+     paints a white window background, which then flashes through every
+     in-app NavHost transition until the Composition catches up.
+     Override here so `night` configurations land on a true dark base
+     theme: window background is the solid black we use for ChatColors
+     dark `background`, status / nav bars stay translucent so the
+     edge-to-edge theming in MainActivity continues to draw behind them. -->
+<resources>
+    <style name="Theme.Minis" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+    </style>
+</resources>

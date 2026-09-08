@@ -1,13 +1,13 @@
 "use client";
 
 import { Menu, MessageSquarePlus } from "lucide-react";
-import ModeSwitcher from "../chat/ModeSwitcher";
+import ModeSwitcher from "./ModeSwitcher";
 import CreditShell from "../credits/CreditShell";
 
-export default function ChatHeader({ onToggleSidebar, onStartNewChat, modelReady, sidebarOpen }) {
+export default function ChatHeader({ onToggleSidebar, onStartNewChat, sidebarOpen }) {
   return (
-    <header className="px-4 py-3 glass-effect border-b border-zinc-200/50 flex flex-wrap items-center justify-between z-40">
-      <div className="flex items-center gap-3">
+    <header className="px-4 py-3 glass-effect border-b border-zinc-200/50 flex flex-wrap items-center justify-between gap-y-2 z-40">
+      <div className="flex items-center gap-1.5 sm:gap-3">
         <button
           onClick={onToggleSidebar}
           type="button"
@@ -16,9 +16,9 @@ export default function ChatHeader({ onToggleSidebar, onStartNewChat, modelReady
         >
           <Menu size={22} />
         </button>
-        <ModeSwitcher ready={modelReady} />
+        <ModeSwitcher />
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="ml-auto flex items-center gap-1.5">
         <CreditShell />
         <button
           onClick={onStartNewChat}

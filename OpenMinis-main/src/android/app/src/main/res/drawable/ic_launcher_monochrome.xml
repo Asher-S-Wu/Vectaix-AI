@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  T-android-themed-icons: monochrome counterpart to the rounded-blob "M"
+  app icon (ic_launcher_foreground.png). Required for Android 13+ Themed
+  Icons (Settings → Wallpaper & style → Themed icons). The system tints
+  this drawable with the active monochromatic palette at runtime; we
+  just provide the silhouette in solid white.
+
+  Canvas is the standard adaptive-icon 108dp x 108dp. Drawn as a single
+  stroked path with round caps + round joins — same chunky-pill
+  silhouette as the multi-color foreground PNG, flattened to one color so
+  the system can re-tint.
+
+  [T-android-monochrome-m-too-big / -m-proportion / -m-proportion-2]
+  Two coupled constraints, tuned visually against the colored foreground M:
+
+  (1) CIRCULAR mask: the binding clip on themed icons (Pixel et al.) is
+  the inscribed circle of the safe zone — center (54,54), radius 33 — NOT
+  the square safe zone (whose corners stick out of the circle). Every path
+  point's round-capped VISUAL edge sits halfStroke beyond the point, so to
+  avoid clipping each point must be within radius (33 − halfStroke) of
+  (54,54). (#658's square-filling [30..78] put corners at ~43 → clipped.)
+
+  (2) PROPORTION: the reference foreground M (ic_launcher_foreground.png)
+  is CHUNKY and roughly square / slightly wider-than-tall (measured bbox
+  h/w ≈ 0.9) with a WIDE leg stance and a fairly shallow central valley.
+  #724 (fat stroke 18 in a tiny 30-wide span) looked squat; #730 over-
+  corrected to a thin (stroke 13), tall-narrow M that read too skinny.
+  This revision matches the reference: thick stroke + wide stance +
+  shallow valley, sized to fill the circle.
+
+  Current: strokeWidth 17 (half = 8.5), x ∈ [36..72] (span 36, wide),
+  y ∈ [38..70] (span 32), valley y=56 (shallow). Fit: the farthest points
+  are the four outer corners at distance √(18² + 16²) ≈ 24.1 from center;
+  +8.5 = ~32.6 ≤ 33 → inside the circle (~0.4dp margin). Outer silhouette
+  ≈ 53w × 49h (h/w ≈ 0.93, slightly wider than tall, like the reference)
+  with a ~19dp gap between the leg inner edges. Result: chunky, wide-
+  stanced, un-clipped under circle / squircle / rounded-square — reads
+  like the real app icon, not squat (#724) or skinny (#730).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="17"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M 36,70 L 36,38 L 54,56 L 72,38 L 72,70" />
+</vector>

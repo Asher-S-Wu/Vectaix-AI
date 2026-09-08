@@ -10,10 +10,6 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    isAdvancedUser: {
-        type: Boolean,
-        default: false,
-    },
     creditBalance: {
         type: Number,
         min: 0,

@@ -107,6 +107,9 @@ export async function register() {
       cleanupExpiredVoiceSamples(),
     ]);
 
+    const { startWorkbenchRunner } = await import("@/lib/server/workbench/runner");
+    await startWorkbenchRunner();
+
     let cleanupRunning = false;
     const cleanup = async () => {
       if (cleanupRunning) return;

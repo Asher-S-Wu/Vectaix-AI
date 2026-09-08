@@ -13,7 +13,6 @@ export async function GET(request) {
       id: user.userId,
       email: user.email,
       isAdmin: user.isAdmin,
-      isAdvancedUser: user.isAdvancedUser,
       credit,
     }
   });

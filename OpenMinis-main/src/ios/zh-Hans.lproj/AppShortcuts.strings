@@ -1,0 +1,18 @@
+/* Siri invocation phrases (Simplified Chinese). Keys = English code phrases. */
+
+"Ask ${applicationName}" = "问问${applicationName}";
+"Ask ${applicationName} a question" = "问${applicationName}一个问题";
+"Talk to ${applicationName}" = "跟${applicationName}聊聊";
+"New ${applicationName} chat" = "新建${applicationName}对话";
+"Run a ${applicationName} quick task" = "运行${applicationName}快捷任务";
+"Use ${applicationName} quick task" = "使用${applicationName}快捷任务";
+"Send a prompt to ${applicationName}" = "给${applicationName}发送提示";
+"Ask ${applicationName} something" = "问${applicationName}点事";
+"Start a ${applicationName} task" = "开始一个${applicationName}任务";
+"Get ${applicationName} session status" = "获取${applicationName}会话状态";
+"Check ${applicationName} task" = "查看${applicationName}任务";
+"List ${applicationName} sessions" = "列出${applicationName}会话";
+"Show ${applicationName} chats" = "显示${applicationName}聊天";
+"Follow up a ${applicationName} session" = "跟进${applicationName}会话";
+"Continue a ${applicationName} session" = "继续${applicationName}会话";
+"Open a ${applicationName} session" = "打开${applicationName}会话";

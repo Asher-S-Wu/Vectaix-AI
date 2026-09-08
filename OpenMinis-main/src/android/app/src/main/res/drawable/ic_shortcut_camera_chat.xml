@@ -1,0 +1,17 @@
+<!--
+  T-android-shortcut-icons-blank: glyph foreground for the "Camera Chat"
+  app-icon shortcut (Material "photo_camera"). See ic_shortcut_new_chat for
+  why the fill is a fixed @color/shortcut_icon_fg rather than a theme attr.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/shortcut_icon_fg"
+        android:pathData="M9,2L7.17,4H4c-1.1,0 -2,0.9 -2,2v12c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V6c0,-1.1 -0.9,-2 -2,-2h-3.17L15,2H9zM12,17c-2.76,0 -5,-2.24 -5,-5s2.24,-5 5,-5 5,2.24 5,5 -2.24,5 -5,5z" />
+    <path
+        android:fillColor="@color/shortcut_icon_fg"
+        android:pathData="M12,12m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
+</vector>

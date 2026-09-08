@@ -69,12 +69,13 @@ async function serve(request, context, headOnly = false) {
 
     const headers = new Headers({
       "Content-Type": file.mimeType || "application/octet-stream",
-      "Content-Disposition": contentDisposition(file, new URL(request.url).searchParams.get("download") === "1"),
+      "Content-Disposition": contentDisposition(file, file.category === "document" || new URL(request.url).searchParams.get("download") === "1"),
       "Cache-Control": "private, no-store",
       "Accept-Ranges": "bytes",
       "X-Content-Type-Options": "nosniff",
       "Last-Modified": fileStat.mtime.toUTCString(),
     });
+    if (file.category === "document") headers.set("Content-Security-Policy", "sandbox; default-src 'none'");
     if (range) {
       const length = range.end - range.start + 1;
       headers.set("Content-Length", String(length));

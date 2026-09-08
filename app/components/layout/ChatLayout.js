@@ -86,7 +86,6 @@ export default function ChatLayout({
         <ChatHeader
           onToggleSidebar={onToggleSidebar}
           onStartNewChat={onStartNewChat}
-          modelReady={isSettingsReady}
           sidebarOpen={sidebarOpen}
         />
         <main className="flex-1 flex flex-col min-h-0 relative">

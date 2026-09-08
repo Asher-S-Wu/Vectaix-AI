@@ -1,0 +1,4 @@
+#!/bin/sh
+# MinisApp URL interceptor — routes x-www-browser into the host-side
+# OpenOffloadHandler via minis-open. See minis-open for details.
+exec /usr/local/bin/minis-open "$@"

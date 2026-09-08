@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Coins, Copy, KeyRound, RefreshCw, Search, Settings2, Sparkles, Trash2, Users, X } from "lucide-react";
+import { Coins, Copy, KeyRound, RefreshCw, Search, Settings2, Trash2, Users, X } from "lucide-react";
 import { apiJson } from "@/lib/client/apiClient";
 import { useToast } from "../common/ToastProvider";
 import ConfirmModal from "../modals/ConfirmModal";
@@ -136,37 +136,6 @@ export default function UserManagementModal({ open, onClose }) {
     setConfirmOpen(true);
   };
 
-  const requestToggleAdvancedUser = (user) => {
-    const nextIsAdvancedUser = !user.isAdvancedUser;
-    confirmActionRef.current = async () => {
-      setActionLoading(user.id);
-      try {
-        await apiJson(`/api/admin/users/${user.id}`, {
-          method: "PATCH",
-          body: {
-            action: "set-advanced-user",
-            isAdvancedUser: nextIsAdvancedUser,
-          },
-        });
-        toast.success(nextIsAdvancedUser ? "已升级为高级用户" : "已降为普通用户");
-        fetchUsers(page, search.trim());
-      } catch (e) {
-        toast.error(e?.message);
-      } finally {
-        setActionLoading(null);
-      }
-    };
-    setConfirmTitle(nextIsAdvancedUser ? "升级高级用户" : "降为普通用户");
-    setConfirmMessage(
-      nextIsAdvancedUser
-        ? `确定要把「${user.email}」升级为高级用户吗？升级后，这个用户可以自己切换线路，而且只影响自己的账号。`
-        : `确定要把「${user.email}」降为普通用户吗？降级后，这个用户将不能再切换线路，并恢复为普通线路。`
-    );
-    setConfirmButtonText(nextIsAdvancedUser ? "升级" : "降级");
-    setConfirmDanger(false);
-    setConfirmOpen(true);
-  };
-
   const openCreditEditor = (user) => {
     setCreditEditor({
       user,
@@ -226,12 +195,6 @@ export default function UserManagementModal({ open, onClose }) {
       month: "2-digit",
       day: "2-digit",
     });
-  };
-
-  const getUserLevelLabel = (user) => {
-    if (user?.isAdmin) return "超级管理员";
-    if (user?.isAdvancedUser) return "高级用户";
-    return "普通用户";
   };
 
   return (
@@ -361,11 +324,9 @@ export default function UserManagementModal({ open, onClose }) {
                             <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{u.email}</div>
                             <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${u.isAdmin
                               ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
-                              : u.isAdvancedUser
-                                ? "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400"
-                                : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
+                              : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
                               }`}>
-                              {getUserLevelLabel(u)}
+                              {u.isAdmin ? "超级管理员" : "普通用户"}
                             </span>
                           </div>
                           <div className="text-xs text-zinc-400 mt-0.5">
@@ -393,20 +354,6 @@ export default function UserManagementModal({ open, onClose }) {
                                 <Coins size={15} />
                               </button>
                             ) : null}
-                            {!u.isAdmin && (
-                              <button
-                                onClick={() => requestToggleAdvancedUser(u)}
-                                disabled={actionLoading !== null}
-                                className={`p-2 rounded-lg transition-colors disabled:opacity-50 inline-flex items-center justify-center ${u.isAdvancedUser
-                                  ? "text-zinc-400 hover:text-amber-600 hover:bg-amber-50"
-                                  : "text-zinc-400 hover:text-sky-600 hover:bg-sky-50"
-                                  }`}
-                                title={u.isAdvancedUser ? "降为普通用户" : "升级为高级用户"}
-                                aria-label={u.isAdvancedUser ? "降为普通用户" : "升级为高级用户"}
-                              >
-                                <Sparkles size={15} className="shrink-0" />
-                              </button>
-                            )}
                             {!u.isAdmin ? <button
                               onClick={() => requestResetPassword(u)}
                               disabled={actionLoading !== null}

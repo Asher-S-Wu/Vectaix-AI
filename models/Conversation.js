@@ -27,6 +27,7 @@ const ConversationSchema = new mongoose.Schema({
     type: String,
     default: 'New Chat',
   },
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'WorkspaceProject', default: null, index: true },
   model: {
     type: String,
     default: null,

@@ -37,12 +37,15 @@ const StoredFileSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ["image", "video", "audio"],
+    enum: ["image", "video", "audio", "document"],
     required: true,
   },
   kind: {
     type: String,
     enum: [
+      "project-document",
+      "project-media",
+      "task-artifact",
       "chat",
       "avatar",
       "media-image",
@@ -57,6 +60,8 @@ const StoredFileSchema = new mongoose.Schema({
   ownerType: {
     type: String,
     enum: [
+      "project",
+      "task",
       "temporary",
       "conversation",
       "avatar",

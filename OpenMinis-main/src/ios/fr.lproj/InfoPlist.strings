@@ -1,0 +1,20 @@
+/* Info.plist permission strings — Français */
+
+"NSLocationWhenInUseUsageDescription" = "Minis utilise votre position pour enregistrer le lieu de démarrage des sessions de l'agent dans votre historique.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Minis utilise la localisation en arrière-plan pour maintenir les tâches de l'agent en cours d'exécution. Les données de localisation servent uniquement à enregistrer l'historique des connexions.";
+"NSCalendarsUsageDescription" = "Minis accède au calendrier pour que l'agent AI puisse consulter votre emploi du temps, vérifier vos disponibilités et créer des événements en votre nom.";
+"NSCalendarsFullAccessUsageDescription" = "Minis accède au calendrier pour que l'agent AI puisse consulter votre emploi du temps, vérifier vos disponibilités et créer des événements en votre nom.";
+"NSRemindersUsageDescription" = "Minis accède aux rappels pour que l'agent AI puisse consulter et créer des rappels en votre nom.";
+"NSRemindersFullAccessUsageDescription" = "Minis accède aux rappels pour que l'agent AI puisse consulter et créer des rappels en votre nom.";
+"NSCameraUsageDescription" = "Minis a besoin de l'accès à l'appareil photo pour prendre des photos destinées aux conversations AI.";
+"NSPhotoLibraryUsageDescription" = "Minis a besoin de l'accès à la photothèque pour joindre des images aux conversations AI.";
+"NSPhotoLibraryAddUsageDescription" = "Minis a besoin de l'autorisation d'enregistrer des vidéos et images dans votre photothèque.";
+"NSHealthShareUsageDescription" = "Minis accède à HealthKit pour que l'agent AI puisse lire vos données de santé telles que les pas, la fréquence cardiaque, le sommeil et les entraînements.";
+"NSHealthUpdateUsageDescription" = "Minis accède en écriture à HealthKit pour que l'agent AI puisse enregistrer des données de santé telles que les pas, le poids et l'hydratation.";
+"NSContactsUsageDescription" = "Minis accède aux contacts pour que l'agent AI puisse rechercher, consulter et gérer vos contacts en votre nom.";
+"NSAppleMusicUsageDescription" = "Minis accède à la bibliothèque multimédia pour que l'agent AI puisse rechercher votre musique et contrôler la lecture.";
+"NSMicrophoneUsageDescription" = "Minis a besoin de l'accès au microphone pour la saisie vocale dans le chat.";
+"NSSpeechRecognitionUsageDescription" = "Minis utilise la reconnaissance vocale pour convertir votre voix en messages texte.";
+"NSHomeKitUsageDescription" = "Minis accède à HomeKit pour que l'agent AI puisse interroger et contrôler vos accessoires domotiques.";
+"NSAlarmKitUsageDescription" = "Minis utilise AlarmKit pour que l'agent AI puisse régler des alarmes et des minuteries en votre nom.";
+"NSLocalNetworkUsageDescription" = "La machine virtuelle nécessite un accès réseau pour le réseau SLIRP";

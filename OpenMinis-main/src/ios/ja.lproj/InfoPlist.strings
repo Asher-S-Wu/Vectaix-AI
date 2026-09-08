@@ -1,0 +1,20 @@
+/* Info.plist permission strings — 日本語 */
+
+"NSLocationWhenInUseUsageDescription" = "Minis はセッション履歴のために、エージェントセッションの開始位置を記録します。";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Minis はバックグラウンドでエージェントタスクを実行し続けるために、バックグラウンド位置情報を使用します。位置データはセッション接続履歴の記録にのみ使用されます。";
+"NSCalendarsUsageDescription" = "Minis はAIエージェントがあなたの予定を確認し、空き状況をチェックし、代わりにイベントを作成できるようにカレンダーへのアクセスを使用します。";
+"NSCalendarsFullAccessUsageDescription" = "Minis はAIエージェントがあなたの予定を確認し、空き状況をチェックし、代わりにイベントを作成できるようにカレンダーへのアクセスを使用します。";
+"NSRemindersUsageDescription" = "Minis はAIエージェントがリマインダーを検索・作成できるようにリマインダーへのアクセスを使用します。";
+"NSRemindersFullAccessUsageDescription" = "Minis はAIエージェントがリマインダーを検索・作成できるようにリマインダーへのアクセスを使用します。";
+"NSCameraUsageDescription" = "Minis はAI会話用の写真を撮影するためにカメラへのアクセスが必要です。";
+"NSPhotoLibraryUsageDescription" = "Minis はAI会話に画像を添付するためにフォトライブラリへのアクセスが必要です。";
+"NSPhotoLibraryAddUsageDescription" = "Minis は動画や画像をフォトライブラリに保存するための許可が必要です。";
+"NSHealthShareUsageDescription" = "Minis はAIエージェントが歩数、心拍数、睡眠、ワークアウトなどの健康データを読み取れるようにヘルスケアへのアクセスを使用します。";
+"NSHealthUpdateUsageDescription" = "Minis はAIエージェントが歩数、体重、水分摂取量などの健康データを記録できるようにヘルスケアの書き込みアクセスを使用します。";
+"NSContactsUsageDescription" = "Minis はAIエージェントが連絡先を検索、閲覧、管理できるように連絡先へのアクセスを使用します。";
+"NSAppleMusicUsageDescription" = "Minis はAIエージェントがミュージックライブラリを検索し、再生を操作できるようにメディアライブラリへのアクセスを使用します。";
+"NSMicrophoneUsageDescription" = "Minis はチャットでの音声テキスト入力のためにマイクへのアクセスが必要です。";
+"NSSpeechRecognitionUsageDescription" = "Minis は音声をテキストメッセージに変換するために音声認識を使用します。";
+"NSHomeKitUsageDescription" = "Minis はAIエージェントがスマートホームアクセサリを操作・制御できるようにHomeKitへのアクセスを使用します。";
+"NSAlarmKitUsageDescription" = "Minis はAIエージェントがアラームやタイマーを設定できるようにAlarmKitを使用します。";
+"NSLocalNetworkUsageDescription" = "仮想マシンはSLIRPネットワーキングのためにネットワークアクセスが必要です";

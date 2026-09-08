@@ -81,7 +81,7 @@ export async function PUT(req, context) {
 
     return Response.json({ conversation: nextConversation });
   } catch (error) {
-    return Response.json({ error: error?.message || "更新失败" }, { status: 400 });
+    return Response.json({ error: error?.message || "更新失败" }, { status: error.status || 400 });
   }
 }
 

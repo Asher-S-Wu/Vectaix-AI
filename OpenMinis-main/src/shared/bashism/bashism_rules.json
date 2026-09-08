@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "_comment": "Single source of truth for busybox-ash bashism detection (T-bash-on-demand). Loaded at runtime by BOTH iOS (bundle resource) and Android (asset). Every rule is grounded in on-device testing against Alpine 3.21.0 / BusyBox 1.37.0 ash (see /tmp/bashism_test_report.md, 2026-07-18). Patterns MUST stay inside the common ICU/java.util.regex dialect subset, MUST NOT contain nested quantifiers (ReDoS), and are matched LINE BY LINE against the script with heredoc BODIES stripped. tier: S = silent-wrong under ash (highest priority, never prune), E = loud error under ash, T1 = explicit bash reference (ensure installed, do not switch interpreter).",
+  "rules": [
+    {
+      "name": "bash-shebang",
+      "tier": "T1",
+      "pattern": "^#!.*\\bbash\\b",
+      "behaviorNote": "Script declares a bash interpreter; without bash installed the kernel reports 'not found'.",
+      "fixHint": "Use `#!/bin/sh` and remove bash-only syntax, or let Minis install bash."
+    },
+    {
+      "name": "bash-invoke",
+      "tier": "T1",
+      "pattern": "^(?!#!)(.*(?:[;&|]\\s*|\\$\\(\\s*|\\b(?:sudo|exec|nohup|time)\\s+))?bash\\b",
+      "behaviorNote": "bash is invoked as a command (command-head position only; `grep bash` etc. does not match).",
+      "fixHint": "Invoke `sh` instead if the target script is POSIX, or let Minis install bash."
+    },
+    {
+      "name": "arith-command",
+      "tier": "S",
+      "pattern": "(?<!\\$)\\(\\(",
+      "behaviorNote": "busybox sh parses (( )) as nested subshells and runs the expression as a COMMAND (exit 127); `if (( x > y ))` silently takes the WRONG branch.",
+      "fixHint": "Comparisons: `[ \"$x\" -gt 5 ]`. Arithmetic assignment: `x=$((x + 1))` ($((..)) expansion IS supported)."
+    },
+    {
+      "name": "compound-assign",
+      "tier": "S",
+      "pattern": "\\b[A-Za-z_][A-Za-z0-9_]*\\+=",
+      "behaviorNote": "busybox sh treats `x+=1` as a COMMAND named 'x+=1' ('not found'); the variable is never updated while the script appears to run.",
+      "fixHint": "Numeric: `x=$((x + n))`. String append: `s=\"${s}suffix\"`. Array append: `list=\"$list item\"` or `set -- \"$@\" item`."
+    },
+    {
+      "name": "brace-range",
+      "tier": "S",
+      "pattern": "\\{-?[0-9]{1,10}\\.\\.-?[0-9]{1,10}(\\.\\.-?[0-9]{1,10})?\\}|\\{[A-Za-z]\\.\\.[A-Za-z]\\}",
+      "behaviorNote": "busybox sh does not brace-expand; `{1..3}` is passed through as the LITERAL string with no error.",
+      "fixHint": "Write the list out (`1 2 3`) or use `$(seq 1 3)` for numeric ranges."
+    },
+    {
+      "name": "printf-v",
+      "tier": "S",
+      "pattern": "\\bprintf\\s+-v\\b",
+      "behaviorNote": "busybox printf has no -v; output becomes '-v ...' and the variable is never assigned, with no error.",
+      "fixHint": "Use command substitution: `var=$(printf 'fmt' args)`."
+    },
+    {
+      "name": "array-def",
+      "tier": "E",
+      "pattern": "\\b[A-Za-z_][A-Za-z0-9_]*=\\(",
+      "behaviorNote": "Arrays are unsupported: `a=(1 2 3)` is a syntax error in busybox sh.",
+      "fixHint": "Use a space-separated string (`a=\"1 2 3\"; for x in $a; do ...`) or positional parameters (`set -- 1 2 3`)."
+    },
+    {
+      "name": "array-expand",
+      "tier": "E",
+      "pattern": "\\$\\{#?[A-Za-z_][A-Za-z0-9_]*\\[",
+      "behaviorNote": "`${a[@]}` / `${#a[@]}` are 'bad substitution' in busybox sh.",
+      "fixHint": "With positional parameters use `\"$@\"` and `$#`; with a space-separated string iterate with `for`."
+    },
+    {
+      "name": "process-subst",
+      "tier": "E",
+      "pattern": "<\\(|>\\(",
+      "behaviorNote": "Process substitution fails at runtime: can't open '/dev/fd/NN'.",
+      "fixHint": "Write to temp files: `cmd1 >/tmp/f1; cmd2 >/tmp/f2; diff /tmp/f1 /tmp/f2`."
+    },
+    {
+      "name": "c-for",
+      "tier": "E",
+      "pattern": "\\bfor\\s+\\(\\(",
+      "behaviorNote": "C-style for loops are a syntax error ('bad for loop variable').",
+      "fixHint": "`i=0; while [ \"$i\" -lt \"$n\" ]; do ...; i=$((i+1)); done`"
+    },
+    {
+      "name": "case-conv",
+      "tier": "E",
+      "pattern": "\\$\\{[A-Za-z_][A-Za-z0-9_]*[\\^,]",
+      "behaviorNote": "`${x^^}` / `${x,,}` case conversion is 'bad substitution'.",
+      "fixHint": "`$(echo \"$x\" | tr a-z A-Z)` (or `tr A-Z a-z`)."
+    },
+    {
+      "name": "indirect-ref",
+      "tier": "E",
+      "pattern": "\\$\\{![A-Za-z_]",
+      "behaviorNote": "`${!name}` indirect expansion is 'bad substitution'.",
+      "fixHint": "`eval \"val=\\$$name\"` (be careful: eval executes its argument)."
+    },
+    {
+      "name": "pipe-amp",
+      "tier": "E",
+      "pattern": "\\|&",
+      "behaviorNote": "`cmd |& next` is a syntax error.",
+      "fixHint": "`cmd 2>&1 | next`"
+    },
+    {
+      "name": "local-opt",
+      "tier": "E",
+      "pattern": "\\blocal\\s+-[A-Za-z]",
+      "behaviorNote": "`local -x v=1` fails ('bad variable name'); plain `local` works.",
+      "fixHint": "`local v=1; export v`"
+    },
+    {
+      "name": "mapfile",
+      "tier": "E",
+      "pattern": "\\b(?:mapfile|readarray)\\b",
+      "behaviorNote": "mapfile/readarray are 'not found' and downstream array use cascades.",
+      "fixHint": "`while IFS= read -r line; do ...; done < file`"
+    },
+    {
+      "name": "select-in",
+      "tier": "E",
+      "pattern": "^\\s*select\\s+[A-Za-z_][A-Za-z0-9_]*\\s+in\\b",
+      "behaviorNote": "`select x in ...` menus are a syntax error.",
+      "fixHint": "Print a numbered list with printf and read the choice with `read`."
+    },
+    {
+      "name": "extglob",
+      "tier": "E",
+      "pattern": "@\\(",
+      "behaviorNote": "extglob patterns like `@(a|b)` are a syntax error.",
+      "fixHint": "Use a `case` statement with multiple patterns, or separate globs."
+    },
+    {
+      "name": "declare",
+      "tier": "E",
+      "pattern": "(^|[;&|]\\s*)declare\\b",
+      "behaviorNote": "`declare` is 'not found' AND the variable is NOT assigned (verified), so later logic sees an empty value.",
+      "fixHint": "Assign directly (`x=5`). Associative arrays have no sh equivalent — use `case` or key=value lines in a temp file."
+    },
+    {
+      "name": "export-f",
+      "tier": "E",
+      "pattern": "\\bexport\\s+-f\\b",
+      "behaviorNote": "`export -f` is 'illegal option'.",
+      "fixHint": "Define the function inside the invoked script, or extract it into its own script file."
+    },
+    {
+      "name": "here-string",
+      "tier": "E",
+      "pattern": "<<<",
+      "behaviorNote": "Here-strings are 'syntax error: unexpected redirection'.",
+      "fixHint": "`printf '%s\\n' \"$s\" | cmd` (note: the pipe runs cmd in a subshell)."
+    },
+    {
+      "name": "read-a",
+      "tier": "E",
+      "pattern": "\\bread\\b[^\\n]{0,120}\\s-a\\b",
+      "behaviorNote": "`read -a arr` is 'illegal option' and array use cascades.",
+      "fixHint": "`read v1 v2 rest` for fixed fields, or `set -- $line` for word-splitting into positional parameters."
+    },
+    {
+      "name": "coproc",
+      "tier": "E",
+      "pattern": "(^|[;&|]\\s*)coproc\\b",
+      "behaviorNote": "`coproc` is 'not found'.",
+      "fixHint": "Use a named pipe (`mkfifo`) with a background process."
+    }
+  ]
+}

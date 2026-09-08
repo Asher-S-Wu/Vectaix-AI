@@ -1,0 +1,20 @@
+/* Info.plist permission strings — 한국어 */
+
+"NSLocationWhenInUseUsageDescription" = "Minis는 세션 기록을 위해 에이전트 세션이 시작된 위치를 기록합니다.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Minis는 백그라운드에서 에이전트 작업을 계속 실행하기 위해 백그라운드 위치를 사용합니다. 위치 데이터는 세션 연결 기록에만 사용됩니다.";
+"NSCalendarsUsageDescription" = "Minis는 AI 에이전트가 일정을 조회하고, 여유 시간을 확인하고, 대신 이벤트를 생성할 수 있도록 캘린더 접근 권한을 사용합니다.";
+"NSCalendarsFullAccessUsageDescription" = "Minis는 AI 에이전트가 일정을 조회하고, 여유 시간을 확인하고, 대신 이벤트를 생성할 수 있도록 캘린더 접근 권한을 사용합니다.";
+"NSRemindersUsageDescription" = "Minis는 AI 에이전트가 미리 알림을 조회하고 생성할 수 있도록 미리 알림 접근 권한을 사용합니다.";
+"NSRemindersFullAccessUsageDescription" = "Minis는 AI 에이전트가 미리 알림을 조회하고 생성할 수 있도록 미리 알림 접근 권한을 사용합니다.";
+"NSCameraUsageDescription" = "Minis는 AI 대화에 사용할 사진을 촬영하기 위해 카메라 접근 권한이 필요합니다.";
+"NSPhotoLibraryUsageDescription" = "Minis는 AI 대화에 이미지를 첨부하기 위해 사진 보관함 접근 권한이 필요합니다.";
+"NSPhotoLibraryAddUsageDescription" = "Minis는 동영상과 이미지를 사진 보관함에 저장하기 위해 권한이 필요합니다.";
+"NSHealthShareUsageDescription" = "Minis는 AI 에이전트가 걸음 수, 심박수, 수면, 운동 등의 건강 데이터를 읽을 수 있도록 건강 접근 권한을 사용합니다.";
+"NSHealthUpdateUsageDescription" = "Minis는 AI 에이전트가 걸음 수, 체중, 수분 섭취량 등의 건강 데이터를 기록할 수 있도록 건강 쓰기 접근 권한을 사용합니다.";
+"NSContactsUsageDescription" = "Minis는 AI 에이전트가 연락처를 검색, 조회, 관리할 수 있도록 연락처 접근 권한을 사용합니다.";
+"NSAppleMusicUsageDescription" = "Minis는 AI 에이전트가 음악 보관함을 검색하고 재생을 제어할 수 있도록 미디어 보관함 접근 권한을 사용합니다.";
+"NSMicrophoneUsageDescription" = "Minis는 채팅에서 음성 텍스트 변환 입력을 위해 마이크 접근 권한이 필요합니다.";
+"NSSpeechRecognitionUsageDescription" = "Minis는 음성을 텍스트 메시지로 변환하기 위해 음성 인식을 사용합니다.";
+"NSHomeKitUsageDescription" = "Minis는 AI 에이전트가 스마트 홈 액세서리를 조회하고 제어할 수 있도록 HomeKit 접근 권한을 사용합니다.";
+"NSAlarmKitUsageDescription" = "Minis는 AI 에이전트가 알람과 타이머를 설정할 수 있도록 AlarmKit을 사용합니다.";
+"NSLocalNetworkUsageDescription" = "가상 머신은 SLIRP 네트워킹을 위해 네트워크 접근이 필요합니다";

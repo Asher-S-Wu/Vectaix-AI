@@ -1,0 +1,4 @@
+#!/bin/sh
+# MinisApp URL interceptor — routes xdg-open(1) into the in-app browser
+# preview (WebKit) via the OSC MinisOpenURL marker. See minis-open.
+exec /usr/local/bin/minis-open "$@"

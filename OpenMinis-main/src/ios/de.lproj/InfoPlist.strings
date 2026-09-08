@@ -1,0 +1,20 @@
+/* Info.plist permission strings — Deutsch */
+
+"NSLocationWhenInUseUsageDescription" = "Minis verwendet Ihren Standort, um den Startort von Agent-Sitzungen in Ihrem Sitzungsverlauf aufzuzeichnen.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Minis verwendet den Hintergrund-Standort, um Agent-Aufgaben im Hintergrund weiterlaufen zu lassen. Standortdaten werden nur zur Aufzeichnung des Sitzungsverlaufs verwendet.";
+"NSCalendarsUsageDescription" = "Minis greift auf den Kalender zu, damit der KI-Agent Ihren Terminplan einsehen, Verfügbarkeiten prüfen und Termine in Ihrem Namen erstellen kann.";
+"NSCalendarsFullAccessUsageDescription" = "Minis greift auf den Kalender zu, damit der KI-Agent Ihren Terminplan einsehen, Verfügbarkeiten prüfen und Termine in Ihrem Namen erstellen kann.";
+"NSRemindersUsageDescription" = "Minis greift auf Erinnerungen zu, damit der KI-Agent Erinnerungen in Ihrem Namen suchen und erstellen kann.";
+"NSRemindersFullAccessUsageDescription" = "Minis greift auf Erinnerungen zu, damit der KI-Agent Erinnerungen in Ihrem Namen suchen und erstellen kann.";
+"NSCameraUsageDescription" = "Minis benötigt Kamerazugriff, um Fotos für KI-Unterhaltungen aufzunehmen.";
+"NSPhotoLibraryUsageDescription" = "Minis benötigt Zugriff auf die Fotomediathek, um Bilder an KI-Unterhaltungen anzuhängen.";
+"NSPhotoLibraryAddUsageDescription" = "Minis benötigt die Berechtigung, Videos und Bilder in Ihrer Fotomediathek zu speichern.";
+"NSHealthShareUsageDescription" = "Minis greift auf HealthKit zu, damit der KI-Agent Gesundheitsdaten wie Schritte, Herzfrequenz, Schlaf und Workouts in Ihrem Namen lesen kann.";
+"NSHealthUpdateUsageDescription" = "Minis greift schreibend auf HealthKit zu, damit der KI-Agent Gesundheitsdaten wie Schritte, Gewicht und Wasseraufnahme in Ihrem Namen aufzeichnen kann.";
+"NSContactsUsageDescription" = "Minis greift auf Kontakte zu, damit der KI-Agent Ihre Kontakte in Ihrem Namen suchen, anzeigen und verwalten kann.";
+"NSAppleMusicUsageDescription" = "Minis greift auf die Mediathek zu, damit der KI-Agent Ihre Musikbibliothek durchsuchen und die Wiedergabe steuern kann.";
+"NSMicrophoneUsageDescription" = "Minis benötigt Mikrofonzugriff für die Spracheingabe im Chat.";
+"NSSpeechRecognitionUsageDescription" = "Minis verwendet Spracherkennung, um Ihre Stimme in Textnachrichten umzuwandeln.";
+"NSHomeKitUsageDescription" = "Minis greift auf HomeKit zu, damit der KI-Agent Ihre Smart-Home-Geräte in Ihrem Namen abfragen und steuern kann.";
+"NSAlarmKitUsageDescription" = "Minis verwendet AlarmKit, damit der KI-Agent Wecker und Timer in Ihrem Namen stellen kann.";
+"NSLocalNetworkUsageDescription" = "Die virtuelle Maschine benötigt Netzwerkzugriff für SLIRP-Netzwerkverbindungen";

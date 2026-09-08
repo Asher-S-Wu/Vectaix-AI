@@ -4,21 +4,13 @@ import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import mongoose from 'mongoose';
-import { forbiddenResponse } from '@/lib/server/api/routeHelpers';
+import { forbiddenResponse, parseJsonRequest } from '@/lib/server/api/routeHelpers';
 import { deleteAllAuthSessionsForUser } from '@/lib/auth';
 import { deleteUserAndData } from '@/lib/server/users/deleteUser';
 import { UserOperationLeaseError } from '@/lib/media/server/userOperationLeases';
 import { CreditError } from '@/lib/server/credits/errors';
 
 export const dynamic = 'force-dynamic';
-
-async function parseJsonBody(req) {
-    try {
-        return await req.json();
-    } catch {
-        return null;
-    }
-}
 
 // 重置用户密码
 export async function PATCH(req, context) {
@@ -32,32 +24,17 @@ export async function PATCH(req, context) {
         return Response.json({ error: '无效的用户 ID' }, { status: 400 });
     }
 
+    const parsed = await parseJsonRequest(req, '请求体格式错误');
+    if (!parsed.ok) return parsed.response;
+    if (parsed.body?.action !== 'reset-password') {
+        return Response.json({ error: '不支持的操作' }, { status: 400 });
+    }
+
     await dbConnect();
 
     const user = await User.findOne({ _id: id });
     if (!user) {
         return Response.json({ error: '用户不存在' }, { status: 404 });
-    }
-
-    const body = await parseJsonBody(req);
-    if (body?.action === 'set-advanced-user') {
-        if (isAdminEmail(user.email)) {
-            return Response.json({ error: '超级管理员不需要调整高级用户权限' }, { status: 400 });
-        }
-
-        const nextIsAdvancedUser = body?.isAdvancedUser === true;
-        user.isAdvancedUser = nextIsAdvancedUser;
-        await user.save();
-
-        return Response.json({
-            success: true,
-            user: {
-                id: user._id.toString(),
-                email: user.email,
-                isAdmin: false,
-                isAdvancedUser: nextIsAdvancedUser,
-            },
-        });
     }
 
     if (isAdminEmail(user.email)) {

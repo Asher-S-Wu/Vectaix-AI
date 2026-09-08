@@ -1,0 +1,20 @@
+/* Info.plist permission strings — English */
+
+"NSLocationWhenInUseUsageDescription" = "Minis uses your location to record where agent sessions are started for your session history.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Minis uses background location to keep agent tasks running when the app is in the background. Location data is only used to record session connection history.";
+"NSCalendarsUsageDescription" = "Minis uses calendar access so the AI agent can query your schedule, check availability, and create events on your behalf.";
+"NSCalendarsFullAccessUsageDescription" = "Minis uses calendar access so the AI agent can query your schedule, check availability, and create events on your behalf.";
+"NSRemindersUsageDescription" = "Minis uses reminders access so the AI agent can query and create reminders on your behalf.";
+"NSRemindersFullAccessUsageDescription" = "Minis uses reminders access so the AI agent can query and create reminders on your behalf.";
+"NSCameraUsageDescription" = "Minis needs camera access to take photos for AI conversations.";
+"NSPhotoLibraryUsageDescription" = "Minis needs photo library access to attach images to AI conversations.";
+"NSPhotoLibraryAddUsageDescription" = "Minis needs permission to save videos and images to your photo library.";
+"NSHealthShareUsageDescription" = "Minis uses HealthKit access so the AI agent can read your health data such as steps, heart rate, sleep, and workouts on your behalf.";
+"NSHealthUpdateUsageDescription" = "Minis uses HealthKit write access so the AI agent can log health data such as steps, weight, and water intake on your behalf.";
+"NSContactsUsageDescription" = "Minis uses contacts access so the AI agent can search, view, and manage your contacts on your behalf.";
+"NSAppleMusicUsageDescription" = "Minis uses media library access so the AI agent can search your music library and control playback on your behalf.";
+"NSMicrophoneUsageDescription" = "Minis needs microphone access for voice-to-text input in chat.";
+"NSSpeechRecognitionUsageDescription" = "Minis uses speech recognition to convert your voice into text messages.";
+"NSHomeKitUsageDescription" = "Minis uses HomeKit access so the AI agent can query and control your smart home accessories on your behalf.";
+"NSAlarmKitUsageDescription" = "Minis uses AlarmKit so the AI agent can set alarms and timers on your behalf.";
+"NSLocalNetworkUsageDescription" = "VM requires network access for SLIRP networking";

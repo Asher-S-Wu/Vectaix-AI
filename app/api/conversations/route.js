@@ -1,4 +1,5 @@
 import Conversation from '@/models/Conversation';
+import { requireProject } from '@/lib/server/workbench/catalog';
 import { sanitizeImportedConversation } from '@/lib/server/conversations/sanitize';
 import { bindStoredFiles, collectStoredFileIds } from '@/lib/server/storage/service';
 import { TEXT_CHAT_MAX_REQUEST_BYTES } from '@/lib/server/chat/routeConstants';
@@ -18,9 +19,16 @@ export async function GET(req) {
         const user = auth?.payload;
         if (!user) return unauthorizedResponse();
 
-        const conversations = await Conversation.find({ userId: user.userId })
+        const query = { userId: user.userId };
+        const searchParams = new URL(req.url).searchParams;
+        if (searchParams.has('projectId')) {
+            const projectId = searchParams.get('projectId');
+            if (projectId && projectId !== 'null') await requireProject(user.userId, projectId);
+            query.projectId = projectId && projectId !== 'null' ? projectId : null;
+        }
+        const conversations = await Conversation.find(query)
             .sort({ pinned: -1, updatedAt: -1 })
-            .select('title model updatedAt pinned')
+            .select('title model updatedAt pinned projectId')
             .lean();
 
         return Response.json({ conversations });
@@ -29,7 +37,7 @@ export async function GET(req) {
             errorType: error?.name || 'Error',
             code: error?.code || '',
         });
-        return Response.json({ error: 'Internal Server Error' }, { status: 500 });
+        return Response.json({ error: error.status ? error.message : 'Internal Server Error' }, { status: error.status || 500 });
     }
 }
 
@@ -47,8 +55,11 @@ export async function POST(req) {
         const body = parsed.body;
 
         const conversationInput = sanitizeImportedConversation(body, 0, user.userId);
+        const projectId = body.projectId === undefined ? null : body.projectId;
+        if (projectId !== null) await requireProject(user.userId, projectId);
         const created = await Conversation.create({
             ...conversationInput,
+            projectId,
             pinned: Boolean(conversationInput.pinned),
             updatedAt: new Date(),
         });
@@ -66,6 +77,6 @@ export async function POST(req) {
 
         return Response.json({ conversation: created.toObject() });
     } catch (error) {
-        return Response.json({ error: error?.message || '创建会话失败' }, { status: 400 });
+        return Response.json({ error: error?.message || '创建会话失败' }, { status: error.status || 400 });
     }
 }
