@@ -52,8 +52,12 @@ export async function DELETE(req, context) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  await deleteConversationForUser(id, user.userId);
-  return Response.json({ success: true });
+  try {
+    await deleteConversationForUser(id, user.userId);
+    return Response.json({ success: true });
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: error.status || 500 });
+  }
 }
 
 export async function PUT(req, context) {

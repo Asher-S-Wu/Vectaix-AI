@@ -4,6 +4,9 @@ const MessageSchema = new mongoose.Schema({
   id: { type: String },
   role: { type: String, required: true }, // 'user' or 'model'
   content: { type: String, default: '' },
+  taskId: { type: mongoose.Schema.Types.ObjectId, ref: "WorkbenchTask" },
+  taskStatus: String,
+  artifacts: { type: [mongoose.Schema.Types.Mixed] },
   thought: { type: String }, // For model thinking blocks
   thinkingTimeline: { type: [mongoose.Schema.Types.Mixed] }, // 联网搜索流程时间线
   citations: { type: [mongoose.Schema.Types.Mixed] },
@@ -40,6 +43,7 @@ const ConversationSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  activeTaskId: { type: mongoose.Schema.Types.ObjectId, ref: "WorkbenchTask", default: null },
   messages: [MessageSchema],
   updatedAt: {
     type: Date,

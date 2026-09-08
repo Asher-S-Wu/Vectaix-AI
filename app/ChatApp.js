@@ -1,5 +1,9 @@
 "use client";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import ChatCapabilitiesSettings from "./components/chat/ChatCapabilitiesSettings";
+import ChatResourcesPanel from "./components/chat/ChatResourcesPanel";
+import ProjectManager from "./components/chat/ProjectManager";
+import { useConversationTasks } from "@/lib/client/hooks/useConversationTasks";
 import { useChatAppActions } from "@/lib/client/chat/chatAppActions";
 import {
   decorateConversationMessages,
@@ -34,6 +38,13 @@ export default function ChatApp() {
   const [conversationsReady, setConversationsReady] = useState(false);
   const [conversationsError, setConversationsError] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [activeProjectId, setActiveProjectId] = useState("all");
+  const [showProjects, setShowProjects] = useState(false);
+  const [showResources, setShowResources] = useState(false);
+  const [capabilitiesSection, setCapabilitiesSection] = useState(null);
+  const selectedConversation = conversations.find(item => item._id === currentConversationId);
+  const projectId = currentConversationId ? selectedConversation?.projectId || null : activeProjectId === "all" ? null : activeProjectId;
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const {
@@ -42,6 +53,9 @@ export default function ChatApp() {
     setModel,
     webSearch,
     setWebSearch,
+    chatMediaSettings: mediaSettings,
+    setChatMediaSettings: setMediaSettings,
+    resetChatMediaSettings,
     chatSystemPrompt,
     setChatSystemPrompt,
     systemPrompts,
@@ -66,7 +80,6 @@ export default function ChatApp() {
   const [editingMsgIndex, setEditingMsgIndex] = useState(null);
   const [editingContent, setEditingContent] = useState("");
   const [editingImages, setEditingImages] = useState([]);
-  const [composerPrefill, setComposerPrefill] = useState({ text: "", nonce: 0 });
   const [serverSettingsReady, setServerSettingsReady] = useState(false);
 
   const chatAbortRef = useRef(null);
@@ -120,6 +133,9 @@ export default function ChatApp() {
     hasRestoredConversationRef.current = false;
     setServerSettingsReady(false);
     setConversations([]);
+    setProjects([]);
+    setActiveProjectId("all");
+    resetChatMediaSettings();
     setConversationsReady(false);
     setConversationsError(false);
     setCurrentConversationId(null);
@@ -223,14 +239,9 @@ export default function ChatApp() {
       }
       if (!res.ok) throw new Error("conversations fetch failed");
       setConversationsError(false);
-      let nextConversations = [];
-      setConversations(() => {
-        nextConversations = data?.conversations
-          ? sortConversations(data.conversations)
-          : [];
-        return nextConversations;
-      });
-      if (currentConversationId && !nextConversations.some((conv) => conv._id === currentConversationId)) {
+      const nextConversations = sortConversations(data?.conversations || []);
+      setConversations(nextConversations);
+      if (currentConversationIdRef.current && !nextConversations.some((conv) => conv._id === currentConversationIdRef.current)) {
         setCurrentConversationId(null);
         setMessages([]);
       }
@@ -240,49 +251,66 @@ export default function ChatApp() {
     setConversationsReady(true);
   }
 
-  const handleConversationMissing = () => {
-    stopOngoingChatWork();
-    setCurrentConversationId(null);
-    setMessages([]);
-    fetchConversations();
-  };
+  async function fetchProjects() {
+    try {
+      const response = await fetch("/api/projects", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "加载项目失败");
+      setProjects(data.projects);
+      setActiveProjectId(previous => previous && previous !== "all" && !data.projects.some(project => project._id === previous) ? "all" : previous);
+    } catch (error) { toast.error(error.message); }
+  }
+  const refreshProjects = useEffectEvent(fetchProjects);
+  useEffect(() => {
+    if (!user) return;
+    const timer = setTimeout(() => refreshProjects(), 0);
+    return () => clearTimeout(timer);
+  }, [user]);
 
-  const handleSensitiveRefusal = (payload) => {
-    const promptText = typeof payload === "string" ? payload : payload?.prompt;
-    const shouldPrefill = typeof payload === "object" ? payload?.shouldPrefill !== false : true;
-    toast.warning("消息包含敏感内容，请修改后重新尝试");
-    if (shouldPrefill && typeof promptText === "string" && promptText.trim()) {
-      setComposerPrefill((previous) => ({ text: promptText, nonce: (previous?.nonce || 0) + 1 }));
-    }
-  };
+  const taskActions = useConversationTasks({
+    user, conversationId: currentConversationId, projectId, model, webSearch, chatSystemPrompt, mediaSettings,
+    setMessages, setCurrentConversationId, onActivity: fetchConversations,
+    onCreditChange: () => refreshCredit().catch(() => {}), onAuthExpired: handleAuthExpired, toast, completionSoundVolume,
+  });
+  const busy = loading || taskActions.submitting || isStreaming;
 
   const actions = useChatAppActions({
-    toast,
-    messages,
-    setMessages,
-    loading,
-    setLoading,
-    model,
-    webSearch,
-    chatSystemPrompt,
-    currentConversationId,
-    setCurrentConversationId,
-    fetchConversations,
-    chatAbortRef,
-    chatRequestLockRef,
-    userInterruptedRef,
-    editingMsgIndex,
-    editingContent,
-    editingImages,
-    setEditingMsgIndex,
-    setEditingContent,
-    setEditingImages,
-    completionSoundVolume,
-    onSensitiveRefusal: handleSensitiveRefusal,
-    onAuthExpired: handleAuthExpired,
-    onConversationMissing: handleConversationMissing,
-    onConversationActivity: () => {},
+    toast, messages, loading: busy, model, editingImages,
+    setEditingMsgIndex, setEditingContent, setEditingImages,
   });
+
+  const getMessageAttachments = (message) => (message?.parts || []).flatMap(part => {
+    const file = part.inlineData || part.fileData;
+    return file?.fileId ? [{ fileId: file.fileId, isImage: Boolean(part.inlineData) }] : [];
+  });
+  const regenerateMessage = async (index) => {
+    if (busy) return;
+    const previous = messages[index - 1];
+    if (previous?.role !== "user") return;
+    await taskActions.send({ text: previous.content, attachments: getMessageAttachments(previous), replaceFromMessageId: previous.id });
+  };
+  const submitEditedMessage = async () => {
+    if (busy || editingMsgIndex === null) return;
+    if (editingImages.some(image => image.uploadStatus !== "ready")) {
+      toast.warning("请等待图片上传完成，或移除上传失败的图片");
+      return;
+    }
+    const message = messages[editingMsgIndex];
+    const attachments = [...getMessageAttachments(message).filter(file => !file.isImage), ...editingImages.map(image => ({ fileId: image.fileId }))];
+    if (await taskActions.send({ text: editingContent, attachments, replaceFromMessageId: message.id })) actions.cancelEdit({ preserveUploaded: true });
+  };
+  const removeMessage = (index) => {
+    if (!busy && messages[index]?.id) taskActions.deleteMessage(messages[index].id);
+  };
+  const moveConversation = async (id, nextProjectId) => {
+    try {
+      const response = await fetch(`/api/conversations/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: nextProjectId }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "移动对话失败");
+      await fetchConversations();
+      if (id === currentConversationId) setActiveProjectId(nextProjectId);
+    } catch (error) { toast.error(error.message); }
+  };
 
   const persistConversationModel = async (conversationIdToUpdate, nextModel) => {
     if (!conversationIdToUpdate || !nextModel) return false;
@@ -495,6 +523,7 @@ export default function ChatApp() {
         <AuthModal authMode={authMode} email={email} password={password} confirmPassword={confirmPassword} onEmailChange={setEmail} onPasswordChange={setPassword} onConfirmPasswordChange={setConfirmPassword} onSubmit={handleAuth} onToggleMode={() => setAuthMode((m) => (m === "login" ? "register" : "login"))} loading={authLoading} />
       ) : (
         <ChatLayout
+          resourcesPanel={<ChatResourcesPanel open={showResources} onClose={() => setShowResources(false)} conversationId={currentConversationId} projectId={projectId} tasks={taskActions.tasks} />}
           user={user}
           isAdmin={!!user?.isAdmin}
           isSettingsReady={isSettingsReady}
@@ -510,7 +539,16 @@ export default function ChatApp() {
           onNicknameChange={setNickname}
           onEmailChange={(updatedUser) => setUser((prev) => ({ ...prev, email: updatedUser.email }))}
           sidebarOpen={sidebarOpen}
-          conversations={conversations}
+          conversations={conversations.filter(item => activeProjectId === "all" || (item.projectId || null) === activeProjectId)}
+          projects={projects}
+          activeProjectId={activeProjectId}
+          onSelectProject={(id) => { setActiveProjectId(id); startNewChat(); }}
+          onManageProjects={() => setShowProjects(true)}
+          onMoveConversation={moveConversation}
+          onOpenResources={() => setShowResources(true)}
+          projectName={projects.find(item => item._id === projectId)?.name}
+          taskLimits={taskActions.limits}
+          tasks={taskActions.tasks}
           conversationsReady={conversationsReady}
           conversationsError={conversationsError}
           onRetryConversations={fetchConversations}
@@ -542,18 +580,18 @@ export default function ChatApp() {
           onEditingImagesSelect={actions.onEditingImagesSelect}
           onEditingImageRemove={actions.onEditingImageRemove}
           onCancelEdit={actions.cancelEdit}
-          onSubmitEdit={actions.submitEditAndRegenerate}
+          onSubmitEdit={submitEditedMessage}
           onCopy={actions.copyMessage}
-          onDeleteModelMessage={actions.deleteModelMessage}
-          onDeleteUserMessage={actions.deleteUserMessage}
-          onRegenerateModelMessage={actions.regenerateModelMessage}
+          onDeleteModelMessage={removeMessage}
+          onDeleteUserMessage={removeMessage}
+          onRegenerateModelMessage={regenerateMessage}
           onStartEdit={actions.startEdit}
           userAvatar={avatar}
           onAvatarChange={setAvatar}
           composerProps={{
-            loading,
+            loading: busy,
             isStreaming,
-            isWaitingForAI: loading && messages.length > 0,
+            isWaitingForAI: busy && messages.length > 0,
             model,
             modelReady: isSettingsReady,
             onModelChange: requestModelChange,
@@ -568,12 +606,16 @@ export default function ChatApp() {
             addSystemPrompt,
             updateSystemPrompt,
             deleteSystemPrompt,
-            onSend: actions.handleSendFromComposer,
-            onStop: actions.stopStreaming,
-            prefill: composerPrefill,
+            onSend: taskActions.send,
+            onOpenCapabilities: setCapabilitiesSection,
+            onStop: taskActions.stop,
           }}
         />
       )}
+      {!showAuthModal && <>
+        <ProjectManager open={showProjects} onClose={() => setShowProjects(false)} projects={projects} onChanged={async () => { await fetchProjects(); await fetchConversations(); }} onSelectProject={(id) => { setActiveProjectId(id); startNewChat(); }} />
+        <ChatCapabilitiesSettings open={Boolean(capabilitiesSection)} section={capabilitiesSection} onClose={() => setCapabilitiesSection(null)} projectId={projectId} mediaSettings={mediaSettings} onMediaSettingsChange={setMediaSettings} />
+      </>}
       <ConfirmModal
         open={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}

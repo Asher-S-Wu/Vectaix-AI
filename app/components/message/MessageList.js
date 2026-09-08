@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import Markdown from "../common/Markdown";
+import TaskDelivery from "./TaskDelivery";
 import ThinkingBlock from "./ThinkingBlock";
 import ImageLightbox from "../modals/ImageLightbox";
 import ConfirmModal from "../modals/ConfirmModal";
@@ -72,6 +73,8 @@ const STARTER_ICONS = {
 
 
 export default function MessageList({
+  tasks = [],
+  taskLimits,
   messages,
   loading,
   chatEndRef,
@@ -362,10 +365,10 @@ export default function MessageList({
           const shouldRenderToolCards = msg.role === "model" && hasToolRuns && !hasThinkingTimeline && msg.tools.some((t) => t?.id);
           const shouldRenderBubble = hasParts || hasVisibleContent || shouldRenderToolCards;
           const canRegenerateMessage = msg.role === "model" && messages[i - 1]?.role === "user";
-          const isFailedModelMessage = msg.role === "model" && !shouldRenderBubble && !msg.isStreaming && !msg.isWaitingFirstChunk
+          const isFailedModelMessage = msg.role === "model" && !msg.taskId && !shouldRenderBubble && !msg.isStreaming && !msg.isWaitingFirstChunk
             && !msg.thought && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasToolRuns;
 
-          if (msg.role === "model" && !msg.thought && !hasVisibleContent && !hasParts && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasToolRuns && msg.isWaitingFirstChunk) {
+          if (msg.role === "model" && !msg.taskId && !msg.thought && !hasVisibleContent && !hasParts && !msg.isSearching && !msg.searchError && !hasThinkingTimeline && !hasToolRuns && msg.isWaitingFirstChunk) {
             return null;
           }
 
@@ -378,7 +381,7 @@ export default function MessageList({
               exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
               className={`flex flex-col gap-3 ${msg.role === "user" ? "items-end" : "items-start"} max-w-4xl mx-auto w-full group`}
             >
-              {msg.role === "model" && (msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasToolRuns) && (
+              {msg.role === "model" && (msg.taskId || msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasToolRuns) && (
                 <div className="flex items-center gap-2 pl-1">
                   <AIAvatar model={msg.model || model} size={24} animate={msg.isStreaming} />
                   <span className="text-[11px] text-zinc-400 font-bold tracking-wider">
@@ -402,6 +405,7 @@ export default function MessageList({
                     )}
                   </div>
                 )}
+                {msg.role === "model" && msg.taskId && <TaskDelivery limits={taskLimits} message={msg} task={tasks.find(task => task._id === String(msg.taskId))} />}
                 {msg.role === "model" && (msg.thought || msg.isSearching || msg.searchError || hasThinkingTimeline) && (
                   <ThinkingBlock
                     thought={msg.thought}

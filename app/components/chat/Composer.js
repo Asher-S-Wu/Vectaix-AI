@@ -58,6 +58,7 @@ export default function Composer({
   onSend,
   onStop,
   prefill,
+  onOpenCapabilities,
 }) {
   const toast = useToast();
   const [input, setInput] = useState("");
@@ -74,10 +75,12 @@ export default function Composer({
     supportsImages,
     supportsVideo,
     supportsAudio,
-    supportsFilePicker,
+    supportsFilePicker: supportsModelFilePicker,
   } = getModelAttachmentSupport(model);
   const isMediaModel = isMediaGenerationModel(model);
   const isImageModel = isImageGenerationModel(model);
+  const supportsDocuments = !isMediaModel;
+  const supportsFilePicker = supportsModelFilePicker || supportsDocuments;
   const attachmentLimit = isImageModel
     ? IMAGE_EDIT_MAX_COUNT
     : isMediaModel
@@ -92,6 +95,7 @@ export default function Composer({
         supportsImages,
         supportsVideo,
         supportsAudio,
+        supportsDocuments,
       });
   useEffect(() => {
     mountedRef.current = true;
@@ -166,6 +170,7 @@ export default function Composer({
       }
       if (inputType === "video") return supportsVideo;
       if (inputType === "audio") return supportsAudio;
+      if (inputType === "document") return supportsDocuments;
       return false;
     });
     if (next.length !== selectedAttachments.length) {
@@ -180,7 +185,7 @@ export default function Composer({
     }
     }, 0);
     return () => clearTimeout(timer);
-  }, [isImageModel, selectedAttachments, supportsAudio, supportsFilePicker, supportsImages, supportsVideo]);
+  }, [isImageModel, selectedAttachments, supportsAudio, supportsFilePicker, supportsImages, supportsVideo, supportsDocuments]);
 
   const processFiles = async (files) => {
     if (!supportsFilePicker) return;
@@ -220,6 +225,7 @@ export default function Composer({
         (inputType === "image" && supportsImages)
         || (inputType === "video" && supportsVideo)
         || (inputType === "audio" && supportsAudio)
+        || (inputType === "document" && supportsDocuments)
       ) && (!isQwenOnlyImage || isImageModel);
 
       if (!isSupported) {
@@ -385,7 +391,7 @@ export default function Composer({
     }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = input.trim();
     if ((!text && selectedAttachments.length === 0) || loading || isUploading) return;
     if (isImageModel && !text) {
@@ -398,9 +404,11 @@ export default function Composer({
       return;
     }
     const mediaOptions = isImageModel ? { size: imageSize } : undefined;
-    onSend({ text, attachments: validAttachments, mediaOptions });
-    setInput("");
-    setSelectedAttachments([]);
+    const sent = await onSend({ text, attachments: validAttachments, mediaOptions });
+    if (sent !== true) return;
+    setInput(current => current.trim() === text ? "" : current);
+    const sentIds = new Set(validAttachments.map(item => item.id));
+    setSelectedAttachments(current => current.filter(item => !sentIds.has(item.id)));
   };
 
   return (
@@ -508,6 +516,7 @@ export default function Composer({
             </div>
           ) : (
             <SettingsMenu
+              onOpenCapabilities={onOpenCapabilities}
               model={model}
               ready={modelReady}
               webSearch={webSearch}

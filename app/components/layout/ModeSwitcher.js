@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 const MODES = [
   { href: "/", label: "Chat" },
   { href: "/media", label: "Media" },
-  { href: "/workbench", label: "工作台" },
 ];
 
 export default function ModeSwitcher() {

@@ -1,7 +1,9 @@
+import { uploadTemporaryDocument } from "@/lib/server/workbench/documents";
 import { getAuthPayload } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
+  DOCUMENT_EXTENSIONS,
   getAttachmentInputType,
   getAttachmentLimits,
   getFileExtension,
@@ -10,6 +12,7 @@ import {
 import {
   getModelAttachmentSupport,
   isImageGenerationModel,
+  isMediaGenerationModel,
 } from "@/lib/shared/models";
 import {
   IMAGE_EDIT_ACCEPTED_EXTENSIONS,
@@ -59,6 +62,14 @@ export async function POST(request) {
     const extension = getFileExtension(originalName);
     if (!extension || !isSupportedUploadExtension(extension)) {
       return jsonError("不支持该文件类型");
+    }
+    if (DOCUMENT_EXTENSIONS.includes(extension)) {
+      if (kind !== "chat" || isMediaGenerationModel(model)) return jsonError("当前用途不支持文档");
+      await dbConnect();
+      mediaWriteLease = await beginMediaWriteLease(user.userId);
+      const stored = await uploadTemporaryDocument({ userId: user.userId, file, mediaWriteLease });
+      cleanupExpiredTemporaryFiles().catch(error => console.error("[Storage] cleanup temporary files:", error));
+      return Response.json(stored, { status: 201 });
     }
     if (
       QWEN_ONLY_IMAGE_EXTENSIONS.has(extension)

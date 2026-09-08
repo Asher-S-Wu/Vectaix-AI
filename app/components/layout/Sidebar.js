@@ -3,12 +3,17 @@
 
 import { useState, useRef, useEffect } from "react";
 import NextImage from "next/image";
-import { LogOut, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { Folder, FolderInput, LogOut, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import ConfirmModal from "../modals/ConfirmModal";
 import { ModelGlyph } from "../common/ModelVisuals";
 import BrandMark from "../common/BrandMark";
 
 export default function Sidebar({
+  projects = [],
+  activeProjectId = "all",
+  onSelectProject,
+  onManageProjects,
+  onMoveConversation,
   isOpen,
   conversations,
   conversationsReady = true,
@@ -33,6 +38,7 @@ export default function Sidebar({
   const [editingId, setEditingId] = useState(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [activeActionsId, setActiveActionsId] = useState(null);
+  const [movingId, setMovingId] = useState(null);
   const editInputRef = useRef(null);
 
   useEffect(() => {
@@ -151,6 +157,12 @@ export default function Sidebar({
           </button>
         </div>
 
+        <div className="px-3 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50">
+          <div className="flex items-center justify-between mb-2 px-1"><span className="text-xs font-medium text-zinc-500 flex items-center gap-1.5"><Folder size={13} />项目</span><button type="button" onClick={onManageProjects} className="text-xs text-primary hover:underline">管理项目</button></div>
+          <select aria-label="筛选项目对话" value={activeProjectId === null ? "" : activeProjectId} onChange={event => onSelectProject(event.target.value === "" ? null : event.target.value)} className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm px-3 py-2 text-zinc-700 dark:text-zinc-200">
+            <option value="all">全部对话</option><option value="">未归类</option>{projects.map(project => <option key={project._id} value={project._id}>{project.name}</option>)}
+          </select>
+        </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-1 fade-scrollbar">
           {!conversationsReady ? (
             <div className="space-y-1" aria-hidden="true">
@@ -185,7 +197,7 @@ export default function Sidebar({
               key={conv._id}
               onMouseEnter={() => revealActions(conv._id)}
               onMouseLeave={() => hideActions(conv._id)}
-              className={`group relative flex items-center rounded-xl transition-all duration-200 border ${currentConversationId === conv._id
+              className={`group relative flex flex-wrap items-center rounded-xl transition-all duration-200 border ${currentConversationId === conv._id
                 ? "bg-white shadow-sm border-zinc-200/60"
                 : "border-transparent hover:bg-zinc-100"
                 }`}
@@ -216,10 +228,11 @@ export default function Sidebar({
                     <span className={`shrink-0 transition-transform duration-200 ${currentConversationId === conv._id ? "scale-110" : "group-hover:scale-105 opacity-70 group-hover:opacity-100"}`}>
                       <ModelGlyph model={conv.model} size={18} />
                     </span>
-                    <span className="truncate pr-20">{conv.title}</span>
+                    <span className="truncate pr-28">{conv.title}</span>
                   </button>
 
-                  <div className={`absolute right-2 flex items-center gap-0.5 transition-all duration-200 ${activeActionsId === conv._id ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-x-0 group-focus-within:pointer-events-auto"}`}>
+                  <div className={`absolute right-2 top-1.5 flex items-center gap-0.5 transition-all duration-200 ${activeActionsId === conv._id ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-x-0 group-focus-within:pointer-events-auto"}`}>
+                    <button type="button" onClick={() => setMovingId(movingId === conv._id ? null : conv._id)} title="移动到项目" aria-label="移动到项目" className="p-2 rounded-lg hover:bg-zinc-200 text-zinc-400"><FolderInput size={16} /></button>
                     <button
                       onClick={(e) => handlePinClick(conv, e)}
                       className={`p-2 rounded-lg hover:bg-zinc-200 transition-colors ${conv.pinned
@@ -248,6 +261,7 @@ export default function Sidebar({
                       <Trash2 size={16} />
                     </button>
                   </div>
+                  {movingId === conv._id && <div className="w-full px-3 pb-3"><select aria-label="对话所属项目" className="w-full text-xs rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-2" value={conv.projectId || ""} onChange={async event => { await onMoveConversation(conv._id, event.target.value || null); setMovingId(null); }}><option value="">未归类</option>{projects.map(project => <option key={project._id} value={project._id}>{project.name}</option>)}</select></div>}
                 </>
               )}
             </div>

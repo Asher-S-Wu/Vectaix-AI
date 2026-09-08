@@ -24,12 +24,13 @@ const UserSettingsSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    chatMediaSettings: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     systemPrompts: [SystemPromptSchema],
     memoryEnabled: { type: Boolean, default: true },
     updatedAt: {
         type: Date,
         default: Date.now
     }
-});
+}, { minimize: false });
 
 export default mongoose.models.UserSettings || mongoose.model('UserSettings', UserSettingsSchema);

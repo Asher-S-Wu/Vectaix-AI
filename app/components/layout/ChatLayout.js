@@ -9,6 +9,8 @@ import ProfileModal from "../settings/ProfileModal";
 import Sidebar from "./Sidebar";
 
 export default function ChatLayout({
+  resourcesPanel,
+  projects, activeProjectId, onSelectProject, onManageProjects, onMoveConversation, onOpenResources, projectName, tasks, taskLimits,
   user,
   isSettingsReady,
   showProfileModal,
@@ -66,7 +68,7 @@ export default function ChatLayout({
   return (
     <div className="app-root flex overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <ProfileModal open={showProfileModal} onClose={onCloseProfile} user={user} isAdmin={isAdmin} themeMode={themeMode} fontSize={fontSize} onThemeModeChange={onThemeModeChange} onFontSizeChange={onFontSizeChange} completionSoundVolume={completionSoundVolume} onCompletionSoundVolumeChange={onCompletionSoundVolumeChange} avatar={userAvatar} onAvatarChange={onAvatarChange} nickname={nickname} onNicknameChange={onNicknameChange} onEmailChange={onEmailChange} />
-      <Sidebar isOpen={sidebarOpen} conversations={conversations} conversationsReady={conversationsReady} conversationsError={conversationsError} onRetryConversations={onRetryConversations} currentConversationId={currentConversationId} user={user} avatar={userAvatar} nickname={nickname} profileReady={isSettingsReady} onStartNewChat={onStartNewChat} onLoadConversation={onLoadConversation} onDeleteConversation={onDeleteConversation} onRenameConversation={onRenameConversation} onTogglePinConversation={onTogglePinConversation} onOpenProfile={onOpenProfile} onLogout={onLogout} onClose={onCloseSidebar} />
+      <Sidebar projects={projects} activeProjectId={activeProjectId} onSelectProject={onSelectProject} onManageProjects={onManageProjects} onMoveConversation={onMoveConversation} isOpen={sidebarOpen} conversations={conversations} conversationsReady={conversationsReady} conversationsError={conversationsError} onRetryConversations={onRetryConversations} currentConversationId={currentConversationId} user={user} avatar={userAvatar} nickname={nickname} profileReady={isSettingsReady} onStartNewChat={onStartNewChat} onLoadConversation={onLoadConversation} onDeleteConversation={onDeleteConversation} onRenameConversation={onRenameConversation} onTogglePinConversation={onTogglePinConversation} onOpenProfile={onOpenProfile} onLogout={onLogout} onClose={onCloseSidebar} />
       <AnimatePresence>
         {sidebarOpen ? (
           <motion.button
@@ -87,9 +89,13 @@ export default function ChatLayout({
           onToggleSidebar={onToggleSidebar}
           onStartNewChat={onStartNewChat}
           sidebarOpen={sidebarOpen}
+          onOpenResources={onOpenResources}
+          projectName={projectName}
         />
         <main className="flex-1 flex flex-col min-h-0 relative">
           <MessageList
+            taskLimits={taskLimits}
+            tasks={tasks}
             messages={messages}
             loading={loading}
             chatEndRef={chatEndRef}
@@ -135,6 +141,7 @@ export default function ChatLayout({
           </div>
         </main>
       </div>
+      {resourcesPanel}
     </div>
   );
 }

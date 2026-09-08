@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, Settings2, MessageSquareQuote, X } from "lucide-react";
+import { BookOpen, Brain, Sparkles, Search, Settings2, MessageSquareQuote, X } from "lucide-react";
 import { getModelConfig } from "@/lib/shared/models";
 import { DEFAULT_WEB_SEARCH_SETTINGS } from "@/lib/shared/webSearch";
 import SystemPromptModal from "./SystemPromptModal";
 import { useClientReady } from "@/lib/client/hooks/useClientReady";
 
 export default function SettingsMenu({
+  onOpenCapabilities,
   model,
   webSearch,
   setWebSearch,
@@ -115,6 +116,7 @@ export default function SettingsMenu({
                     </div>
                   ) : null}
 
+                  {onOpenCapabilities && <div className="grid gap-2">{[{ id: "skills", label: "技能", icon: BookOpen }, { id: "memory", label: "记忆", icon: Brain }, { id: "media", label: "创作设置", icon: Sparkles }].map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => { setShowSettings(false); onOpenCapabilities(id); }} className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"><Icon size={15} className="text-primary" />{label}</button>)}</div>}
                   {/* 系统提示词 */}
                   <div>
                     <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1 mb-2 block">

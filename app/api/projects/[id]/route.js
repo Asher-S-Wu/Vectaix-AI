@@ -29,22 +29,23 @@ export function PUT(req, context) {
 export function DELETE(req, context) {
   return workbenchRoute(req, async (userId) => {
     const id = (await context.params).id;
-    return withProjectLock(userId, id, async () => {
+    return withProjectLock(userId, "task-creation", () => withProjectLock(userId, id, async () => {
     const project = await requireProject(userId, id);
     const projectId = project._id;
     if (await WorkbenchTask.exists({ userId, projectId, status: { $in: ["queued", "running", "waiting_media"] } })) {
       throw workbenchError("项目仍有进行中的任务，请先停止任务", 409);
     }
-    const tasks = await WorkbenchTask.find({ userId, projectId }).select("_id").lean();
+    const tasks = await WorkbenchTask.find({ userId, projectId, conversationId: null }).select("_id").lean();
     await deleteStoredFilesByOwner({ userId, ownerType: "project", ownerId: String(projectId) });
     for (const task of tasks) await deleteStoredFilesByOwner({ userId, ownerType: "task", ownerId: String(task._id) });
     await WorkbenchTaskEvent.deleteMany({ userId, taskId: { $in: tasks.map((task) => task._id) } });
-    await WorkbenchTask.deleteMany({ userId, projectId });
-    await WorkspaceDocument.deleteMany({ userId, projectId });
+    await WorkbenchTask.deleteMany({ userId, _id: { $in: tasks.map(task => task._id) } });
+    await WorkbenchTask.updateMany({ userId, projectId }, { $set: { projectId: null } });
+    await WorkspaceDocument.updateMany({ userId, projectId }, { $set: { projectId: null } });
     await WorkbenchMemory.deleteMany({ userId, projectId });
     await Conversation.updateMany({ userId, projectId }, { $set: { projectId: null } });
     await WorkspaceProject.deleteOne({ _id: projectId, userId });
     return Response.json({ success: true });
-    });
+    }));
   });
 }
