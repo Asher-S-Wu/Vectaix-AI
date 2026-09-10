@@ -32,7 +32,7 @@ const schema = new mongoose.Schema({
   artifacts: { type: [mongoose.Schema.Types.Mixed], default: [] },
   citations: { type: [mongoose.Schema.Types.Mixed], default: [] },
   mediaTasks: { type: [mongoose.Schema.Types.Mixed], default: [] },
-}, { timestamps: true });
+}, { timestamps: true, minimize: false });
 schema.index({ userId: 1, requestId: 1 }, { unique: true });
 schema.index({ projectId: 1, userId: 1, createdAt: -1 });
 export default mongoose.models.WorkbenchTask || mongoose.model("WorkbenchTask", schema);
