@@ -1,3 +1,0 @@
-#!/bin/sh
-# MinisApp URL interceptor — see minis-open.
-exec /usr/local/bin/minis-open "$@"

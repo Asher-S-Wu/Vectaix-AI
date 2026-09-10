@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- T-android-dynamic-app-icon: explicit light/dark backgrounds for
-         the forced-mode alternate icons. These do NOT swap with the
-         system theme — they're the "always light" / "always dark"
-         choices the user can pin in Settings → Appearance → App Icon. -->
-    <color name="ic_launcher_bg_force_light">#EFF2F6</color>
-    <color name="ic_launcher_bg_force_dark">#2C3034</color>
-</resources>

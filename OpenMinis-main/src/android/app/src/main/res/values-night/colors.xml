@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!--
-      T-android-shortcut-icons-blank: night-theme glyph color for the
-      app-icon shortcut adaptive icons — light glyph on the dark night
-      @color/ic_launcher_background (#2C3034). See values/colors.xml.
-    -->
-    <color name="shortcut_icon_fg">#E6E8EB</color>
-</resources>

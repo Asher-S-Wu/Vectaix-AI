@@ -1,4 +1,0 @@
-#!/bin/sh
-# MinisApp URL interceptor — routes kde-open into the host-side
-# OpenOffloadHandler via minis-open. See minis-open for details.
-exec /usr/local/bin/minis-open "$@"
