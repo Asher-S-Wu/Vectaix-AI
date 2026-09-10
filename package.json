@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "prebuild": "node scripts/install-rclone.mjs",
+    "prebuild": "node scripts/install-rclone.mjs && playwright install chromium --only-shell",
     "setup:remotes": "node scripts/install-rclone.mjs",
     "test": "TSX_TSCONFIG_PATH=jsconfig.json MONGO_URI=mongodb://127.0.0.1/test node --import tsx --test tests/*.test.* tests/**/*.test.*",
     "test:ui": "node --test tests/ui/*.spec.mjs"

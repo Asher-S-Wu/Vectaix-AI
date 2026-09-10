@@ -7,12 +7,13 @@ const mongo=await MongoMemoryServer.create();
 process.env.MONGO_URI=mongo.getUri();
 process.env.APP_SECRETS_KEY=Buffer.alloc(32,8).toString('base64');
 delete process.env.OPENROUTER_API_KEY;delete process.env.DASHSCOPE_SINGAPORE_API_KEY;
-const {saveModel,saveProvider}=await import('../../lib/server/models/service.js');
+const {saveProvider}=await import('../../lib/server/models/service.js');
+const {saveTestedModel}=await import('./fixtures.mjs');
 const {transcribeRecording}=await import('../../lib/server/voice/transcription.js');
 const {default:User}=await import('../../models/User.js');
 const {default:Transaction}=await import('../../models/CreditTransaction.js');
 await saveProvider({id:'voice',name:'语音',protocol:'gemini',baseUrl:'https://1.1.1.1/v1beta',enabled:true,apiKey:'key'},{create:true});
-await saveModel({id:'voice-model',name:'语音',upstreamModel:'voice',providerId:'voice',group:'Google',enabled:true,isDefault:false,isTranscriptionDefault:true,sortOrder:0,contextWindow:100000,maxOutputTokens:2000,nativeInputs:['text','audio'],supportsTools:false,supportsWebSearch:false,pricing:{inputPerMillion:1,outputPerMillion:2,cachedInputPerMillion:1,cacheWritePerMillion:1},billingMode:'tokens',requestOptions:{}},{create:true});
+await saveTestedModel({id:'voice-model',name:'语音',upstreamModel:'voice',providerId:'voice',group:'Google',enabled:true,isDefault:false,isTranscriptionDefault:true,sortOrder:0,contextWindow:100000,maxOutputTokens:2000,nativeInputs:['text','audio'],supportsTools:false,supportsWebSearch:false,pricing:{inputPerMillion:1,outputPerMillion:2,cachedInputPerMillion:1,cacheWritePerMillion:1},billingMode:'tokens',requestOptions:{}});
 const recording={buffer:Buffer.from('fixture'),durationSeconds:10};
 test.after(async()=>{await mongoose.disconnect();await mongo.stop();});
 test('转写真实预留与结算积分，同一操作不能重复向模型发送',async()=>{
@@ -39,7 +40,7 @@ test('任务支持管理员设置的小输出上限，并在上下文不足时�
  const {getManagedModel}=await import('../../lib/server/models/service.js');
  const {createTaskBilling}=await import('../../lib/server/workbench/taskBilling.js');
  const model=await getManagedModel('voice-model');
- await saveModel({...model,id:'short-model',contextWindow:512,maxOutputTokens:128,isTranscriptionDefault:false},{create:true});
+ await saveTestedModel({...model,id:'short-model',contextWindow:512,maxOutputTokens:128,isTranscriptionDefault:false});
  const user=await User.create({email:'short@example.com',password:'hash',creditBalance:100});
  const task={_id:new mongoose.Types.ObjectId(),userId:user._id,model:'short-model',fingerprint:'short'};
  const billing=await createTaskBilling(task,new AbortController().signal);

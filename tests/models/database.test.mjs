@@ -7,6 +7,7 @@ process.env.MONGO_URI=server.getUri();
 process.env.APP_SECRETS_KEY=Buffer.alloc(32,7).toString('base64');
 process.env.OPENROUTER_API_KEY='migration-secret';
 const service=await import('../../lib/server/models/service.js');
+const {saveTestedModel}=await import('./fixtures.mjs');
 const {default:ModelProvider}=await import('../../models/ModelProvider.js');
 const {default:ManagedModel}=await import('../../models/ManagedModel.js');
 const {getBillingSettings,updateBillingSettings}=await import('../../lib/server/credits/settings.js');
@@ -27,7 +28,7 @@ test('管理增改删、唯一默认、停用拒绝和动态价格参与真实�
   const provider=await service.saveProvider({id:'custom',name:'自定义',baseUrl:'https://1.1.1.1/v1',protocol:'gemini',enabled:true,apiKey:'private-key'},{create:true});
   assert.equal(provider.hasKey,true);assert.ok(!JSON.stringify(provider).includes('private-key'));
   const input={id:'custom-chat',name:'测试',upstreamModel:'test-v1',providerId:'custom',group:'自定义',enabled:true,isDefault:true,isTranscriptionDefault:true,sortOrder:-1,contextWindow:10000,maxOutputTokens:1000,nativeInputs:['text','audio'],supportsTools:true,supportsWebSearch:true,pricing:{inputPerMillion:7,outputPerMillion:9,cachedInputPerMillion:2,cacheWritePerMillion:7},billingMode:'tokens',requestOptions:{}};
-  await service.saveModel(input,{create:true});
+  await saveTestedModel(input);
   assert.equal((await service.getPublicModels()).defaultModelId,'custom-chat');
   assert.equal((await service.getPublicModels()).models.filter(model=>model.isDefault).length,1);
   assert.equal((await service.getDefaultTranscriptionModel()).id,'custom-chat');

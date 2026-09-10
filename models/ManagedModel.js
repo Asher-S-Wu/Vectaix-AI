@@ -6,6 +6,7 @@ const schema = new mongoose.Schema({
   upstreamModel: { type:String,required:true },
   group: { type:String,required:true },
   enabled: { type:Boolean,required:true },
+  connectionTestedAt: { type:Date,default:null },
   isDefault: { type:Boolean,required:true },
   sortOrder: { type:Number,required:true },
   contextWindow: { type:Number,required:true },
