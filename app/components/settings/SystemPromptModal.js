@@ -182,8 +182,8 @@ export default function SystemPromptModal({
               {/* Header */}
               <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center shrink-0">
                 <div>
-                  <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-100">系统提示词配置</h2>
-                  <p className="text-xs text-zinc-500 mt-1">控制大模型的默认行为、背景设定和回复风格。仅在 Chat 模式下生效。</p>
+                  <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-100">对话指令与模板</h2>
+                  <p className="text-xs text-zinc-500 mt-1">保存常用工作要求，随时选择适合当前工作的模板。</p>
                 </div>
                 <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                   <X size={20} />
@@ -226,7 +226,7 @@ export default function SystemPromptModal({
                   <div className="flex flex-col h-full">
                     <div className="flex items-center justify-between mb-3 shrink-0">
                       <label className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                        当前会话生效内容
+                        后续对话使用的指令
                       </label>
                       <button onClick={handleCreatePreset} className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">
                         <Plus size={14} /> 存为新预设
@@ -234,7 +234,7 @@ export default function SystemPromptModal({
                     </div>
                     <textarea
                       className="flex-1 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-5 text-[15px] text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all leading-relaxed shadow-inner fade-scrollbar"
-                      placeholder="默认无。在这里输入的内容，将会在每次发送消息时，追加到大模型的系统提示词最后。"
+                      placeholder="填写你希望助手遵守的工作要求，例如语言、格式和表达习惯。"
                       value={draft}
                       onChange={e => setDraft(e.target.value)}
                     />

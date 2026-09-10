@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Markdown from "../common/Markdown";
 import TaskDelivery from "./TaskDelivery";
+import ReplyActions from "./ReplyActions";
 import ThinkingBlock from "./ThinkingBlock";
 import ImageLightbox from "../modals/ImageLightbox";
 import ConfirmModal from "../modals/ConfirmModal";
@@ -97,6 +98,7 @@ export default function MessageList({
   onStartEdit,
   userAvatar,
   userNickname,
+  assistant,
   onSendStarterPrompt,
 }) {
   const editTextareaRef = useRef(null);
@@ -383,9 +385,9 @@ export default function MessageList({
             >
               {msg.role === "model" && (msg.taskId || msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasToolRuns) && (
                 <div className="flex items-center gap-2 pl-1">
-                  <AIAvatar model={msg.model || model} size={24} animate={msg.isStreaming} />
+                  {assistant?.avatarFileId ? <NextImage src={`/api/files/${assistant.avatarFileId}`} alt={assistant.name} width={24} height={24} unoptimized className="h-6 w-6 rounded-lg object-cover"/> : <AIAvatar model={msg.model || model} size={24} animate={msg.isStreaming} />}
                   <span className="text-[11px] text-zinc-400 font-bold tracking-wider">
-                    {CHAT_MODELS.find((m) => m.id === (msg.model || model))?.name}
+                    {assistant?.name} · {CHAT_MODELS.find((m) => m.id === (msg.model || model))?.name}
                   </span>
                 </div>
               )}
@@ -594,6 +596,7 @@ export default function MessageList({
                             <RefreshCw size={16} />
                           </button>
                         ) : null}
+                        {msg.role === "model" && buildCopyText(msg).trim() && <ReplyActions text={buildCopyText(msg)} />}
                         <button
                           onClick={() => handleCopyClick(i, msg)}
                           className={`p-2 rounded-lg transition-colors ${copiedIndex === i ? "text-emerald-500" : "text-zinc-400 hover:text-primary hover:bg-primary/5"}`}

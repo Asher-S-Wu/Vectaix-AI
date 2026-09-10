@@ -1,3 +1,5 @@
+import { getManagedModel } from '@/lib/server/models/service';
+import { getModelConfig } from '@/lib/shared/models';
 import { uploadTemporaryDocument } from "@/lib/server/workbench/documents";
 import { getAuthPayload } from "@/lib/auth";
 import dbConnect from "@/lib/db";
@@ -10,7 +12,6 @@ import {
   isSupportedUploadExtension,
 } from "@/lib/shared/attachments";
 import {
-  getModelAttachmentSupport,
   isImageGenerationModel,
   isMediaGenerationModel,
 } from "@/lib/shared/models";
@@ -101,7 +102,8 @@ export async function POST(request) {
     }
 
     if (kind === "chat") {
-      const support = getModelAttachmentSupport(model);
+      const modelConfig = isMediaGenerationModel(model) ? getModelConfig(model) : await getManagedModel(model);
+      const support = { supportsImages: modelConfig.nativeInputs.includes("image"), supportsAudio: modelConfig.nativeInputs.includes("audio"), supportsVideo: modelConfig.nativeInputs.includes("video") };
       const inputType = getAttachmentInputType(category);
       const supported = (
         (inputType === "image" && support.supportsImages)

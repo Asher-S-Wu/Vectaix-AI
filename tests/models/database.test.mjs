@@ -1,0 +1,64 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import mongoose from 'mongoose';
+const server=await MongoMemoryServer.create();
+process.env.MONGO_URI=server.getUri();
+process.env.APP_SECRETS_KEY=Buffer.alloc(32,7).toString('base64');
+process.env.OPENROUTER_API_KEY='migration-secret';
+const service=await import('../../lib/server/models/service.js');
+const {default:ModelProvider}=await import('../../models/ModelProvider.js');
+const {default:ManagedModel}=await import('../../models/ManagedModel.js');
+const {getBillingSettings,updateBillingSettings}=await import('../../lib/server/credits/settings.js');
+const {runCreditMigration}=await import('../../lib/server/credits/migration.js');
+const {decryptSecret}=await import('../../lib/server/security/secrets.mjs');
+test.after(async()=>{await mongoose.disconnect();await server.stop();});
+test('一次性迁移保存历史标识、加密环境密钥，删除模型后不会重建',async()=>{
+  const first=await service.getPublicModels();
+  assert.equal(first.models.length,6);
+  assert.equal(first.defaultModelId,'google/gemini-3.8-flash');
+  const stored=await ModelProvider.findOne({id:'legacy-openrouter'}).select('+encryptedKey').lean();
+  assert.ok(!JSON.stringify(stored).includes('migration-secret'));
+  assert.equal(decryptSecret(stored.encryptedKey,'provider:legacy-openrouter'),'migration-secret');
+  await service.deleteModel('grok-4.6');
+  assert.equal((await service.getPublicModels()).models.some(model=>model.id==='grok-4.6'),false);
+});
+test('管理增改删、唯一默认、停用拒绝和动态价格参与真实计费设置',async()=>{
+  const provider=await service.saveProvider({id:'custom',name:'自定义',baseUrl:'https://1.1.1.1/v1',protocol:'gemini',enabled:true,apiKey:'private-key'},{create:true});
+  assert.equal(provider.hasKey,true);assert.ok(!JSON.stringify(provider).includes('private-key'));
+  const input={id:'custom-chat',name:'测试',upstreamModel:'test-v1',providerId:'custom',group:'自定义',enabled:true,isDefault:true,isTranscriptionDefault:true,sortOrder:-1,contextWindow:10000,maxOutputTokens:1000,nativeInputs:['text','audio'],supportsTools:true,supportsWebSearch:true,pricing:{inputPerMillion:7,outputPerMillion:9,cachedInputPerMillion:2,cacheWritePerMillion:7},billingMode:'tokens',requestOptions:{}};
+  await service.saveModel(input,{create:true});
+  assert.equal((await service.getPublicModels()).defaultModelId,'custom-chat');
+  assert.equal((await service.getPublicModels()).models.filter(model=>model.isDefault).length,1);
+  assert.equal((await service.getDefaultTranscriptionModel()).id,'custom-chat');
+  assert.equal((await getBillingSettings()).rates.chat['custom-chat'].inputPerMillion,7);
+  await service.saveModel({...input,pricing:{...input.pricing,inputPerMillion:11}});
+  assert.equal((await getBillingSettings()).rates.chat['custom-chat'].inputPerMillion,11);
+  await assert.rejects(service.deleteProvider('custom'),/先删除/);
+  await service.saveProvider({...provider,enabled:false});
+  await assert.rejects(service.getManagedModel('custom-chat'),/停用/);
+  assert.equal((await service.getPublicModels()).models.some(model=>model.id==='custom-chat'),false);
+  await service.deleteModel('custom-chat');await service.deleteProvider('custom');
+  assert.equal(await ManagedModel.countDocuments({id:'custom-chat'}),0);
+});
+test('私网服务商地址和未启用的默认模型无法写入',async()=>{
+  await assert.rejects(service.saveProvider({id:'unsafe',name:'unsafe',baseUrl:'https://127.0.0.1',protocol:'responses',enabled:true},{create:true}),/公开网络/);
+  assert.equal(await ModelProvider.countDocuments({id:'unsafe'}),0);
+});
+test('协议不支持的音视频能力及与媒体工具冲突的模型标识无法保存',async()=>{
+ const model=await service.getManagedModel('gpt-6-astra');
+ await assert.rejects(service.saveModel({...model,nativeInputs:['text','audio'],isTranscriptionDefault:true}),/仅支持文字和图片/);
+ await service.saveProvider({id:'anthropic-test',name:'测试',baseUrl:'https://1.1.1.1/v1',protocol:'anthropic',enabled:true},{create:true});
+ await assert.rejects(service.saveModel({...model,id:'invalid-audio',providerId:'anthropic-test',nativeInputs:['text','audio']},{create:true}),/仅支持文字和图片/);
+ const {MEDIA_MODELS}=await import('../../lib/media/shared/models.js');
+ await assert.rejects(service.saveModel({...model,id:MEDIA_MODELS[0].id},{create:true}),/图片或视频创作/);
+ assert.equal(await ManagedModel.countDocuments({id:'invalid-audio'}),0);
+});
+test('动态模型迁移后再次启动不会要求恢复已删除的旧模型费率',async()=>{
+ await service.deleteModel('gpt-6-astra');
+ const settings=await getBillingSettings();
+ await updateBillingSettings(settings,{expectedVersion:settings.version});
+ const migration=await runCreditMigration();
+ assert.equal(migration.upgradedBillingSettings,false);
+ assert.equal((await getBillingSettings()).rates.chat['gpt-6-astra'],undefined);
+});

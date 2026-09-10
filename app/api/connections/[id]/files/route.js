@@ -1,0 +1,6 @@
+import {workbenchRoute,readBody} from '@/lib/server/workbench/apiHelpers';
+import {listRemoteFiles,readRemoteFile,importRemoteFile,writeRemoteStoredFile} from '@/lib/server/integrations/remotes';
+import {assertExternalToolsEnabled} from '@/lib/server/integrations/connections';
+export const runtime='nodejs';
+export async function GET(req,context){return workbenchRoute(req,async userId=>{await assertExternalToolsEnabled(userId);const url=new URL(req.url);const args={userId,connectionId:(await context.params).id,path:url.searchParams.get('path')||''};return Response.json(url.searchParams.get('read')==='true'?{text:(await readRemoteFile(args)).toString('utf8').slice(0,200000)}:{files:await listRemoteFiles(args)});});}
+export async function POST(req,context){return workbenchRoute(req,async userId=>{await assertExternalToolsEnabled(userId);const body=await readBody(req);const args={userId,connectionId:(await context.params).id,path:body.path,fileId:body.fileId,destinationPath:body.destinationPath};if(body.action==='import')return Response.json({file:await importRemoteFile(args)});if(body.action==='write'&&body.confirmed===true)return Response.json(await writeRemoteStoredFile(args));throw Object.assign(new Error('写回远端文件需要明确确认'),{status:400});});}

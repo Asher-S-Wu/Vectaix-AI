@@ -217,7 +217,7 @@ export async function POST(req) {
     let currentConversation = await loadConversationForRoute({
       conversationId: currentConversationId,
       userId: auth.userId,
-      expectedProvider: getModelConfig(model)?.provider,
+      expectedMediaType: getModelConfig(model)?.mediaType,
     });
     let createdConversationForRequest = false;
     const previousMessages = Array.isArray(currentConversation?.messages) ? currentConversation.messages : [];

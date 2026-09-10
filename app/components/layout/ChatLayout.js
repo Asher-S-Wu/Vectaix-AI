@@ -5,13 +5,13 @@ import { ChevronDown } from "lucide-react";
 import ChatHeader from "./ChatHeader";
 import Composer from "../chat/Composer";
 import MessageList from "../message/MessageList";
-import ProfileModal from "../settings/ProfileModal";
 import Sidebar from "./Sidebar";
 
 export default function ChatLayout({
   resourcesPanel,
   projects, activeProjectId, onSelectProject, onManageProjects, onMoveConversation, onOpenResources, projectName, tasks, taskLimits,
   user,
+  assistant,
   isSettingsReady,
   showProfileModal,
   onCloseProfile,
@@ -67,7 +67,6 @@ export default function ChatLayout({
 }) {
   return (
     <div className="app-root flex overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <ProfileModal open={showProfileModal} onClose={onCloseProfile} user={user} isAdmin={isAdmin} themeMode={themeMode} fontSize={fontSize} onThemeModeChange={onThemeModeChange} onFontSizeChange={onFontSizeChange} completionSoundVolume={completionSoundVolume} onCompletionSoundVolumeChange={onCompletionSoundVolumeChange} avatar={userAvatar} onAvatarChange={onAvatarChange} nickname={nickname} onNicknameChange={onNicknameChange} onEmailChange={onEmailChange} />
       <Sidebar projects={projects} activeProjectId={activeProjectId} onSelectProject={onSelectProject} onManageProjects={onManageProjects} onMoveConversation={onMoveConversation} isOpen={sidebarOpen} conversations={conversations} conversationsReady={conversationsReady} conversationsError={conversationsError} onRetryConversations={onRetryConversations} currentConversationId={currentConversationId} user={user} avatar={userAvatar} nickname={nickname} profileReady={isSettingsReady} onStartNewChat={onStartNewChat} onLoadConversation={onLoadConversation} onDeleteConversation={onDeleteConversation} onRenameConversation={onRenameConversation} onTogglePinConversation={onTogglePinConversation} onOpenProfile={onOpenProfile} onLogout={onLogout} onClose={onCloseSidebar} />
       <AnimatePresence>
         {sidebarOpen ? (
@@ -119,6 +118,7 @@ export default function ChatLayout({
             onSendStarterPrompt={(text) => composerProps?.onSend?.({ text, attachments: [] })}
             userAvatar={userAvatar}
             userNickname={nickname}
+            assistant={assistant}
           />
           <AnimatePresence>
             {showScrollButton && (

@@ -17,7 +17,7 @@ const schema = new mongoose.Schema({
   prompt: { type: String, default: "", maxlength: 16000 },
   model: { type: String, required: true },
   mediaSettings: { type: mongoose.Schema.Types.Mixed, default: {} },
-  status: { type: String, enum: ["queued", "running", "waiting_media", "completed", "failed", "stopped", "interrupted"], default: "queued", index: true },
+  status: { type: String, enum: ["queued", "running", "waiting_media", "waiting_approval", "completed", "failed", "stopped", "interrupted"], default: "queued", index: true },
   stopRequested: { type: Boolean, default: false },
   workerId: String,
   startedAt: Date,

@@ -13,6 +13,7 @@ export default function AuthModal({
   onPasswordChange,
   onConfirmPasswordChange,
   onSubmit,
+  onPasskey,
   onToggleMode,
   loading,
 }) {
@@ -89,6 +90,7 @@ export default function AuthModal({
           </button>
 
         </form>
+        {authMode === "login" && <button type="button" disabled={loading} onClick={onPasskey} className="relative mt-3 w-full rounded-xl border border-zinc-200 py-3 text-sm text-zinc-700 disabled:opacity-50">使用通行密钥登录</button>}
 
         <p className="text-center mt-6 text-zinc-500 text-sm relative">
           {authMode === "login" ? "还没有账号？" : "已有账号？"}

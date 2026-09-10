@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import TaskApprovals from "./TaskApprovals";
 import { Check, Download, FileText, LoaderCircle, OctagonX } from "lucide-react";
 
-const LABELS = { queued: "正在排队", running: "正在处理", waiting_media: "正在生成素材", completed: "已完成", failed: "执行失败", stopped: "已停止", interrupted: "执行已中断" };
-const ACTIVE = new Set(["queued", "running", "waiting_media"]);
+const LABELS = { queued: "正在排队", running: "正在处理", waiting_media: "正在生成素材", waiting_approval: "等待你的确认", completed: "已完成", failed: "执行失败", stopped: "已停止", interrupted: "执行已中断" };
+const ACTIVE = new Set(["queued", "running", "waiting_media", "waiting_approval"]);
 
 export default function TaskDelivery({ message, task, limits }) {
   const status = task?.status || message.taskStatus;
@@ -21,6 +22,7 @@ export default function TaskDelivery({ message, task, limits }) {
         {task?.billingReviewRequired && <span>· 部分用量待核查</span>}
       </div>
       {active && limits && <p className="text-[11px] text-zinc-400">每次执行最多 {limits.maxSteps} 个步骤、{limits.maxMinutes} 分钟；每人同时执行 {limits.perUserConcurrency} 项。关闭页面后仍会继续。</p>}
+      {status === "waiting_approval" && <TaskApprovals taskId={String(message.taskId)} />}
       {error && <p className="text-sm text-red-500">{error}</p>}
       {["failed", "interrupted", "stopped"].includes(status) && <p className="text-xs text-zinc-500">可以继续发送消息，或使用下方重新生成按钮发起新的执行。</p>}
       {artifacts.length > 0 && <div className="grid gap-2 sm:grid-cols-2">

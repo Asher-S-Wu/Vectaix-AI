@@ -1,5 +1,5 @@
 import Conversation from "@/models/Conversation";
-import { getModelProvider } from "@/lib/shared/models";
+import { getModelConfig } from "@/lib/shared/models";
 import { isValidConversationId } from "@/lib/server/conversations/service";
 import { deleteStoredFilesByIds } from "@/lib/server/storage/service";
 
@@ -11,7 +11,7 @@ function createHttpError(message, status) {
   return error;
 }
 
-export async function loadConversationForRoute({ conversationId, userId, expectedProvider }) {
+export async function loadConversationForRoute({ conversationId, userId, expectedMediaType = null }) {
   if (!conversationId) return null;
   if (!isValidConversationId(conversationId)) {
     throw createHttpError("Invalid id", 400);
@@ -22,7 +22,7 @@ export async function loadConversationForRoute({ conversationId, userId, expecte
     throw createHttpError("Not found", 404);
   }
 
-  if (expectedProvider && getModelProvider(conversation.model) !== expectedProvider) {
+  if ((getModelConfig(conversation.model)?.mediaType ?? null) !== expectedMediaType) {
     throw createHttpError("当前对话与所选模型不匹配", 400);
   }
 

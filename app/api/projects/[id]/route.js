@@ -1,3 +1,4 @@
+import { stopTasksForSettings } from '@/lib/server/settings/stopTasks';
 import { withProjectLock } from "@/lib/server/workbench/projectLock";
 import WorkspaceProject from "@/models/WorkspaceProject";
 import WorkspaceDocument from "@/models/WorkspaceDocument";
@@ -22,6 +23,7 @@ export function PUT(req, context) {
     }
     if (Object.hasOwn(body, "memoryEnabled")) project.memoryEnabled = booleanField(body.memoryEnabled, "项目记忆");
     await project.save();
+    if (body.memoryEnabled === false) await stopTasksForSettings(userId, { projectId: project._id });
     return Response.json({ project });
   });
 }
@@ -32,7 +34,7 @@ export function DELETE(req, context) {
     return withProjectLock(userId, "task-creation", () => withProjectLock(userId, id, async () => {
     const project = await requireProject(userId, id);
     const projectId = project._id;
-    if (await WorkbenchTask.exists({ userId, projectId, status: { $in: ["queued", "running", "waiting_media"] } })) {
+    if (await WorkbenchTask.exists({ userId, projectId, status: { $in: ["queued", "running", "waiting_media", "waiting_approval"] } })) {
       throw workbenchError("项目仍有进行中的任务，请先停止任务", 409);
     }
     const tasks = await WorkbenchTask.find({ userId, projectId, conversationId: null }).select("_id").lean();

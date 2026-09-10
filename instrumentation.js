@@ -107,8 +107,26 @@ export async function register() {
       cleanupExpiredVoiceSamples(),
     ]);
 
+    const { migrateUserCapabilities } = await import("@/lib/server/settings/migration");
+    await migrateUserCapabilities();
+
     const { startWorkbenchRunner } = await import("@/lib/server/workbench/runner");
     await startWorkbenchRunner();
+
+    const { recoverInterruptedBackups, runDueBackups } = await import("@/lib/server/backups/service");
+    await recoverInterruptedBackups();
+    let backupRunning = false;
+    const runBackups = async () => {
+      if (backupRunning) return;
+      backupRunning = true;
+      try { await runDueBackups(); }
+      catch (error) { console.error("[Backups] scheduled backup failed:", safeErrorDetails(error)); }
+      finally { backupRunning = false; }
+    };
+    const initialBackupTimer = setTimeout(runBackups, 0);
+    initialBackupTimer.unref?.();
+    const backupTimer = setInterval(runBackups, 60 * 1000);
+    backupTimer.unref?.();
 
     let cleanupRunning = false;
     const cleanup = async () => {

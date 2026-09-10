@@ -6,6 +6,7 @@ const schema = new mongoose.Schema({
   scope: { type: String, enum: ["personal", "project"], required: true },
   content: { type: String, required: true, trim: true, maxlength: 4000 },
   source: { type: String, enum: ["manual", "automatic"], default: "manual" },
+  conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', default: null },
 }, { timestamps: true });
 schema.index({ userId: 1, projectId: 1, updatedAt: -1 });
 

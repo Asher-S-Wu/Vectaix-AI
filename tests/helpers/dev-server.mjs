@@ -1,0 +1,20 @@
+import {MongoMemoryServer} from 'mongodb-memory-server';
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
+import {mkdtemp,readFile} from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {spawn} from 'node:child_process';
+import User from '../../models/User.js';
+const mongo=await MongoMemoryServer.create({instance:{port:27179,dbName:'vectaix_ui_test'}});
+await mongoose.connect(mongo.getUri());const password='Vectaix-Test-2026!';
+for(const email of ['admin@example.test','member@example.test'])await User.create({email,password:await bcrypt.hash(password,10),creditBalance:1000000,creditsInitializedAt:new Date()});
+await mongoose.disconnect();
+const env={PATH:process.env.PATH,HOME:process.env.HOME,TMPDIR:process.env.TMPDIR,LANG:'en_US.UTF-8',NODE_ENV:'development',NEXT_TELEMETRY_DISABLED:'1'};
+for(const filename of ['.env','.env.local','.env.development','.env.development.local']){let text;try{text=await readFile(filename,'utf8');}catch(error){if(error.code==='ENOENT')continue;throw error;}for(const line of text.split('\n')){const match=line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);if(match)env[match[1]]='';}}
+Object.assign(env,{MONGO_URI:mongo.getUri(),APP_SECRETS_KEY:crypto.randomBytes(32).toString('base64'),STORAGE_ROOT:await mkdtemp(path.join(os.tmpdir(),'vectaix-ui-')),ADMIN_EMAILS:'admin@example.test',PUBLIC_APP_URL:'http://localhost:3100',NEXT_PUBLIC_APP_URL:'http://localhost:3100'});
+console.log(`UI test database: ${mongo.getUri()}`);console.log('UI test app: http://localhost:3100');console.log('Test accounts: admin@example.test / member@example.test');
+const server=spawn(process.execPath,['node_modules/next/dist/bin/next','dev','--port','3100'],{env,stdio:'inherit'});
+async function stop(){server.kill('SIGTERM');await mongo.stop();process.exit(0);}process.once('SIGINT',stop);process.once('SIGTERM',stop);
+server.on('exit',async code=>{await mongo.stop();process.exit(code || 0);});

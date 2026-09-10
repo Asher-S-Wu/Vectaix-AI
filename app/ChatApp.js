@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import ChatCapabilitiesSettings from "./components/chat/ChatCapabilitiesSettings";
+import { useRouter } from "next/navigation";
 import ChatResourcesPanel from "./components/chat/ChatResourcesPanel";
 import ProjectManager from "./components/chat/ProjectManager";
 import { useConversationTasks } from "@/lib/client/hooks/useConversationTasks";
@@ -20,6 +20,7 @@ import {
   resolveUsableModelId,
 } from "@/lib/shared/models";
 import { useToast } from "./components/common/ToastProvider";
+import TaskNotifications from "./components/common/TaskNotifications";
 import AuthModal from "./components/modals/AuthModal";
 import ConfirmModal from "./components/modals/ConfirmModal";
 import ChatLayout from "./components/layout/ChatLayout";
@@ -28,6 +29,7 @@ import { useCredits } from "@/lib/client/credits/CreditContext";
 const FONT_SIZE_CLASSES = { small: "text-size-small", medium: "text-size-medium", large: "text-size-large" };
 export default function ChatApp() {
   const toast = useToast();
+  const router = useRouter();
   const { applyCreditSummary, clearCreditSummary, refreshCredit } = useCredits();
   const savedConversationRef = useRef(typeof window !== "undefined" ? window.localStorage.getItem("vectaix-current-conversation") : null);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -42,7 +44,7 @@ export default function ChatApp() {
   const [activeProjectId, setActiveProjectId] = useState("all");
   const [showProjects, setShowProjects] = useState(false);
   const [showResources, setShowResources] = useState(false);
-  const [capabilitiesSection, setCapabilitiesSection] = useState(null);
+  const openSettings = (section = "general") => { const query = new URLSearchParams({section}); if (currentConversationId) query.set("conversationId",currentConversationId); if (projectId) query.set("projectId",projectId); router.push(`/settings?${query}`); };
   const selectedConversation = conversations.find(item => item._id === currentConversationId);
   const projectId = currentConversationId ? selectedConversation?.projectId || null : activeProjectId === "all" ? null : activeProjectId;
   const [messages, setMessages] = useState([]);
@@ -50,6 +52,8 @@ export default function ChatApp() {
   const {
     model,
     isSettingsReady,
+    permissions,
+    assistant,
     setModel,
     webSearch,
     setWebSearch,
@@ -159,6 +163,7 @@ export default function ChatApp() {
     setConfirmPassword,
     authLoading,
     handleAuth,
+    handlePasskeyAuth,
     handleLogout,
     handleAuthExpired,
   } = useAuthSession({
@@ -270,7 +275,7 @@ export default function ChatApp() {
   const taskActions = useConversationTasks({
     user, conversationId: currentConversationId, projectId, model, webSearch, chatSystemPrompt, mediaSettings,
     setMessages, setCurrentConversationId, onActivity: fetchConversations,
-    onCreditChange: () => refreshCredit().catch(() => {}), onAuthExpired: handleAuthExpired, toast, completionSoundVolume,
+    onCreditChange: () => refreshCredit().catch(() => {}), onAuthExpired: handleAuthExpired, toast, completionSoundVolume, permissions,
   });
   const busy = loading || taskActions.submitting || isStreaming;
 
@@ -520,11 +525,12 @@ export default function ChatApp() {
   return (
     <>
       {showAuthModal ? (
-        <AuthModal authMode={authMode} email={email} password={password} confirmPassword={confirmPassword} onEmailChange={setEmail} onPasswordChange={setPassword} onConfirmPasswordChange={setConfirmPassword} onSubmit={handleAuth} onToggleMode={() => setAuthMode((m) => (m === "login" ? "register" : "login"))} loading={authLoading} />
+        <AuthModal authMode={authMode} email={email} password={password} confirmPassword={confirmPassword} onEmailChange={setEmail} onPasswordChange={setPassword} onConfirmPasswordChange={setConfirmPassword} onSubmit={handleAuth} onPasskey={handlePasskeyAuth} onToggleMode={() => setAuthMode((m) => (m === "login" ? "register" : "login"))} loading={authLoading} />
       ) : (
         <ChatLayout
           resourcesPanel={<ChatResourcesPanel open={showResources} onClose={() => setShowResources(false)} conversationId={currentConversationId} projectId={projectId} tasks={taskActions.tasks} />}
           user={user}
+          assistant={assistant}
           isAdmin={!!user?.isAdmin}
           isSettingsReady={isSettingsReady}
           showProfileModal={showProfileModal}
@@ -560,7 +566,7 @@ export default function ChatApp() {
           onTogglePinConversation={togglePinConversation}
           onOpenProfile={() => {
             setSidebarOpen(false);
-            setShowProfileModal(true);
+            openSettings("general");
           }}
           onLogout={handleLogout}
           onCloseSidebar={() => setSidebarOpen(false)}
@@ -607,14 +613,15 @@ export default function ChatApp() {
             updateSystemPrompt,
             deleteSystemPrompt,
             onSend: taskActions.send,
-            onOpenCapabilities: setCapabilitiesSection,
+            onOpenCapabilities: openSettings,
+            permissions,
             onStop: taskActions.stop,
           }}
         />
       )}
       {!showAuthModal && <>
+        <TaskNotifications userId={user?.id} />
         <ProjectManager open={showProjects} onClose={() => setShowProjects(false)} projects={projects} onChanged={async () => { await fetchProjects(); await fetchConversations(); }} onSelectProject={(id) => { setActiveProjectId(id); startNewChat(); }} />
-        <ChatCapabilitiesSettings open={Boolean(capabilitiesSection)} section={capabilitiesSection} onClose={() => setCapabilitiesSection(null)} projectId={projectId} mediaSettings={mediaSettings} onMediaSettingsChange={setMediaSettings} />
       </>}
       <ConfirmModal
         open={showConfirmModal}

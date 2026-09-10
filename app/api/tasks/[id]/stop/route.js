@@ -10,7 +10,7 @@ export async function POST(req,context) {
     const task=await ownedTask(userId,(await context.params).id);
     if(ACTIVE_TASK_STATUSES.includes(task.status)) {
       const queued=await WorkbenchTask.findOneAndUpdate({_id:task._id,userId,status:'queued'},{$set:{stopRequested:true,status:'stopped',finishedAt:new Date()}},{new:true});
-      if(!queued) await WorkbenchTask.updateOne({_id:task._id,userId,status:{$in:['running','waiting_media']}},{$set:{stopRequested:true}});
+      if(!queued) await WorkbenchTask.updateOne({_id:task._id,userId,status:{$in:['running','waiting_media','waiting_approval']}},{$set:{stopRequested:true}});
       signalTaskStop(task._id);
       if (queued) await syncTaskConversation(task._id);
       await appendTaskEvent(task,'stop_requested','用户已停止任务');

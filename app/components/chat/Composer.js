@@ -16,6 +16,7 @@ import { deleteTemporaryFile, uploadPrivateFile } from "@/lib/client/uploadFile"
 import { useToast } from "../common/ToastProvider";
 import ModelSelector from "./ModelSelector";
 import SettingsMenu from "../settings/SettingsMenu";
+import DeviceActions from "./DeviceActions";
 import {
   getModelAttachmentSupport,
   isImageGenerationModel,
@@ -59,6 +60,7 @@ export default function Composer({
   onStop,
   prefill,
   onOpenCapabilities,
+  permissions,
 }) {
   const toast = useToast();
   const [input, setInput] = useState("");
@@ -530,6 +532,7 @@ export default function Composer({
             />
           )}
         </div>
+        {!isMediaModel && <div className="flex items-center px-4 pt-1"><DeviceActions permissions={permissions} onSettings={onOpenCapabilities} onFiles={handleFileSelect} onText={text => setInput(previous => [previous,text].filter(Boolean).join("\n"))} disabled={loading || !modelReady} /></div>}
         <div className="relative flex items-end gap-2 p-3 md:p-4 rounded-b-[24px]">
           {supportsFilePicker && (
             <div className="flex items-center mb-1">

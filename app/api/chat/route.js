@@ -6,11 +6,7 @@ import Conversation from "@/models/Conversation";
 import User from "@/models/User";
 import { getAuthPayload } from "@/lib/auth";
 import { rateLimit, getClientIP } from "@/lib/rateLimit";
-import {
-  getModelConfig,
-  getModelAttachmentSupport,
-  isDirectChatModel,
-} from "@/lib/shared/models";
+import { getManagedModel } from "@/lib/server/models/service";
 import {
   isNonEmptyString,
   sanitizeStoredMessagesStrict,
@@ -111,8 +107,8 @@ function collectUpstreamRequestIds(usageRecords) {
     .filter((value) => typeof value === "string" && value)));
 }
 
-function modelSupportsStoredFile(model, file) {
-  const attachmentSupport = getModelAttachmentSupport(model);
+function modelSupportsStoredFile(modelConfig, file) {
+  const attachmentSupport = { supportsImages: modelConfig.nativeInputs.includes("image"), supportsAudio: modelConfig.nativeInputs.includes("audio"), supportsVideo: modelConfig.nativeInputs.includes("video") };
   if (file?.category === "image") {
     return attachmentSupport.supportsImages && IMAGE_MIME_TYPES.includes(file.mimeType);
   }
@@ -222,9 +218,6 @@ export async function POST(req) {
     ) {
       return Response.json({ error: "请求操作号无效，请刷新页面后重试" }, { status: 400 });
     }
-    if (!isDirectChatModel(model)) {
-      return Response.json({ error: "unsupported model" }, { status: 400 });
-    }
 
     const auth = await getAuthPayload(req);
     if (!auth) {
@@ -255,11 +248,12 @@ export async function POST(req) {
       return Response.json({ error: "Database connection failed" }, { status: 500 });
     }
 
+    const modelConfig = await getManagedModel(model);
     let currentConversationId = conversationId;
     let currentConversation = await loadConversationForRoute({
       conversationId: currentConversationId,
       userId: user.userId,
-      expectedProvider: getModelConfig(model)?.provider,
+      expectedMediaType: null,
     });
     let createdConversationForRequest = false;
     let previousMessages = Array.isArray(currentConversation?.messages) ? currentConversation.messages : [];
@@ -331,7 +325,7 @@ export async function POST(req) {
     ))) {
       return Response.json({ error: "附件已被其他内容占用" }, { status: 400 });
     }
-    if (validatedFiles.some((file) => !modelSupportsStoredFile(model, file))) {
+    if (validatedFiles.some((file) => !modelSupportsStoredFile(modelConfig, file))) {
       return Response.json({ error: "当前模型不支持这类文件" }, { status: 400 });
     }
     await ensureChatMediaDurations(validatedFiles, req.signal);
@@ -362,7 +356,7 @@ export async function POST(req) {
     }
 
     const operationId = `chat:${user.userId}:${billingOperationId}`;
-    const provider = getModelConfig(model)?.provider || "";
+    const provider = modelConfig.provider || "";
     const requestFingerprint = createRequestFingerprint({ userId: user.userId, body });
     const claimId = crypto.randomUUID();
     let billingSettings;
@@ -531,7 +525,7 @@ export async function POST(req) {
         newlyBoundFileIds = reboundFiles
           .filter((file) => file.ownerType === "temporary")
           .map((file) => file.fileId);
-        if (reboundFiles.some((file) => !modelSupportsStoredFile(model, file))) {
+        if (reboundFiles.some((file) => !modelSupportsStoredFile(modelConfig, file))) {
           throw unsupportedAttachmentError();
         }
         const nextFileIds = new Set(collectStoredFileIds(sanitizedRegenerateMessages));
@@ -565,7 +559,7 @@ export async function POST(req) {
         newlyBoundFileIds = boundFiles
           .filter((file) => file.ownerType === "temporary")
           .map((file) => file.fileId);
-        if (boundFiles.some((file) => !modelSupportsStoredFile(model, file))) {
+        if (boundFiles.some((file) => !modelSupportsStoredFile(modelConfig, file))) {
           throw unsupportedAttachmentError();
         }
         chatMessages.push({ role: "user", content: normalizeOpenAIMessageContentParts(prebuiltCurrentContent) });
@@ -747,12 +741,14 @@ export async function POST(req) {
           };
 
           const resolvePassMaxOutputTokens = ({ inputPayload }) => {
-            if (creditUnlimited) return null;
             const estimatedInputTokens = estimateChatInputTokens({
               inputPayload,
               provider,
               files: estimatedInputFiles,
             });
+            const outputBudget = Math.min(modelConfig.maxOutputTokens, modelConfig.contextWindow - estimatedInputTokens);
+            if (outputBudget < MIN_CHAT_OUTPUT_TOKENS) throw new Error("对话内容超过该模型的上下文长度，请减少附件或开始新对话");
+            if (creditUnlimited) return outputBudget;
             const knownCosts = calculateAccumulatedCosts({
               model,
               provider,
@@ -803,7 +799,7 @@ export async function POST(req) {
               if (canAfford(middle)) lower = middle;
               else upper = middle;
             }
-            return lower;
+            return Math.min(lower,outputBudget);
           };
 
           sendEvent({

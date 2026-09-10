@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const StoredFileSchema = new mongoose.Schema({
+  folderId: { type: mongoose.Schema.Types.ObjectId, ref: "FileFolder", default: null, index: true },
   fileId: {
     type: String,
     required: true,
@@ -43,6 +44,7 @@ const StoredFileSchema = new mongoose.Schema({
   kind: {
     type: String,
     enum: [
+      "library",
       "project-document",
       "project-media",
       "task-artifact",
@@ -60,6 +62,7 @@ const StoredFileSchema = new mongoose.Schema({
   ownerType: {
     type: String,
     enum: [
+      "library",
       "project",
       "task",
       "temporary",

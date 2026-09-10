@@ -1,0 +1,3 @@
+import { workbenchRoute } from '@/lib/server/workbench/apiHelpers';
+import { toolLogs, usageSummary } from '@/lib/server/usage/service';
+export function GET(req) { return workbenchRoute(req, async userId => { const params = new URL(req.url).searchParams; const [usage, events] = await Promise.all([usageSummary(userId, params), toolLogs(userId, params, 2000)]); return Response.json({ createdAt: new Date(), usage, events, contains: '用量、任务状态和工具名称；不包含对话正文、输入参数、工具返回内容和凭据。' }, { headers: { 'Content-Disposition': 'attachment; filename="vectaix-diagnostics.json"', 'Cache-Control': 'no-store' } }); }); }

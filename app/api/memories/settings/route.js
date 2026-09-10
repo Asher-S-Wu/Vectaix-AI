@@ -1,3 +1,4 @@
+import { stopTasksForSettings } from '@/lib/server/settings/stopTasks';
 import UserSettings from "@/models/UserSettings";
 import { isPersonalMemoryEnabled } from "@/lib/server/workbench/catalog";
 import { workbenchRoute, readBody, booleanField } from "@/lib/server/workbench/apiHelpers";
@@ -9,6 +10,7 @@ export function PUT(req) {
   return workbenchRoute(req, async (userId) => {
     const enabled = booleanField((await readBody(req)).enabled, "个人记忆");
     await UserSettings.updateOne({ userId }, { $set: { memoryEnabled: enabled, updatedAt: new Date() } }, { upsert: true });
+    if (!enabled) await stopTasksForSettings(userId);
     return Response.json({ enabled });
   });
 }

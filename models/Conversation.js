@@ -38,6 +38,8 @@ const ConversationSchema = new mongoose.Schema({
   // 对话专属设置
   settings: {
     webSearch: { type: mongoose.Schema.Types.Mixed, default: null },
+    memoryEnabled: { type: Boolean, default: true },
+    disabledSkillIds: { type: [String], default: [] },
   },
   pinned: {
     type: Boolean,
