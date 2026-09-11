@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const MODES = [
-  { href: "/", label: "Chat" },
+  { href: "/", label: "Agent" },
   { href: "/media", label: "Media" },
 ];
 
