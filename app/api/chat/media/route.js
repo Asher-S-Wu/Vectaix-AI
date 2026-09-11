@@ -246,7 +246,7 @@ export async function POST(req) {
         feature: inputImageCount ? "qwen_image_edit" : "qwen_image_generate",
         provider: "qwen",
         model: model || IMAGE_MODEL_NAME,
-        estimate: calculateQwenImageCost({ resolution, inputImageCount }, billingSettings),
+
         settings: billingSettings,
         usage: { resolution, inputImageCount },
         executionClaimId: creditOperation.executionClaimId,
@@ -434,7 +434,7 @@ export async function POST(req) {
           sendEvent({ type: "image_gen_start" });
           sendEvent({
             type: "credit_reserved",
-            billing: billingResult(reservation.transaction, reservation.credit),
+            billing: billingResult(reservation.transaction),
           });
           const referenceImages = [];
           for (const fileId of referenceFileIds) {
@@ -623,7 +623,7 @@ export async function POST(req) {
       status: error?.status,
     });
     if (error instanceof CreditError) {
-      return creditErrorResponse(error, "聊天图片积分预留失败");
+      return creditErrorResponse(error, "聊天图片费用记录失败");
     }
     const status = Number.isInteger(error?.status) ? error.status : 500;
     return Response.json(

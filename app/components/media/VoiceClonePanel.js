@@ -49,7 +49,7 @@ const STATUS_META = {
   },
   DEPLOYING: {
     label: "制作中",
-    description: "正在制作音色，页面每 10 秒自动同步一次。",
+    description: "正在制作音色，完成后会自动更新。",
     icon: Clock3,
     className: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
   },
@@ -67,7 +67,7 @@ const STATUS_META = {
   },
   DELETING: {
     label: "删除中",
-    description: "正在释放云端音色并清理声音样本。",
+    description: "正在删除音色和声音样本。",
     icon: Trash2,
     className: "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
   },
@@ -117,7 +117,6 @@ export default function VoiceClonePanel({
   onDelete,
   onRefreshVoice,
   onRefreshList,
-  pricing,
 }) {
   const reduceMotion = useReducedMotion();
   const [displayName, setDisplayName] = useState("");
@@ -139,10 +138,6 @@ export default function VoiceClonePanel({
   const atLimit = voices.length >= CUSTOM_VOICE_MAX_COUNT;
   const formDisabled = loading || creating || atLimit;
   const voiceActionActive = creating || Boolean(actingVoiceId);
-  const voiceClonePoints = Number.isInteger(pricing?.qwenTts?.voiceClone)
-    ? pricing.qwenTts.voiceClone
-    : null;
-
   const handleCreate = async (event) => {
     event.preventDefault();
     setFormError("");
@@ -381,7 +376,7 @@ export default function VoiceClonePanel({
                     className="mt-1 h-4 w-4 shrink-0 accent-primary"
                   />
                   <span>
-                    <span className="block font-medium text-zinc-700 dark:text-zinc-200">优化样本噪音</span>
+                    <span className="block font-medium text-zinc-700 dark:text-zinc-200">减少背景噪音</span>
                     <span className="mt-0.5 block text-xs leading-5 text-zinc-500">适合有轻微底噪的录音。</span>
                   </span>
                 </label>
@@ -401,12 +396,6 @@ export default function VoiceClonePanel({
               </label>
 
               <AudioFormError message={formError} />
-
-              {voiceClonePoints !== null ? (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                  创建音色预计消耗 {voiceClonePoints.toLocaleString("zh-CN")} 积分。
-                </p>
-              ) : null}
 
               {atLimit ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700" role="status">
@@ -534,7 +523,7 @@ export default function VoiceClonePanel({
                           <p className="mt-1 text-xs leading-5 text-zinc-500">{status.description}</p>
                           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
                             <span>{LANGUAGE_LABELS[voice.languageHint]}样本</span>
-                            <span>{voice.enablePreprocess ? "已优化样本噪音" : "保留原始样本"}</span>
+                            <span>{voice.enablePreprocess ? "已减少背景噪音" : "保留原始样本"}</span>
                             {voice.sampleFileName ? <span className="max-w-[220px] truncate">{voice.sampleFileName}</span> : null}
                             <span>创建于 {formatDate(voice.createdAt)}</span>
                           </div>
@@ -560,7 +549,7 @@ export default function VoiceClonePanel({
                           className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 sm:px-3"
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">改名</span>
+                          <span className="hidden sm:inline">重命名</span>
                         </button>
                         <button
                           type="button"
@@ -608,9 +597,6 @@ export default function VoiceClonePanel({
             uploadAccept={AUDIO_UPLOAD_ACCEPT}
             nameMaxLength={40}
             validateFile={getFileError}
-            billingNote={voiceClonePoints === null
-              ? ""
-              : `更换样本并重新制作预计消耗 ${voiceClonePoints.toLocaleString("zh-CN")} 积分。`}
           />
         ) : null}
       </AnimatePresence>

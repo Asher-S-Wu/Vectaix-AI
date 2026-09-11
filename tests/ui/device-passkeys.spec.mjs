@@ -9,7 +9,7 @@ const base='http://localhost:3100',mongoUri='mongodb://127.0.0.1:27179/test';
 const email=`test-devices-${Date.now()}@example.test`,password='Device-Test-2026!';let browser,userId,conversationId;let sessionIndex=80;
 before(async()=>{
  await mongoose.connect(mongoUri);
- const user=await User.create({email,password:await bcrypt.hash(password,10),creditBalance:1000000,creditsInitializedAt:new Date()});userId=user._id;
+ const user=await User.create({email,password:await bcrypt.hash(password,10)});userId=user._id;
  await mongoose.connection.collection('usersettings').insertOne({userId,permissions:{camera:true,microphone:true,clipboard:true,geolocation:true,notifications:false,browser:false,externalTools:false}});
  const conversation=await mongoose.connection.collection('conversations').insertOne({userId,title:'test 朗读会话',model:'gpt-5.4',projectId:null,pinned:false,activeTaskId:null,settings:{memoryEnabled:true,disabledSkillIds:[]},updatedAt:new Date(),messages:[{id:crypto.randomUUID(),role:'model',content:'这是一段测试朗读的回复。',type:'text',createdAt:new Date()}]});conversationId=conversation.insertedId;
  browser=await chromium.launch({headless:true,args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});

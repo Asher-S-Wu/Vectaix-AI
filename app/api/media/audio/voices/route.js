@@ -234,6 +234,7 @@ export async function POST(request) {
   let billing = null;
   let billingFinalized = false;
   let upstreamRequestIds = [];
+  const mutationId = crypto.randomUUID();
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     const user = auth?.payload;
@@ -281,7 +282,7 @@ export async function POST(request) {
       feature: "media_audio_voice_clone",
       provider: "qwen",
       model: AUDIO_MODEL,
-      estimate: calculateQwenVoiceCloneCost(settings),
+
       settings,
       usage: { action: "create" },
       executionClaimId: creditOperation.executionClaimId,
@@ -328,7 +329,6 @@ export async function POST(request) {
       mediaWriteLease,
     });
 
-    const mutationId = crypto.randomUUID();
     let localVoice;
     try {
       await assertMediaWriteLeaseActive(mediaWriteLease);
@@ -602,7 +602,7 @@ export async function POST(request) {
     }
     console.error("[Media Audio] create custom voice:", error);
     if (error instanceof CreditError) {
-      return creditErrorResponse(error, "声音复刻积分处理失败");
+      return creditErrorResponse(error, "声音复刻费用记录失败");
     }
     return Response.json(
       {

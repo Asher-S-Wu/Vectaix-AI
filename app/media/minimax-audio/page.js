@@ -1,5 +1,6 @@
 "use client";
 
+import UseInChatButton from '@/app/components/media/UseInChatButton';
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -42,7 +43,6 @@ import {
 import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
 import { createMinimaxAudioVoicePageAdapter } from "@/lib/media/client/audioVoiceSelection.mjs";
 import { readLocalSetting, writeLocalSetting } from "@/lib/client/localSettings";
-import { useCredits } from "@/lib/client/credits/CreditContext";
 import {
   getMinimaxAudioModel,
   MINIMAX_AUDIO_DEFAULT_MODEL,
@@ -61,7 +61,6 @@ function merge(items, item) {
 }
 
 export default function MinimaxAudioWorkspacePage() {
-  const { pricing } = useCredits();
   const searchParams = useSearchParams();
   const requestedModel = searchParams.get("model");
   const availableModels = MINIMAX_AUDIO_MODELS;
@@ -189,15 +188,6 @@ export default function MinimaxAudioWorkspacePage() {
     window.addEventListener("vectaix-minimax-voice-unlocked", markVoiceUnlocked);
     return () => window.removeEventListener("vectaix-minimax-voice-unlocked", markVoiceUnlocked);
   }, []);
-  const minimaxCharacterRate = model.includes("turbo")
-    ? pricing?.minimaxTts?.turboPer10000Characters
-    : pricing?.minimaxTts?.hdPer10000Characters;
-  const estimatedPoints = Number.isInteger(minimaxCharacterRate) && text.length > 0
-    ? Math.ceil((text.length / 10000) * minimaxCharacterRate)
-    : null;
-  const firstVoiceClonePoints = Number.isInteger(pricing?.minimaxTts?.firstVoiceClone)
-    ? pricing.minimaxTts.firstVoiceClone
-    : null;
   const history = latest ? generations.filter((item) => item.id !== latest.id) : generations;
 
   const closeVoicePicker = useCallback(() => setVoicePickerOpen(false), []);
@@ -574,6 +564,7 @@ export default function MinimaxAudioWorkspacePage() {
                 </AnimatePresence>
               </div>
 
+              <UseInChatButton section="audio" value={{provider:'minimax',model,voiceId,emotion,speed,volume,pitch,languageBoost,format}} disabled={generating || !voiceId} />
               <AudioFormError message={generationError || voicesError} />
 
               <button
@@ -584,18 +575,6 @@ export default function MinimaxAudioWorkspacePage() {
                 {generating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <WandSparkles className="h-5 w-5" />}
                 {generating ? "正在生成语音…" : "生成语音"}
               </button>
-              {Number.isInteger(estimatedPoints) ? (
-                <p className="text-center text-xs text-zinc-500">
-                  预计约消耗 {estimatedPoints.toLocaleString("zh-CN")} 积分
-                  {selectedCustomVoice?.unlockPending
-                    ? "；该音色的首次解锁费用正在核对，暂不能重复提交"
-                    : selectedCustomVoice && !selectedCustomVoice.isUnlocked
-                      ? (firstVoiceClonePoints === null
-                        ? "；复刻音色首次合成会另计解锁费用"
-                        : `；复刻音色首次合成另约 ${firstVoiceClonePoints.toLocaleString("zh-CN")} 积分`)
-                    : ""}
-                </p>
-              ) : null}
               <div className="sr-only" aria-live="polite">
                 {generating ? "正在生成语音，请稍候" : latest ? "语音已经生成并保存" : ""}
               </div>
@@ -653,7 +632,6 @@ export default function MinimaxAudioWorkspacePage() {
             onRename={handleRenameVoice}
             onDelete={handleDeleteVoice}
             onRefresh={loadVoices}
-            pricing={pricing}
           />
         </div>
       )}
@@ -671,7 +649,7 @@ export default function MinimaxAudioWorkspacePage() {
           loading: voicesLoading,
           error: voicesError,
           emptyTitle: "暂未获取到系统音色",
-          emptyDescription: "关闭面板后点击历史区刷新，或稍后重试。",
+          emptyDescription: "暂时无法加载音色，请刷新页面重试。",
         }}
         customSection={{
           title: "我的音色",

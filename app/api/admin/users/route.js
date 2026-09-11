@@ -37,7 +37,7 @@ export async function GET(req) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select('email createdAt creditBalance creditHeld')
+      .select('email createdAt')
       .lean(),
     User.countDocuments(filter),
   ]);
@@ -51,7 +51,7 @@ export async function GET(req) {
     ]),
     CreditTransaction.aggregate([
       { $match: { userId: { $in: userIds }, type: 'model_usage', status: 'settled' } },
-      { $group: { _id: '$userId', points: { $sum: '$charged' } } },
+      { $group: { _id: '$userId', costCny: { $sum: '$actualCostCny' } } },
     ]),
   ]);
   const countMap = {};
@@ -59,7 +59,7 @@ export async function GET(req) {
     countMap[c._id.toString()] = c.count;
   }
   const spendMap = {};
-  for (const row of spendTotals) spendMap[row._id.toString()] = row.points;
+  for (const row of spendTotals) spendMap[row._id.toString()] = row.costCny;
 
   const result = users.map(u => ({
     ...getUserAccessFlags(u),
@@ -67,9 +67,7 @@ export async function GET(req) {
     email: u.email,
     createdAt: u.createdAt,
     conversationCount: countMap[u._id.toString()] || 0,
-    availablePoints: u.creditBalance || 0,
-    heldPoints: u.creditHeld || 0,
-    lifetimeSpentPoints: spendMap[u._id.toString()] || 0,
+    lifetimeCostCny: spendMap[u._id.toString()] || 0,
   }));
 
   return Response.json({

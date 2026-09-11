@@ -175,7 +175,7 @@ export default function Sidebar({
             </div>
           ) : conversationsError ? (
             <div className="flex flex-col items-center justify-center text-center px-6 py-10 gap-3">
-              <p className="text-sm text-zinc-500">会话列表加载失败</p>
+              <p className="text-sm text-zinc-500">对话列表加载失败</p>
               <button
                 type="button"
                 onClick={onRetryConversations}

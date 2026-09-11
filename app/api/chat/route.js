@@ -59,22 +59,18 @@ import {
 } from "@/lib/server/chat/routeConstants";
 import { parseJsonRequest } from "@/lib/server/api/routeHelpers";
 import {
-  calculateChatCost,
   createPricingSnapshot,
-  getChatReservationPoints,
-  pointsFromUsd,
 } from "@/lib/server/credits/pricing";
 import { getBillingSettings } from "@/lib/server/credits/settings";
 import {
   getCreditOperation,
-  getCreditSummary,
   markReviewRequired,
   releaseCredits,
   reserveCredits,
   settleCredits,
 } from "@/lib/server/credits/service";
 import { billingResult, creditErrorResponse } from "@/lib/server/credits/api";
-import { CreditError, InsufficientCreditsError } from "@/lib/server/credits/errors";
+import { CreditError } from "@/lib/server/credits/errors";
 import { estimateChatInputTokens } from "@/lib/server/credits/chatEstimation";
 import { probeVideoDuration } from "@/lib/media/server/videoMetadata";
 
@@ -82,7 +78,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MIN_CHAT_OUTPUT_TOKENS = 256;
-const MAX_CHAT_RESERVATION_POINTS = 1000;
 
 function canonicalize(value) {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
@@ -362,9 +357,6 @@ export async function POST(req) {
     let billingSettings;
     let pricingSnapshot;
     let reservationTransaction;
-    let reservedCredit;
-    let reservationPoints;
-    let creditUnlimited = false;
     let operationClaimed = false;
     let systemPrompt;
     try {
@@ -386,7 +378,6 @@ export async function POST(req) {
             statusCode: 409,
             details: {
               status: existingOperation.status,
-              reserved: existingOperation.reserved,
               pricingVersion: existingOperation.pricingSnapshot?.version ?? null,
             },
           },
@@ -397,62 +388,9 @@ export async function POST(req) {
       });
       billingSettings = await getBillingSettings();
       pricingSnapshot = createPricingSnapshot(billingSettings);
-      const creditBeforeReservation = await getCreditSummary(user.userId);
-      creditUnlimited = creditBeforeReservation.unlimited;
-      const reservationLimit = Math.min(
-        getChatReservationPoints(billingSettings),
-        MAX_CHAT_RESERVATION_POINTS,
-      );
-      reservationPoints = creditUnlimited
-        ? reservationLimit
-        : Math.min(creditBeforeReservation.availablePoints, reservationLimit);
-      if (!creditUnlimited && reservationPoints <= 0) {
-        throw new InsufficientCreditsError({ required: 1, available: creditBeforeReservation.availablePoints });
-      }
-      if (!creditUnlimited) {
-        const initialMessages = prebuiltHistoryMessages.slice();
-        if (!isRegenerateMode) {
-          initialMessages.push({
-            role: "user",
-            content: normalizeOpenAIMessageContentParts(prebuiltCurrentContent),
-          });
-        }
-        const initialPayload = {
-          model,
-          system: systemPrompt,
-          messages: initialMessages,
-          ...(enableWebSearch ? { tools: getWebToolDefinitions() } : {}),
-        };
-        const estimatedInitialInputTokens = estimateChatInputTokens({
-          inputPayload: initialPayload,
-          provider,
-          files: estimatedInputFiles,
-        });
-        const chatRate = billingSettings.rates.chat?.[model];
-        const estimatedCacheWriteTokens = chatRate?.cacheWritePerMillion > chatRate?.inputPerMillion
-          ? estimatedInitialInputTokens
-          : 0;
-        const initialPassCost = calculateChatCost({
-          model,
-          inputTokens: estimatedInitialInputTokens,
-          cacheWriteTokens: estimatedCacheWriteTokens,
-          outputTokens: MIN_CHAT_OUTPUT_TOKENS,
-        }, billingSettings);
-        const minimumRequiredPoints = pointsFromUsd(
-          initialPassCost.costUsd,
-          billingSettings,
-        );
-        if (minimumRequiredPoints > reservationPoints) {
-          throw new InsufficientCreditsError({
-            required: minimumRequiredPoints,
-            available: reservationPoints,
-          });
-        }
-      }
       reservationTransaction = await reserveCredits({
         operationId,
         userId: user.userId,
-        points: reservationPoints,
         type: "model_usage",
         feature: enableWebSearch ? "chat_web_search" : "chat",
         provider,
@@ -465,7 +403,7 @@ export async function POST(req) {
         reservationTransaction?.status !== "reserved"
         || reservationTransaction?.executionClaimId !== claimId
       ) {
-        throw new CreditError("聊天积分预留状态异常", {
+        throw new CreditError("聊天费用记录状态异常", {
           code: "CREDIT_RESERVATION_STATE_CONFLICT",
           statusCode: 409,
           details: { status: reservationTransaction?.status },
@@ -473,7 +411,7 @@ export async function POST(req) {
       }
       operationClaimed = true;
     } catch (billingError) {
-      return creditErrorResponse(billingError, "聊天积分预留失败");
+      return creditErrorResponse(billingError, "聊天费用记录失败");
     }
 
     let chatMessages = [];
@@ -593,7 +531,6 @@ export async function POST(req) {
         }
         writePermitTime = updatedConv.updatedAt?.getTime?.() ?? userMsgTime.getTime();
       }
-      reservedCredit = await getCreditSummary(user.userId);
     } catch (preparationError) {
       let billingCleanupError = null;
       if (operationClaimed) {
@@ -606,7 +543,7 @@ export async function POST(req) {
           billingCleanupError = releaseError;
           try {
             await markReviewRequired(operationId, {
-              reason: releaseError?.message || "本地准备失败后无法释放积分",
+              reason: releaseError?.message || "本地准备失败后无法结束费用记录",
               usage: { requestFingerprint, preparationFailed: true },
             });
           } catch { /* preserve the release error */ }
@@ -666,11 +603,11 @@ export async function POST(req) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}${padding}\n\n`));
           };
 
-          sendBillingEvent = (type, transaction, credit) => {
+          sendBillingEvent = (type, transaction) => {
             if (!clientAborted) {
               sendEvent({
                 type,
-                billing: billingResult(transaction, credit),
+                billing: billingResult(transaction),
                 messagePersisted: finalMessagePersisted,
               });
             }
@@ -694,10 +631,9 @@ export async function POST(req) {
                 reason: reason || "上游模型请求已发出，但没有取得完整用量",
                 usage: billingUsage(),
               });
-              const credit = await getCreditSummary(user.userId);
               billingFinalized = true;
-              sendBillingEvent("credit_review_required", transaction, credit);
-              return { transaction, credit, reviewRequired: true };
+              sendBillingEvent("credit_review_required", transaction);
+              return { transaction, reviewRequired: true };
             }
 
             if (usageRecords.length > 0) {
@@ -715,17 +651,15 @@ export async function POST(req) {
                   reason: costError?.message || reason || "无法计算完整用量",
                   usage: billingUsage(),
                 });
-                const credit = await getCreditSummary(user.userId);
                 billingFinalized = true;
-                sendBillingEvent("credit_review_required", transaction, credit);
-                return { transaction, credit, reviewRequired: true };
+                sendBillingEvent("credit_review_required", transaction);
+                return { transaction, reviewRequired: true };
               }
               transaction = await settleCredits({
                 operationId,
                 ...costs,
                 pricingSnapshot,
                 upstreamRequestIds,
-                allowAdditionalDebit: true,
               });
             } else {
               transaction = await releaseCredits(operationId, {
@@ -734,10 +668,9 @@ export async function POST(req) {
                 upstreamRequestIds,
               });
             }
-            const credit = await getCreditSummary(user.userId);
             billingFinalized = true;
-            sendBillingEvent("credit_settled", transaction, credit);
-            return { transaction, credit, reviewRequired: false };
+            sendBillingEvent("credit_settled", transaction);
+            return { transaction, reviewRequired: false };
           };
 
           const resolvePassMaxOutputTokens = ({ inputPayload }) => {
@@ -748,63 +681,12 @@ export async function POST(req) {
             });
             const outputBudget = Math.min(modelConfig.maxOutputTokens, modelConfig.contextWindow - estimatedInputTokens);
             if (outputBudget < MIN_CHAT_OUTPUT_TOKENS) throw new Error("对话内容超过该模型的上下文长度，请减少附件或开始新对话");
-            if (creditUnlimited) return outputBudget;
-            const knownCosts = calculateAccumulatedCosts({
-              model,
-              provider,
-              usageRecords,
-              settings: billingSettings,
-              requestFingerprint,
-            });
-            const chatRate = billingSettings.rates.chat?.[model];
-            const estimatedCacheWriteTokens = chatRate?.cacheWritePerMillion > chatRate?.inputPerMillion
-              ? estimatedInputTokens
-              : 0;
-            const estimatedPassCostUsd = (outputTokens) => calculateChatCost({
-              model,
-              inputTokens: estimatedInputTokens,
-              cacheWriteTokens: estimatedCacheWriteTokens,
-              outputTokens,
-            }, billingSettings).costUsd;
-            const canAfford = (outputTokens) => {
-              return pointsFromUsd(
-                knownCosts.actualCostUsd
-                  + estimatedPassCostUsd(outputTokens),
-                billingSettings,
-              ) <= reservationPoints;
-            };
-            if (!canAfford(MIN_CHAT_OUTPUT_TOKENS)) {
-              const minimumRequiredPoints = pointsFromUsd(
-                knownCosts.actualCostUsd
-                  + estimatedPassCostUsd(MIN_CHAT_OUTPUT_TOKENS),
-                billingSettings,
-              );
-              throw new CreditError("本次积分预算已用完，无法继续生成", {
-                code: "CHAT_CREDIT_BUDGET_EXHAUSTED",
-                statusCode: 402,
-                details: {
-                  required: minimumRequiredPoints,
-                  reserved: reservationPoints,
-                },
-              });
-            }
-            let lower = MIN_CHAT_OUTPUT_TOKENS;
-            let upper = MIN_CHAT_OUTPUT_TOKENS * 2;
-            while (upper < Number.MAX_SAFE_INTEGER / 2 && canAfford(upper)) {
-              lower = upper;
-              upper *= 2;
-            }
-            while (lower + 1 < upper) {
-              const middle = lower + Math.floor((upper - lower) / 2);
-              if (canAfford(middle)) lower = middle;
-              else upper = middle;
-            }
-            return Math.min(lower,outputBudget);
+            return outputBudget;
           };
 
           sendEvent({
             type: "credit_reserved",
-            billing: billingResult(reservationTransaction, reservedCredit),
+            billing: billingResult(reservationTransaction),
           });
           const sendHeartbeat = () => {
             try { if (!clientAborted) controller.enqueue(encoder.encode(`: ping ${Date.now()}\n\n`)); } catch { /* ignore */ }
@@ -973,18 +855,17 @@ export async function POST(req) {
             try {
               const settlement = await finalizeBilling({ reason: error?.message || "聊天执行失败" });
               if (settlement?.reviewRequired) {
-                billingError = new Error("本次模型用量无法自动核对，积分已冻结并转人工复核");
+                billingError = new Error("本次模型用量无法自动核对，费用已标记待核对");
               }
             } catch (settlementError) {
               billingError = settlementError;
               try {
                 const reviewTransaction = await markReviewRequired(operationId, {
-                  reason: settlementError?.message || "积分结算失败",
+                  reason: settlementError?.message || "费用记录失败",
                   usage: billingUsage(),
                 });
-                const credit = await getCreditSummary(user.userId);
                 billingFinalized = true;
-                sendBillingEvent("credit_review_required", reviewTransaction, credit);
+                sendBillingEvent("credit_review_required", reviewTransaction);
               } catch { /* retain the settlement error */ }
             }
           }

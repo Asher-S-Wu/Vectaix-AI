@@ -55,6 +55,7 @@ Thumbs.db
 
 # logs
 logs
+!/app/api/usage/logs/
 *.log
 
 # temporary files

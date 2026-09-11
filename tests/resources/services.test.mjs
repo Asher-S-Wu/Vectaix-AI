@@ -68,9 +68,9 @@ test('usage is owner scoped and excludes diagnostic payloads; cleanup protects r
   const { default: CreditTransaction } = await import('../../models/CreditTransaction.js');
   const { default: WorkbenchTaskEvent } = await import('../../models/WorkbenchTaskEvent.js');
   const taskId = new mongoose.Types.ObjectId();
-  await CreditTransaction.create([{ userId, auditUserKey: 'test', operationId: 'usage-one', type: 'model_usage', status: 'settled', model: 'test-model', charged: 42, usage: { taskId: String(taskId) } }, { userId: other, auditUserKey: 'other', operationId: 'usage-other', type: 'model_usage', status: 'settled', model: 'test-model', charged: 900 }]);
+  await CreditTransaction.create([{ userId, auditUserKey: 'test', operationId: 'usage-one', type: 'model_usage', status: 'settled', model: 'test-model', actualCostCny: 0.42, usage: { taskId: String(taskId) } }, { userId: other, auditUserKey: 'other', operationId: 'usage-other', type: 'model_usage', status: 'settled', model: 'test-model', actualCostCny: 9 }]);
   await WorkbenchTaskEvent.create({ userId, taskId, seq: 1, type: 'tool', message: 'SECRET', data: { name: 'read_file', arguments: { password: 'SECRET' }, result: 'SECRET', durationMs: 20 } });
-  const usage = await usageSummary(userId, new URLSearchParams()); assert.equal(usage.summary.points, 42); assert.equal(usage.models[0]._id, 'test-model');
+  const usage = await usageSummary(userId, new URLSearchParams()); assert.equal(usage.summary.costCny, 0.42); assert.equal(usage.models[0]._id, 'test-model');
   const logs = await toolLogs(userId, new URLSearchParams()); assert.equal(logs[0].tool, 'read_file'); assert.equal(JSON.stringify(logs).includes('SECRET'), false);
   const [unreferenced] = await files.uploadLibrary(userId, [new File(['unused'], 'unused.txt', { type: 'text/plain' })], null);
   const storage = await storageSummary(userId); assert.ok(storage.cleanupCandidates.some(f => f.fileId === unreferenced.fileId));

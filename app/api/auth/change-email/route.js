@@ -3,7 +3,6 @@ import { getAuthPayload } from '@/lib/auth';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import { getUserAccessFlags, isAdminEmail } from '@/lib/admin';
-import { getCreditSummary } from '@/lib/server/credits/service';
 import { isValidEmail, normalizeEmail } from '@/lib/server/auth/validation';
 
 export async function POST(req) {
@@ -67,15 +66,14 @@ export async function POST(req) {
 
     userDoc.email = normalizedEmail;
     await userDoc.save();
-    const credit = await getCreditSummary(userDoc._id);
 
     return Response.json({
       success: true,
-      credit,
+
       user: {
         id: userDoc._id.toString(),
         email: normalizedEmail,
-        credit,
+
         ...getUserAccessFlags(userDoc),
       },
     });

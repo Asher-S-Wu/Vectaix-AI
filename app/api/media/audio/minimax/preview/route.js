@@ -1,5 +1,5 @@
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
-import { creditErrorResponse, creditHeaders } from "@/lib/server/credits/api";
+import { creditErrorResponse } from "@/lib/server/credits/api";
 import { CreditError } from "@/lib/server/credits/errors";
 import { calculateMiniMaxTtsCost } from "@/lib/server/credits/pricing";
 import {
@@ -144,11 +144,7 @@ export async function POST(request) {
         feature: "media_audio_minimax_preview",
         provider: "minimax",
         model: voice.model,
-        estimate: calculateMiniMaxTtsCost({
-          characters: VOICE_PREVIEW_TEXT_ZH.length,
-          quality: billingQuality(voice.model),
-          firstVoiceClone: chargeFirstVoiceClone,
-        }, settings),
+
         settings,
         usage: {
           characters: VOICE_PREVIEW_TEXT_ZH.length,
@@ -222,7 +218,7 @@ export async function POST(request) {
       headers: {
         "Content-Type": audio.headers.get("content-type") || "audio/mpeg",
         "Cache-Control": "private, max-age=300",
-        ...creditHeaders(settled.credit),
+
       },
     });
   } catch (error) {
@@ -272,7 +268,7 @@ export async function POST(request) {
       });
     }
     if (error instanceof CreditError) {
-      return creditErrorResponse(error, "MiniMax 试听积分处理失败");
+      return creditErrorResponse(error, "MiniMax 试听费用记录失败");
     }
     console.error("[MiniMax Audio] preview voice:", error);
     return Response.json(

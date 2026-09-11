@@ -50,7 +50,7 @@ export default function AuthModal({
           {authMode === "login" ? "欢迎回来" : "创建账号"}
         </h2>
         <p className="text-center text-zinc-500 mb-8 text-sm relative">
-          登录以继续使用 Vectaix AI
+          {authMode === "login" ? "登录，继续使用 Vectaix AI" : "创建账号，开始使用 Vectaix AI"}
         </p>
 
         <form onSubmit={onSubmit} className="space-y-3 relative">

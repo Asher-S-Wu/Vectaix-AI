@@ -2,7 +2,7 @@ const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 const VIDEO_RECONCILE_INTERVAL_MS = 15 * 1000;
 const MEDIAKIT_RECONCILE_INTERVAL_MS = 15 * 1000;
 const MEDIAKIT_DELETION_RECONCILE_INTERVAL_MS = 15 * 1000;
-const CREDIT_RECONCILE_INTERVAL_MS = 60 * 1000;
+const COST_RECONCILE_INTERVAL_MS = 60 * 1000;
 
 function safeErrorDetails(error) {
   const errorType = /^[A-Za-z][A-Za-z0-9]{0,63}$/.test(error?.name || "")
@@ -58,7 +58,7 @@ export async function register() {
       { removeLegacyGuestData },
       { ensureUserIndexes },
       { ensureSessionIndexes },
-      { runCreditMigration, reconcileUninitializedUserCredits },
+      { initializeCostRecording },
       { reconcileCreditTransactions },
       { reconcileMinimaxUnlockClaims },
       { reconcileMinimaxVoiceCleanup },
@@ -88,7 +88,7 @@ export async function register() {
     reportLegacyCleanupState(legacyCleanup);
     if (legacyCleanup.complete) await ensureUserIndexes();
     await ensureSessionIndexes();
-    await runCreditMigration();
+    await initializeCostRecording();
     await reconcileCreditTransactions();
     await reconcileMinimaxUnlockClaims();
     await Promise.all([
@@ -216,10 +216,10 @@ export async function register() {
     );
     mediaKitDeletionTimer.unref?.();
 
-    let creditReconcileRunning = false;
-    const reconcileCredits = async () => {
-      if (creditReconcileRunning) return;
-      creditReconcileRunning = true;
+    let costReconcileRunning = false;
+    const reconcileCosts = async () => {
+      if (costReconcileRunning) return;
+      costReconcileRunning = true;
       try {
         const legacyCleanup = await removeLegacyGuestData();
         reportLegacyCleanupState(legacyCleanup);
@@ -227,19 +227,18 @@ export async function register() {
           await ensureUserIndexes();
           await ensureSessionIndexes();
         }
-        await reconcileUninitializedUserCredits();
         await reconcileCreditTransactions();
         await reconcileMinimaxUnlockClaims();
         await reconcileMinimaxVoiceCleanup();
         await reconcileResolvedMediaTaskBilling();
       } catch (error) {
-        console.error("[Credits] scheduled reconcile:", safeErrorDetails(error));
+        console.error("[Costs] scheduled reconcile:", safeErrorDetails(error));
       } finally {
-        creditReconcileRunning = false;
+        costReconcileRunning = false;
       }
     };
-    const creditTimer = setInterval(reconcileCredits, CREDIT_RECONCILE_INTERVAL_MS);
-    creditTimer.unref?.();
+    const costTimer = setInterval(reconcileCosts, COST_RECONCILE_INTERVAL_MS);
+    costTimer.unref?.();
   } catch (error) {
     delete globalThis.__vectaixStorageCleanupStarted;
     throw error;

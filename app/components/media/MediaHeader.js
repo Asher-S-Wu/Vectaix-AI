@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { UI_THEME_MODE_KEY } from "@/lib/shared/storageKeys";
-import CreditShell from "@/app/components/credits/CreditShell";
 import ModeSwitcher from "@/app/components/layout/ModeSwitcher";
 import { MEDIA_WORKSPACES } from "@/lib/media/shared/workspaces";
 
@@ -81,7 +80,6 @@ export default function MediaHeader() {
         <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
           <ModeSwitcher />
           <div className="ml-auto flex items-center gap-1.5">
-            <CreditShell />
             <button
               type="button"
               onClick={cycleTheme}

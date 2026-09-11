@@ -135,7 +135,7 @@ export default function FilesPanel() {
       {currentFolder && folderActions(currentFolder)}
     </div>
     <div className="flex flex-col gap-2 sm:flex-row">
-      <label className="relative flex-1"><Search size={16} className="absolute left-3 top-3 text-zinc-400" /><input aria-label="搜索当前文件夹" placeholder="搜索当前文件夹的名称" className={`${fieldClass} pl-9`} value={query} disabled={busy} onChange={e => { setQuery(e.target.value); setSelected([]); }} /></label>
+      <label className="relative flex-1"><Search size={16} className="absolute left-3 top-3 text-zinc-400" /><input aria-label="搜索当前文件夹" placeholder="搜索此文件夹中的文件和文件夹" className={`${fieldClass} pl-9`} value={query} disabled={busy} onChange={e => { setQuery(e.target.value); setSelected([]); }} /></label>
       <select aria-label="文件排序" className={`${fieldClass} sm:w-40`} value={sort} onChange={e => setSort(e.target.value)}><option value="name">名称排序</option><option value="updated">最近修改</option><option value="size">大小从大到小</option></select>
     </div>
     <div className="flex flex-wrap items-center gap-2">

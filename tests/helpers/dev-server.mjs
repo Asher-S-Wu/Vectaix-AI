@@ -9,7 +9,7 @@ import {spawn} from 'node:child_process';
 import User from '../../models/User.js';
 const mongo=await MongoMemoryServer.create({instance:{port:27179,dbName:'vectaix_ui_test'}});
 await mongoose.connect(mongo.getUri());const password='Vectaix-Test-2026!';
-for(const email of ['admin@example.test','member@example.test'])await User.create({email,password:await bcrypt.hash(password,10),creditBalance:1000000,creditsInitializedAt:new Date()});
+for(const email of ['admin@example.test','member@example.test'])await User.create({email,password:await bcrypt.hash(password,10)});
 await mongoose.disconnect();
 const env={PATH:process.env.PATH,HOME:process.env.HOME,TMPDIR:process.env.TMPDIR,LANG:'en_US.UTF-8',NODE_ENV:'development',NEXT_TELEMETRY_DISABLED:'1'};
 for(const filename of ['.env','.env.local','.env.development','.env.development.local']){let text;try{text=await readFile(filename,'utf8');}catch(error){if(error.code==='ENOENT')continue;throw error;}for(const line of text.split('\n')){const match=line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);if(match)env[match[1]]='';}}

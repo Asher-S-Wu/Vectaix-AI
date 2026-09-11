@@ -2,7 +2,6 @@
 
 import { Menu, MessageSquarePlus, FolderOpen } from "lucide-react";
 import ModeSwitcher from "./ModeSwitcher";
-import CreditShell from "../credits/CreditShell";
 
 export default function ChatHeader({ onToggleSidebar, onStartNewChat, sidebarOpen, onOpenResources, projectName }) {
   return (
@@ -22,7 +21,6 @@ export default function ChatHeader({ onToggleSidebar, onStartNewChat, sidebarOpe
         <button type="button" onClick={onOpenResources} className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-sm text-zinc-500 hover:text-primary hover:bg-zinc-100" title="查看资料与成果">
           <FolderOpen size={18} /><span className="max-w-28 truncate">{projectName || "资料"}</span>
         </button>
-        <CreditShell />
         <button
           onClick={onStartNewChat}
           type="button"

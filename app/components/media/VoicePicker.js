@@ -112,7 +112,7 @@ export function mapQwenCustomVoice(voice) {
         : voice.status === "DEPLOYING"
           ? "完成制作后即可用于合成"
           : voice.status === "DELETING"
-            ? "正在删除并释放云端音色"
+            ? "正在删除音色和声音样本"
             : "样本审核未通过，可以更换更清晰的声音样本")
       : "",
     payload: {

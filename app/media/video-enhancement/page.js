@@ -1,5 +1,6 @@
 "use client";
 
+import UseInChatButton from '@/app/components/media/UseInChatButton';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -22,7 +23,6 @@ import {
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
 import MediaSelect from "@/app/components/media/MediaSelect";
 import VideoEnhancementTaskCard from "@/app/components/media/VideoEnhancementTaskCard";
-import { useCredits } from "@/lib/client/credits/CreditContext";
 import {
   abandonVideoEnhancementUpload,
   confirmVideoEnhancementUpload,
@@ -161,7 +161,6 @@ function readVideoDuration(source) {
 }
 
 export default function VideoEnhancementPage() {
-  const { pricing } = useCredits();
   const [sourceType, setSourceType] = useState("upload");
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedMimeType, setSelectedMimeType] = useState("");
@@ -425,11 +424,11 @@ export default function VideoEnhancementPage() {
         if (taskSubmissionStarted) void loadTasks({ silent: true });
         const cancelReason = cancelReasonRef.current;
         if (cleanupFailed && cancelReason === "user") {
-          setFormError("上传已取消，但临时上传凭证未能清理。请稍后再提交。");
+          setFormError("上传已取消，但清理尚未完成，请稍后再提交。");
         } else if (cleanupFailed && cancelReason === "switch") {
-          setFormError("视频来源已切换，但上一次的临时上传凭证未能清理。请稍后再提交。");
+          setFormError("视频来源已切换，但上一次上传的清理尚未完成，请稍后再提交。");
         } else if (cleanupFailed) {
-          setFormError("提交未完成，临时上传凭证也未能清理。请稍后刷新记录再重新提交。");
+          setFormError("提交和清理均未完成，请稍后刷新记录，确认任务状态后再提交。");
         } else if (error?.name === "AbortError") {
           if (cancelReason === "user") setFormError("上传已取消，原片不会继续上传。");
         } else {
@@ -805,6 +804,7 @@ export default function VideoEnhancementPage() {
                 取消上传
               </button>
             ) : null}
+            <UseInChatButton section="enhancement" value={{resolution,bitrate:bitrateMode==='level'?{mode:'level',value:bitrateLevel}:{mode:'exact',value:Number(exactBitrate)},...(fpsMode==='exact'?{fps:Number(fpsValue)}:{})}} disabled={isSubmitting} />
             <button
               type="submit"
               disabled={isSubmitting}
@@ -814,9 +814,6 @@ export default function VideoEnhancementPage() {
               {isSubmitting ? PHASE_LABELS[phase] || "正在提交" : "开始画质增强"}
             </button>
           </div>
-          {Number.isInteger(pricing?.mediaKit?.perMinute) ? (
-            <p className="text-center text-xs text-zinc-500">普通用户统一按 60 秒上限冻结 {pricing.mediaKit.perMinute.toLocaleString("zh-CN")} 积分，完成后按结果时长退回差额</p>
-          ) : null}
         </form>
 
         <aside className="space-y-4 lg:sticky lg:top-24">

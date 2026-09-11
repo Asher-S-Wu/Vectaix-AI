@@ -77,6 +77,6 @@ export async function POST(req) {
 
         return Response.json({ conversation: created.toObject() });
     } catch (error) {
-        return Response.json({ error: error?.message || '创建会话失败' }, { status: error.status || 400 });
+        return Response.json({ error: error?.message || '创建对话失败' }, { status: error.status || 400 });
     }
 }

@@ -11,7 +11,6 @@ import {
   endMediaWriteLease,
 } from "@/lib/media/server/userOperationLeases";
 import VideoEnhancementTask from "@/models/VideoEnhancementTask";
-import { getCreditSummary } from "@/lib/server/credits/service";
 import { syncMediaKitVideoEnhancementTask } from "@/lib/media/server/mediaKit/reconciler";
 import { syncMediaTaskBillingByOperation } from "@/lib/media/server/billing";
 
@@ -20,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 const TERMINAL_STATUSES = Object.freeze(["completed", "failed", "canceled"]);
 const ACTIVE_STATUSES = new Set(["submitting", "running", "finalizing"]);
-const FINAL_BILLING_STATUSES = new Set(["settled", "released", "rejected"]);
+const FINAL_BILLING_STATUSES = new Set(["settled", "released", "rejected", "review_required"]);
 const TASK_DELETION_CLEANUP_TIMEOUT_MS = 10 * 1000;
 const PUBLIC_TASK_FIELDS = [
   "_id",
@@ -99,12 +98,11 @@ export async function GET(request, context) {
       if (!task) return jsonMessage("视频画质增强任务不存在", 404);
     }
     const serializedTask = serializeVideoEnhancementTask(task);
-    const credit = await getCreditSummary(user.userId);
     return Response.json({
       success: true,
       task: serializedTask,
-      billing: serializedTask?.billing ? { ...serializedTask.billing, credit } : null,
-      credit,
+      billing: serializedTask?.billing ? serializedTask.billing : null,
+
     });
   } catch (error) {
     console.error("[AI MediaKit] get enhancement task failed", safeErrorDetails(error));
@@ -144,8 +142,8 @@ export async function DELETE(request, context) {
       if (!currentTask || !FINAL_BILLING_STATUSES.has(currentTask.billing?.status)) {
         return jsonMessage(
           currentTask?.billing?.status === "review_required"
-            ? "该任务的积分仍待管理员核对，暂不能删除"
-            : "该任务的积分仍在结算，请稍后再删除",
+            ? "该任务的费用尚待核对"
+            : "该任务的用量仍在记录，请稍后再删除",
           409,
         );
       }

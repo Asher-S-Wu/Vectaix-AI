@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 
 const UserSchema = new mongoose.Schema({
@@ -9,67 +8,6 @@ const UserSchema = new mongoose.Schema({
     password: {
         type: String,
         required: true,
-    },
-    creditBalance: {
-        type: Number,
-        min: 0,
-        validate: Number.isSafeInteger,
-        default: 0,
-    },
-    creditHeld: {
-        type: Number,
-        min: 0,
-        validate: Number.isSafeInteger,
-        default: 0,
-    },
-    creditHolds: {
-        type: [{
-            _id: false,
-            operationId: { type: String, required: true, trim: true, maxlength: 200 },
-            points: { type: Number, required: true, min: 0, validate: Number.isSafeInteger },
-            createdAt: { type: Date, required: true },
-        }],
-        default: [],
-    },
-    creditSettlementReceipts: {
-        type: [{
-            _id: false,
-            operationId: { type: String, required: true, trim: true, maxlength: 200 },
-            kind: { type: String, required: true, enum: ['model_settlement', 'admin_set'] },
-            balanceBefore: { type: Number, required: true, min: 0, validate: Number.isSafeInteger },
-            balanceAfter: { type: Number, required: true, min: 0, validate: Number.isSafeInteger },
-            creditVersionBefore: { type: Number, required: true, min: 0, validate: Number.isSafeInteger },
-            creditVersionAfter: { type: Number, required: true, min: 0, validate: Number.isSafeInteger },
-            appliedAt: { type: Date, required: true },
-        }],
-        default: [],
-    },
-    creditsInitializedAt: {
-        type: Date,
-    },
-    creditVersion: {
-        type: Number,
-        min: 0,
-        validate: Number.isSafeInteger,
-        default: 0,
-    },
-    creditAuditKey: {
-        type: String,
-        required: true,
-        immutable: true,
-        default: () => crypto.randomUUID(),
-    },
-    creditLastOperationId: {
-        type: String,
-        trim: true,
-        maxlength: 200,
-        default: '',
-    },
-    creditInitializationOperationId: {
-        type: String,
-        trim: true,
-        maxlength: 200,
-        immutable: true,
     },
     deletionInProgress: {
         type: Boolean,

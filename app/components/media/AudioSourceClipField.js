@@ -237,7 +237,7 @@ export default function AudioSourceClipField({
                 />
                 <div className="flex gap-2">
                   <input type="number" min={0} max={state.clipEnd - upload.minClipSeconds} step={0.1} value={state.clipStart} disabled={disabled} onChange={(event) => updateClipStart(event.target.value)} className="focus-ring h-8 min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-2 text-xs dark:border-zinc-700 dark:bg-zinc-900" />
-                  <button type="button" onClick={() => setBoundaryFromPlayer("start")} disabled={disabled} className="rounded-lg border border-zinc-200 px-2 text-[11px] dark:border-zinc-700">取当前</button>
+                  <button type="button" onClick={() => setBoundaryFromPlayer("start")} disabled={disabled} className="rounded-lg border border-zinc-200 px-2 text-[11px] dark:border-zinc-700">使用当前播放位置</button>
                 </div>
               </label>
 
@@ -255,7 +255,7 @@ export default function AudioSourceClipField({
                 />
                 <div className="flex gap-2">
                   <input type="number" min={state.clipStart + upload.minClipSeconds} max={upload.duration} step={0.1} value={state.clipEnd} disabled={disabled} onChange={(event) => updateClipEnd(event.target.value)} className="focus-ring h-8 min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-2 text-xs dark:border-zinc-700 dark:bg-zinc-900" />
-                  <button type="button" onClick={() => setBoundaryFromPlayer("end")} disabled={disabled} className="rounded-lg border border-zinc-200 px-2 text-[11px] dark:border-zinc-700">取当前</button>
+                  <button type="button" onClick={() => setBoundaryFromPlayer("end")} disabled={disabled} className="rounded-lg border border-zinc-200 px-2 text-[11px] dark:border-zinc-700">使用当前播放位置</button>
                 </div>
               </label>
             </div>

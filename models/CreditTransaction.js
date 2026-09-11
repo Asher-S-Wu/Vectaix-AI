@@ -1,8 +1,6 @@
 import mongoose from "mongoose";
 
 export const CREDIT_TRANSACTION_TYPES = [
-  "registration_grant",
-  "admin_set",
   "model_usage",
 ];
 
@@ -52,22 +50,6 @@ const CreditTransactionSchema = new mongoose.Schema({
     enum: CREDIT_TRANSACTION_STATUSES,
     default: "pending",
   },
-  requested: { type: Number, required: true, min: 0, validate: Number.isSafeInteger, default: 0 },
-  reserved: { type: Number, required: true, min: 0, validate: Number.isSafeInteger, default: 0 },
-  charged: { type: Number, required: true, min: 0, validate: Number.isSafeInteger, default: 0 },
-  refunded: { type: Number, required: true, min: 0, validate: Number.isSafeInteger, default: 0 },
-  balanceBefore: {
-    type: Number,
-    min: 0,
-    validate: (value) => value === null || Number.isSafeInteger(value),
-    default: null,
-  },
-  balanceAfter: {
-    type: Number,
-    min: 0,
-    validate: (value) => value === null || Number.isSafeInteger(value),
-    default: null,
-  },
   actualCostCny: { type: Number, min: 0, default: null },
   actualCostUsd: { type: Number, min: 0, default: null },
   usage: { type: mongoose.Schema.Types.Mixed, default: null },
@@ -77,7 +59,6 @@ const CreditTransactionSchema = new mongoose.Schema({
   executionClaimId: { type: String, trim: true, maxlength: 200 },
   claimedAt: { type: Date },
   reason: { type: String, default: "" },
-  walletExempt: { type: Boolean, required: true, default: false },
 }, {
   autoIndex: false,
   timestamps: true,

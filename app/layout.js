@@ -6,7 +6,6 @@ import { Inter } from 'next/font/google';
 import { ToastProvider } from './components/common/ToastProvider';
 import FadeScrollbarGlobal from './components/layout/FadeScrollbarGlobal';
 import { UI_THEME_MODE_KEY } from '@/lib/shared/storageKeys';
-import { CreditProvider } from '@/lib/client/credits/CreditContext';
 
 const inter = Inter({
     subsets: ['latin'],
@@ -17,7 +16,7 @@ const inter = Inter({
 
 export const metadata = {
     title: 'Vectaix AI',
-    description: 'Vectaix AI —— 支持 Gemini、Claude、GPT、Seed 等多种模型的新一代智能对话平台。',
+    description: 'Vectaix AI 支持多模型对话、联网搜索，以及图片、视频和语音创作。',
     manifest: '/manifest.webmanifest',
     icons: {
         shortcut: '/favicon.ico',
@@ -68,11 +67,9 @@ export default async function RootLayout({ children }) {
             <body>
                 <FadeScrollbarGlobal />
                 <ToastProvider>
-                    <CreditProvider>
                         <div className="main-layout h-full">
                             {children}
                         </div>
-                    </CreditProvider>
                 </ToastProvider>
             </body>
         </html>

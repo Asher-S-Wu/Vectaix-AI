@@ -280,7 +280,7 @@ export default function MessageList({
         onClose={() => setDeleteConfirm({ open: false, index: null, role: null })}
         onConfirm={handleConfirmDelete}
         title="删除消息"
-        message={`确定要删除这条${deleteConfirm.role === "user" ? "你的" : "AI"}消息吗？此操作无法撤销。`}
+        message={`确定删除${deleteConfirm.role === "user" ? "你发送的这条消息" : "这条 AI 回复"}吗？此操作无法撤销。`}
         confirmText="删除"
         danger
       />

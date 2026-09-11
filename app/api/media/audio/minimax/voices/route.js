@@ -215,10 +215,7 @@ export async function POST(request) {
       feature: "media_audio_minimax_voice_clone",
       provider: "minimax",
       model: input.model,
-      estimate: calculateMiniMaxTtsCost({
-        characters: input.demoText.length,
-        quality: billingQuality(input.model),
-      }, settings),
+
       settings,
       usage: {
         action: "voice_clone_demo",
@@ -427,7 +424,7 @@ export async function POST(request) {
     }
     console.error("[MiniMax Audio] create voice:", { error, requestId: error?.requestId || "" });
     if (error instanceof CreditError) {
-      return creditErrorResponse(error, "MiniMax 声音复刻积分处理失败");
+      return creditErrorResponse(error, "MiniMax 声音复刻费用记录失败");
     }
     return Response.json(
       {

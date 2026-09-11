@@ -1,5 +1,6 @@
 'use client';
 
+import UseInChatButton from '@/app/components/media/UseInChatButton';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -21,7 +22,6 @@ import {
   X,
 } from 'lucide-react';
 import ConfirmModal from '@/app/components/modals/ConfirmModal';
-import { useCredits } from '@/lib/client/credits/CreditContext';
 import {
   createVideoTask,
   deleteVideoSource,
@@ -92,13 +92,6 @@ function formatDate(value) {
 function formatDuration(value) {
   const duration = Number(value);
   return Number.isFinite(duration) && duration > 0 ? `${duration} 秒` : '';
-}
-
-function ceilEstimatedPoints(value) {
-  if (!Number.isFinite(value) || value < 0) return null;
-  const nearestInteger = Math.round(value);
-  const tolerance = Number.EPSILON * Math.max(1, Math.abs(value));
-  return Math.ceil(Math.abs(value - nearestInteger) <= tolerance ? nearestInteger : value);
 }
 
 function formatRatio(value) {
@@ -372,7 +365,6 @@ function TaskCard({ task, acting, stale, onRefresh, onDelete }) {
 }
 
 export default function VideoGenerationPage() {
-  const { pricing } = useCredits();
   const [mode, setMode] = useState('text');
   const [prompt, setPrompt] = useState('');
   const [ratio, setRatio] = useState('16:9');
@@ -399,15 +391,6 @@ export default function VideoGenerationPage() {
   const currentModel = VIDEO_MODELS[mode];
   const imageLimit = mode === 'first-frame' ? 1 : mode === 'reference' ? 9 : mode === 'edit' ? 5 : 0;
   const availableResolutions = mode === 'edit' ? VIDEO_EDIT_RESOLUTION_OPTIONS : VIDEO_RESOLUTION_OPTIONS;
-  const resolutionKey = resolution.replace(/P$/i, '');
-  const estimatedSeconds = mode === 'edit' ? Number(video?.duration || 0) * 2 : duration;
-  const estimatedRate = mode === 'edit'
-    ? pricing?.happyHorse?.editRawPointsPerSecond?.[resolutionKey]
-    : pricing?.happyHorse?.generationRawPointsPerSecond?.[resolutionKey];
-  const estimatedPoints = Number.isFinite(estimatedRate) && estimatedRate >= 0 && estimatedSeconds > 0
-    ? ceilEstimatedPoints(estimatedRate * estimatedSeconds)
-    : null;
-
   const loadTasks = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setTasksLoading(true);
     try {
@@ -697,11 +680,11 @@ export default function VideoGenerationPage() {
           </details>
 
           <p className="text-xs text-zinc-500">提交后会在下方自动同步任务状态。排队中和生成中的任务不能删除。</p>
+          <UseInChatButton section="video" value={{mode,resolution,...(mode==='edit'?{audioSetting}:{...(mode==='first-frame'?{}:{ratio}),duration}),watermark}} disabled={isSubmitting} />
           <button type="submit" disabled={isSubmitting} className="btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">
             {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
             {isSubmitting ? '正在检查并上传素材…' : '创建视频任务'}
           </button>
-          {Number.isInteger(estimatedPoints) ? <p className="text-center text-xs text-zinc-500">预计约冻结 {estimatedPoints.toLocaleString('zh-CN')} 积分，任务完成后按供应商实际计费时长结算</p> : null}
         </form>
       </div>
 

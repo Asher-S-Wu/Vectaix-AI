@@ -60,7 +60,6 @@ export default function MinimaxVoiceClonePanel({
   onRename,
   onDelete,
   onRefresh,
-  pricing,
 }) {
   const reduceMotion = useReducedMotion();
   const [displayName, setDisplayName] = useState("");
@@ -84,16 +83,6 @@ export default function MinimaxVoiceClonePanel({
   const atLimit = voices.length >= MINIMAX_CUSTOM_VOICE_MAX_COUNT;
   const formDisabled = !modelAllowed || loading || creating || atLimit;
   const voiceActionActive = creating || Boolean(deletingId);
-  const demoRate = model.endsWith("-turbo")
-    ? pricing?.minimaxTts?.turboPer10000Characters
-    : pricing?.minimaxTts?.hdPer10000Characters;
-  const demoEstimatedPoints = Number.isInteger(demoRate) && demoText.trim().length > 0
-    ? Math.ceil((demoText.trim().length / 10000) * demoRate)
-    : null;
-  const firstClonePoints = Number.isInteger(pricing?.minimaxTts?.firstVoiceClone)
-    ? pricing.minimaxTts.firstVoiceClone
-    : null;
-
   const resetSample = () => {
     setSampleFile(null);
     setSampleState(null);
@@ -327,15 +316,6 @@ export default function MinimaxVoiceClonePanel({
                 </label>
               </div>
 
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-700" role="note">
-                {demoEstimatedPoints === null
-                  ? "创建时生成的试听会按试听文字计费。"
-                  : `本次创建试听预计约 ${demoEstimatedPoints.toLocaleString("zh-CN")} 积分。`}
-                {firstClonePoints === null
-                  ? "首次使用复刻音色合成时另收首次解锁费用。"
-                  : `首次使用复刻音色合成时另约 ${firstClonePoints.toLocaleString("zh-CN")} 积分。`}
-              </div>
-
               <label className="flex items-start gap-3 rounded-xl border border-zinc-200 p-4 text-sm leading-6 dark:border-zinc-700">
                 <input
                   type="checkbox"
@@ -479,7 +459,7 @@ export default function MinimaxVoiceClonePanel({
                           <p className="mt-1 text-xs leading-5 text-zinc-500">音色已经可以用于语音合成。</p>
                           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
                             {cloneModel ? <span>{cloneModel.label}</span> : null}
-                            <span>{voice.noiseReduction ? "已开启降噪" : "原始噪声"}</span>
+                            <span>{voice.noiseReduction ? "已开启降噪" : "未开启降噪"}</span>
                             <span>{voice.volumeNormalization ? "已统一音量" : "原始音量"}</span>
                             {voice.sampleFileName ? <span className="max-w-[220px] truncate">{voice.sampleFileName}</span> : null}
                             <span>创建于 {formatDate(voice.createdAt)}</span>
@@ -496,7 +476,7 @@ export default function MinimaxVoiceClonePanel({
                           className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 sm:px-3"
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">改名</span>
+                          <span className="hidden sm:inline">重命名</span>
                         </button>
                         <button
                           type="button"

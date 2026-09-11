@@ -3,10 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Mic, Square, Camera, ClipboardPaste, MapPin, LoaderCircle, Plus, X } from 'lucide-react';
 import { useToast } from '../common/ToastProvider';
-import { useCredits } from '@/lib/client/credits/CreditContext';
 
 export default function DeviceActions({permissions,onText,onFiles,onSettings,disabled}) {
-  const toast = useToast(), {refreshCredit} = useCredits();
+  const toast = useToast();
   const recorder = useRef(null), stream = useRef(null), timer = useRef(null), request = useRef(null), camera = useRef(null), cameraStream = useRef(null);
   const [showCamera,setShowCamera] = useState(false), [cameraReady,setCameraReady] = useState(false);
   useEffect(()=>{ if(showCamera && camera.current) camera.current.srcObject = cameraStream.current; },[showCamera]);
@@ -33,7 +32,7 @@ export default function DeviceActions({permissions,onText,onFiles,onSettings,dis
           const response = await fetch('/api/voice/transcribe',{method:'POST',body,headers:{'x-credit-operation-id':crypto.randomUUID()},signal:controller.signal});
           const data = await response.json(); if (!response.ok) throw new Error(data.error);
           onText(data.text); toast.success('录音已转为文字，可编辑后发送');
-          await refreshCredit();
+
         } catch(error) { if (error.name !== 'AbortError') toast.error(error.message); }
         finally { request.current = null; setBusy(false); }
       };

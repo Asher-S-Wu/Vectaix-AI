@@ -2,7 +2,6 @@ import { cookies } from 'next/headers';
 import dbConnect from '@/lib/db';
 import { getAuthPayload, startAuthSession } from '@/lib/auth';
 import { getUserAccessFlags } from '@/lib/admin';
-import { getCreditSummary } from '@/lib/server/credits/service';
 import { parseJsonRequest } from '@/lib/server/api/routeHelpers';
 import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import { registrationOptions, registerPasskey, authenticationOptions, authenticatePasskey } from '@/lib/server/auth/passkeys';
@@ -40,8 +39,7 @@ export async function POST(req) {
       jar.set('passkey_challenge', '', { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', maxAge: 0, path: '/api/auth/passkeys' });
       const user = await authenticatePasskey(challengeId, response);
       await startAuthSession(user._id);
-      const credit = await getCreditSummary(user._id);
-      return Response.json({ success: true, credit, user: { id: String(user._id), email: user.email, credit, ...getUserAccessFlags(user) } });
+      return Response.json({ success: true, user: { id: String(user._id), email: user.email, ...getUserAccessFlags(user) } });
     }
     const auth = await getAuthPayload(req);
     if (!auth) return Response.json({ error: '请先登录' }, { status: 401 });

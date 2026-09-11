@@ -24,13 +24,11 @@ import TaskNotifications from "./components/common/TaskNotifications";
 import AuthModal from "./components/modals/AuthModal";
 import ConfirmModal from "./components/modals/ConfirmModal";
 import ChatLayout from "./components/layout/ChatLayout";
-import { useCredits } from "@/lib/client/credits/CreditContext";
 
 const FONT_SIZE_CLASSES = { small: "text-size-small", medium: "text-size-medium", large: "text-size-large" };
 export default function ChatApp() {
   const toast = useToast();
   const router = useRouter();
-  const { applyCreditSummary, clearCreditSummary, refreshCredit } = useCredits();
   const savedConversationRef = useRef(typeof window !== "undefined" ? window.localStorage.getItem("vectaix-current-conversation") : null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -146,7 +144,6 @@ export default function ChatApp() {
     setMessages([]);
     setSettingsError(null);
     setShowProfileModal(false);
-    clearCreditSummary();
   };
 
   const {
@@ -174,17 +171,6 @@ export default function ChatApp() {
     onAuthenticated: handleSessionAuthenticated,
     onAuthExpired: handleSessionExpired,
   });
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (user?.credit) {
-        applyCreditSummary(user.credit, { allowAccountSwitch: true });
-        refreshCredit().catch(() => {});
-      }
-      else refreshCredit().catch(() => {});
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [applyCreditSummary, refreshCredit, user]);
 
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
@@ -275,7 +261,7 @@ export default function ChatApp() {
   const taskActions = useConversationTasks({
     user, conversationId: currentConversationId, projectId, model, webSearch, chatSystemPrompt, mediaSettings,
     setMessages, setCurrentConversationId, onActivity: fetchConversations,
-    onCreditChange: () => refreshCredit().catch(() => {}), onAuthExpired: handleAuthExpired, toast, completionSoundVolume, permissions,
+    onAuthExpired: handleAuthExpired, toast, completionSoundVolume, permissions,
   });
   const busy = loading || taskActions.submitting || isStreaming;
 
@@ -386,7 +372,7 @@ export default function ChatApp() {
           setMessages([]);
         }
       }
-      if (!res.ok) throw new Error(data?.error || "加载会话失败");
+      if (!res.ok) throw new Error(data?.error || "加载对话失败");
       if (data.conversation) {
         const conversation = data.conversation;
         if (silent && currentConversationIdRef.current && currentConversationIdRef.current !== id) {
@@ -414,7 +400,7 @@ export default function ChatApp() {
       }
     } catch (e) {
       if (!silent) {
-        toast.error(`加载会话失败：${e?.message}`);
+        toast.error(`加载对话失败：${e?.message}`);
       }
     } finally {
       if (!silent) {

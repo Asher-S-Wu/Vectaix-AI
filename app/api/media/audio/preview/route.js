@@ -1,5 +1,5 @@
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
-import { creditErrorResponse, creditHeaders } from "@/lib/server/credits/api";
+import { creditErrorResponse } from "@/lib/server/credits/api";
 import { CreditError } from "@/lib/server/credits/errors";
 import { calculateQwenTtsCost } from "@/lib/server/credits/pricing";
 import {
@@ -121,21 +121,21 @@ export async function POST(request) {
     const previewText = getVoicePreviewText(voice.languages);
     try {
       const settings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
-      const estimate = calculateQwenTtsCost({ characters: previewText.length }, settings);
+
       reservation = await reserveMediaCredits({
         operationId,
         userId: user.userId,
         feature: "qwen_tts_preview",
         provider: "qwen",
         model: AUDIO_MODEL,
-        estimate,
+
         settings,
         usage: { characters: previewText.length },
         executionClaimId: creditOperation.executionClaimId,
         requestFingerprint: creditOperation.requestFingerprint,
       });
     } catch (error) {
-      return creditErrorResponse(error, "试听积分预留失败");
+      return creditErrorResponse(error, "试听费用记录失败");
     }
     const upstream = await synthesizeSpeech({
       text: previewText,
@@ -170,7 +170,7 @@ export async function POST(request) {
       headers: {
         "Content-Type": audio.headers.get("content-type") || "audio/mpeg",
         "Cache-Control": "private, max-age=300",
-        ...creditHeaders(settled.credit),
+
       },
     });
   } catch (error) {
@@ -206,7 +206,7 @@ export async function POST(request) {
     }
     console.error("[Media Audio] preview voice:", error);
     if (error instanceof CreditError && !reservation) {
-      return creditErrorResponse(error, "试听积分预留失败");
+      return creditErrorResponse(error, "试听费用记录失败");
     }
     return Response.json(
       {

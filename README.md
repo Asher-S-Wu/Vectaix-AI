@@ -3,8 +3,8 @@
 <br/>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/%E2%9C%A6%20VECTAIX%20AI-Next%20Gen%20Intelligence-8B5CF6?style=for-the-badge&labelColor=1e1b4b">
-  <img src="https://img.shields.io/badge/%E2%9C%A6%20VECTAIX%20AI-Next%20Gen%20Intelligence-8B5CF6?style=for-the-badge&labelColor=1e1b4b" alt="Vectaix AI" width="420"/>
+  <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/%E2%9C%A6%20VECTAIX%20AI-Chat%20%26%20Media-8B5CF6?style=for-the-badge&labelColor=1e1b4b">
+  <img src="https://img.shields.io/badge/%E2%9C%A6%20VECTAIX%20AI-Chat%20%26%20Media-8B5CF6?style=for-the-badge&labelColor=1e1b4b" alt="Vectaix AI" width="420"/>
 </picture>
 
 <br/><br/>
@@ -27,16 +27,16 @@
 
 <table>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.6%20Sol-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.6 Sol"/><br/><sub><b>OpenAI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--6%20Astra-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-6 Astra"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.6%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.8%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.6-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.6"/><br/><sub><b>xAI</b></sub></td>
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-HappyHorse-615CED?style=for-the-badge&logoColor=white" alt="HappyHorse"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max"/><br/><sub><b>Alibaba Cloud</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max%200902-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max 0902"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 </tr>
 </table>
 
@@ -50,7 +50,7 @@
 
 ## Overview
 
-**Vectaix AI** is a production-grade, multi-model AI chat platform that unifies leading language models under a single, elegant interface. Rather than locking users into one AI provider, Vectaix gives you the freedom to switch between frontier models.
+**Vectaix AI** supports multi-model chat, web search, and image, video, and speech creation.
 
 <br/>
 
@@ -60,18 +60,18 @@
 
 ## Features
 
-### 🤖 Multi-Model Intelligence
+### 🤖 Multi-Model Chat
 
-Access 6 chat models through a unified interface. Switching models starts a new topic so each model keeps a clean, independent context.
+Access 6 chat models through a unified interface. Switching models starts a new conversation with its own chat history.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **GPT-5.6 Sol** | OpenAI | 1.05M | Text, Image | ✅ | ✅ |
-| **Claude Opus 5** | Anthropic | 1M | Text, Image | ✅ | ✅ |
-| **Gemini 3.7 Flash** | Google | 1M | Text, Image, Audio, Video | ✅ | ✅ |
-| **Grok 4.6** | xAI | 500K | Text, Image | ✅ | ✅ |
-| **Kimi K3** | Moonshot AI | 1M | Text, Image | ✅ | ✅ |
-| **Qwen 3.8 Max** | Alibaba Cloud | 1M | Text, Image | ✅ | ✅ |
+| **GPT-6 Astra** | OpenAI | 1,000,000 | Text, Image | ✅ | ✅ |
+| **Claude Opus 5** | Anthropic | 1,000,000 | Text, Image | ✅ | ✅ |
+| **Gemini 3.8 Flash** | Google | 1,000,000 | Text, Image, Audio, Video | ✅ | ✅ |
+| **Grok 4.6** | xAI | 256,000 | Text, Image | ✅ | ✅ |
+| **Kimi K3** | Moonshot AI | 262,144 | Text, Image | ✅ | ✅ |
+| **Qwen 3.8 Max 0902** | Alibaba Cloud | 262,144 | Text, Image | ✅ | ✅ |
 
 Dedicated media models:
 
@@ -87,14 +87,14 @@ Dedicated media models:
 
 ### 🌐 Web Browsing & Search
 
-Real-time access to the internet with intelligent multi-round browsing capabilities.
+Search the web and read multiple pages to inform answers.
 
 - **Smart Search** — Discover fresh sources with free TinyFish Search in the language of the current question
 - **Page Content** — Extract selected pages as clean Markdown with free TinyFish Fetch
 - **Multi-Page Browsing** — Crawl multiple pages in a single session
-- **Inline Citations** — Every claim backed by traceable source references
+- **Inline Citations** — Answers can include links to supporting sources
 
-Search and page fetching incur no additional credit charge. Model usage for reading sources and generating answers is still billed.
+Search and page fetching have no additional fee. Model calls used to read sources and generate answers are billed separately.
 
 <br/>
 
@@ -110,7 +110,7 @@ Upload private media files stored on the Zeabur mounted disk.
 
 <br/>
 
-### ✨ Polished User Experience
+### ✨ Chat & Personalization
 
 <table>
 <tr>
@@ -125,7 +125,7 @@ Upload private media files stored on the Zeabur mounted disk.
 <td width="50%">
 
 **🎨 Themes & Customization**
-- Dark / Light mode with smooth transitions
+- Dark / Light mode with a system preference option
 - Adjustable font size
 - Completion sound with volume control
 - Custom user avatars
@@ -147,7 +147,7 @@ Upload private media files stored on the Zeabur mounted disk.
 **🔐 Authentication & Security**
 - MongoDB-backed server session management
 - Bcrypt password hashing
-- Rate limiting on all endpoints
+- Rate limits for login and registration
 - Admin user management panel
 
 </td>
@@ -156,19 +156,17 @@ Upload private media files stored on the Zeabur mounted disk.
 <td width="50%">
 
 **⚙️ Advanced Controls**
-- Per-model thinking level adjustment
-- Max tokens control
-- Custom system prompts with presets
+- Custom assistant name, response language, and writing style
+- Conversation instructions with saved templates
 - Media resolution settings
 
 </td>
 <td width="50%">
 
 **📱 Progressive Web App**
-- Installable on any device
+- Add to the home screen in supported browsers
 - Mobile-optimized responsive UI
 - Touch-friendly interface
-- Offline-capable manifest
 
 </td>
 </tr>
@@ -276,10 +274,11 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
 | `OPENROUTER_API_KEY` | — | Shared OpenRouter API key for the GPT, Grok, Claude, Gemini, and Kimi K3 chat models |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen 3.8 Max, Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
+| `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen 3.8 Max 0902, Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
 | `DASHSCOPE_BEIJING_API_KEY` | — | Beijing-region Alibaba Cloud Model Studio API key for MiniMax Speech 2.8 HD / Turbo |
 | `AI_MEDIAKIT_API_KEY` | — | API key for AI MediaKit video enhancement (large-model edition); configure when enabled |
-| `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app, used by HappyHorse and MiniMax voice cloning to read input media |
+| `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app; required for passkey login and for HappyHorse and MiniMax voice cloning to read input media |
+| `APP_SECRETS_KEY` | — | Encrypts external connection credentials, browser login state, and scheduled backup passwords; required when using these features. Use a Base64-encoded 32-byte random key and keep it safe |
 | `TINYFISH_API_KEY` | — | Shared API key for free TinyFish Search and Fetch; required when web browsing is enabled |
 
 > [!TIP]
@@ -324,8 +323,6 @@ This project is licensed under the [MIT License](LICENSE).
 [![GitHub Forks](https://img.shields.io/github/forks/Noah-Wu66/Vectaix-AI?style=for-the-badge&logo=github&logoColor=white&label=Forks&color=60a5fa)](https://github.com/Noah-Wu66/Vectaix-AI/network/members)
 
 <br/>
-
-<sub>Built with intelligence. Designed for creative freedom.</sub>
 
 <br/>
 

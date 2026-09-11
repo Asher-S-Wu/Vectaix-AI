@@ -2,7 +2,7 @@ export default function manifest() {
     return {
         name: 'Vectaix AI',
         short_name: 'Vectaix AI',
-        description: 'Experience the next generation of AI with Gemini, Claude, GPT, Seed, and more.',
+        description: 'Vectaix AI 支持多模型对话、联网搜索，以及图片、视频和语音创作。',
         start_url: '/',
         display: 'standalone',
         background_color: '#ffffff',

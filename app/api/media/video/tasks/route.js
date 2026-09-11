@@ -1,7 +1,6 @@
 import { generateVideo } from "@/lib/media/server/operations/video";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 
-import { getCreditSummary } from "@/lib/server/credits/service";
 
 import {
   parseJsonRequest,
@@ -39,11 +38,10 @@ export async function GET(request) {
       .sort({ updatedAt: -1 })
       .limit(100)
       .lean();
-    const credit = await getCreditSummary(user.userId);
     return Response.json({
       success: true,
       tasks: tasks.map(serializeVideoTask).filter(Boolean),
-      credit,
+
     });
   } catch (error) {
     console.error("[Media Video] list tasks:", error);

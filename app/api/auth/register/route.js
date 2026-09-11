@@ -5,8 +5,6 @@ import bcrypt from 'bcryptjs';
 import { startAuthSession } from '@/lib/auth';
 import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import { isValidEmail, normalizeEmail, validatePassword } from '@/lib/server/auth/validation';
-import { initializeUserCredits } from '@/lib/server/credits/migration';
-import { getCreditSummary } from '@/lib/server/credits/service';
 
 const REGISTER_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 
@@ -77,17 +75,15 @@ export async function POST(req) {
             password: hashedPassword,
         });
 
-        await initializeUserCredits(user._id);
         await startAuthSession(user._id);
-        const credit = await getCreditSummary(user._id);
 
         return Response.json({
             success: true,
-            credit,
+
             user: {
                 id: user._id,
                 email: user.email,
-                credit,
+
                 ...getUserAccessFlags(user),
             }
         });

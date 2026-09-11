@@ -26,7 +26,7 @@ const schema = new mongoose.Schema({
   error: { type: String, default: "" },
   summary: { type: String, default: "" },
   eventSeq: { type: Number, default: 0 },
-  chargedPoints: { type: Number, default: 0 },
+  costCny: { type: Number, default: 0 },
   billingReviewRequired: { type: Boolean, default: false },
   activeOperationId: { type: String, default: null },
   artifacts: { type: [mongoose.Schema.Types.Mixed], default: [] },

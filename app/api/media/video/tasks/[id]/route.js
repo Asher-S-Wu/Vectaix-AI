@@ -15,7 +15,6 @@ import {
 } from "@/lib/media/server/happyhorse/taskRecords";
 import { VIDEO_MODEL_IDS } from "@/lib/media/shared/models";
 import { deleteStoredFilesByOwner } from "@/lib/server/storage/service";
-import { getCreditSummary } from "@/lib/server/credits/service";
 import {
   assertMediaWriteLeaseActive,
   beginMediaWriteLease,
@@ -26,7 +25,7 @@ import { syncMediaTaskBillingByOperation } from "@/lib/media/server/billing";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const UPSTREAM_QUERY_TIMEOUT_MS = 30 * 1000;
-const FINAL_BILLING_STATUSES = new Set(["settled", "released", "rejected"]);
+const FINAL_BILLING_STATUSES = new Set(["settled", "released", "rejected", "review_required"]);
 
 function jsonMessage(message, status = 400) {
   return Response.json({ success: false, message }, { status });
@@ -78,12 +77,11 @@ export async function GET(request, context) {
       });
     }
     const serializedTask = serializeVideoTask(current);
-    const credit = await getCreditSummary(user.userId);
     return Response.json({
       success: true,
       task: serializedTask,
-      billing: serializedTask?.billing ? { ...serializedTask.billing, credit } : null,
-      credit,
+      billing: serializedTask?.billing ? serializedTask.billing : null,
+
     });
   } catch (error) {
     console.error("[Media Video] get task:", error);
@@ -119,8 +117,8 @@ export async function DELETE(request, context) {
       if (!task || !FINAL_BILLING_STATUSES.has(task.billing?.status)) {
         return jsonMessage(
           task?.billing?.status === "review_required"
-            ? "该任务的积分仍待管理员核对，暂不能删除"
-            : "该任务的积分仍在结算，请稍后再删除",
+            ? "该任务的费用尚待核对"
+            : "该任务的用量仍在记录，请稍后再删除",
           409,
         );
       }

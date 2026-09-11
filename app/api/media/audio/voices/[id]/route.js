@@ -468,7 +468,7 @@ export async function PATCH(request, context) {
       feature: "media_audio_voice_clone",
       provider: "qwen",
       model: AUDIO_MODEL,
-      estimate: calculateQwenVoiceCloneCost(settings),
+
       settings,
       usage: { action: "replace_sample", profileId },
       executionClaimId: creditOperation.executionClaimId,
@@ -740,7 +740,7 @@ export async function PATCH(request, context) {
     }
     console.error("[Media Audio] update custom voice:", error);
     if (error instanceof CreditError) {
-      return creditErrorResponse(error, "音色更新积分处理失败");
+      return creditErrorResponse(error, "音色更新费用记录失败");
     }
     return Response.json(
       {

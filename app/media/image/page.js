@@ -1,5 +1,6 @@
 'use client';
 
+import UseInChatButton from '@/app/components/media/UseInChatButton';
 import { useEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -15,7 +16,6 @@ import {
   IMAGE_PROMPT_MAX_LENGTH,
   IMAGE_SIZE_OPTIONS,
 } from '@/lib/media/shared/models';
-import { useCredits } from '@/lib/client/credits/CreditContext';
 
 const IMAGE_EDIT_MAX_MB = Math.round(IMAGE_EDIT_MAX_BYTES / (1024 * 1024));
 
@@ -34,7 +34,6 @@ function getSourceImageError(file) {
 }
 
 export default function ImageGenerationPage() {
-  const { pricing } = useCredits();
   const [mode, setMode] = useState('generate');
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState('auto');
@@ -45,10 +44,6 @@ export default function ImageGenerationPage() {
   const [sourceImages, setSourceImages] = useState([]);
   const sourceImagesRef = useRef([]);
   const [sourceInputKey, setSourceInputKey] = useState(0);
-  const estimatedPoints = pricing?.qwenImage
-    ? (size === 'auto' ? pricing.qwenImage.output2K : pricing.qwenImage.output1K)
-      + (mode === 'edit' ? sourceImages.length * pricing.qwenImage.inputImage : 0)
-    : null;
 
   useEffect(() => () => {
     sourceImagesRef.current.forEach(({ previewUrl }) => URL.revokeObjectURL(previewUrl));
@@ -262,13 +257,11 @@ export default function ImageGenerationPage() {
             </select>
           </div>
 
+          <UseInChatButton section="image" value={{size}} disabled={isGenerating} />
           <button type="submit" disabled={isGenerating} className="btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">
             {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
             {isGenerating ? '处理中…' : (mode === 'edit' ? '编辑图片' : '生成图片')}
           </button>
-          {Number.isInteger(estimatedPoints) ? (
-            <p className="text-center text-xs text-zinc-500">预计约消耗 {estimatedPoints.toLocaleString('zh-CN')} 积分，完成后按实际费用结算</p>
-          ) : null}
         </form>
       </div>
 

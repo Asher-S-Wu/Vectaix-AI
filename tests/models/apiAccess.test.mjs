@@ -17,9 +17,6 @@ const {RequestCookies}=await import('next/dist/server/web/spec-extension/cookies
 const {default:dbConnect}=await import('../../lib/db.js');
 const {default:User}=await import('../../models/User.js');
 const {default:Session}=await import('../../models/Session.js');
-const {default:Provider}=await import('../../models/ModelProvider.js');
-const adminProviders=await import('../../app/api/admin/providers/route.js');
-const adminModels=await import('../../app/api/admin/models/route.js');
 const publicModels=await import('../../app/api/models/route.js');
 const transcription=await import('../../app/api/voice/transcribe/route.js');
 await dbConnect();
@@ -40,24 +37,15 @@ test('麦克风未授权时直接请求转写返回禁止，不读取录音或�
  assert.equal(response.status,403);
  assert.match((await response.json()).error,/麦克风/);
 });
-test('未登录用户不能读取目录，普通用户不能读取或修改管理员配置',async()=>{
+test('模型目录需要登录，并且不公开服务器密钥和请求配置',async()=>{
  const member=await login('member@example.com');
  assert.equal((await call(null,publicModels.GET,new Request('http://test/api/models'))).status,401);
- assert.equal((await call(member,adminModels.GET,new Request('http://test/api/admin/models'))).status,403);
- assert.equal((await call(member,adminProviders.POST,new Request('http://test/api/admin/providers',{method:'POST',body:'{}'}))).status,403);
- assert.equal(await Provider.countDocuments({}),0);
-});
-test('管理员保存密钥后，管理员列表及普通模型目录均不返回密钥',async()=>{
- const admin=await login('admin@example.com');
- const member=await login('member2@example.com');
- const response=await call(admin,adminProviders.POST,new Request('http://test/api/admin/providers',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:'secure',name:'服务商',protocol:'responses',baseUrl:'https://1.1.1.1/v1',enabled:true,apiKey:'never-show-this-secret'})}));
- assert.equal(response.status,201);
- assert.ok(!(await response.text()).includes('never-show-this-secret'));
- const list=await call(admin,adminProviders.GET,new Request('http://test/api/admin/providers'));
- assert.ok(!(await list.text()).includes('never-show-this-secret'));
- const publicResponse=await call(member,publicModels.GET,new Request('http://test/api/models'));
- assert.equal(publicResponse.status,200);
- const payload=await publicResponse.json();
+ process.env.OPENROUTER_API_KEY='never-show-this-secret';
+ const response=await call(member,publicModels.GET,new Request('http://test/api/models'));
+ assert.equal(response.status,200);
+ const payload=await response.json();
+ assert.equal(payload.models.length,6);
+ assert.ok(!JSON.stringify(payload).includes('never-show-this-secret'));
  assert.equal(payload.models[0].baseUrl,undefined);
  assert.equal(payload.models[0].requestOptions,undefined);
 });

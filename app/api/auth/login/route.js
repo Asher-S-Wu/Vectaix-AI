@@ -5,8 +5,6 @@ import bcrypt from 'bcryptjs';
 import { startAuthSession } from '@/lib/auth';
 import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import { normalizeEmail } from '@/lib/server/auth/validation';
-import { getCreditSummary } from '@/lib/server/credits/service';
-import { initializeUserCredits } from '@/lib/server/credits/migration';
 
 const LOGIN_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
 
@@ -59,19 +57,15 @@ export async function POST(req) {
             return Response.json({ error: '邮箱或密码错误' }, { status: 401 });
         }
 
-        if (!user.creditsInitializedAt) {
-            await initializeUserCredits(user._id);
-        }
         await startAuthSession(user._id);
-        const credit = await getCreditSummary(user._id);
 
         return Response.json({
             success: true,
-            credit,
+
             user: {
                 id: user._id,
                 email: user.email,
-                credit,
+
                 ...getUserAccessFlags(user),
             }
         });

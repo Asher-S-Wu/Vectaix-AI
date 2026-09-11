@@ -51,7 +51,7 @@ export default function SystemPromptModal({
     setSaving(true);
     try {
       await onChatSystemPromptSave(draft);
-      toast.success(draft.trim() ? "系统提示词已生效" : "系统提示词已清除");
+      toast.success(draft.trim() ? "对话指令已生效" : "对话指令已清除");
       onClose();
     } catch (e) {
       toast.error("保存失败");
@@ -62,11 +62,11 @@ export default function SystemPromptModal({
 
   const handleCreatePreset = () => {
     if (!draft.trim()) {
-      toast.warning("当前内容为空，请输入内容后再存为预设");
+      toast.warning("当前内容为空，请输入内容后再存为模板");
       return;
     }
     setEditingId("new");
-    setEditName("新预设");
+    setEditName("新模板");
     setEditContent(draft);
   };
 
@@ -85,10 +85,10 @@ export default function SystemPromptModal({
     try {
       if (editingId === "new") {
         await addSystemPrompt(editName, editContent);
-        toast.success("已创建预设");
+        toast.success("已创建模板");
       } else {
         await updateSystemPrompt(editingId, editName, editContent);
-        toast.success("已更新预设");
+        toast.success("已更新模板");
       }
       setEditingId(null);
     } catch (e) {
@@ -98,7 +98,7 @@ export default function SystemPromptModal({
 
   const applyPreset = (preset) => {
     setDraft(preset.content);
-    toast.success(`已应用预设：${preset.name}`);
+    toast.success(`已载入模板：${preset.name}`);
   };
 
   const handleDeletePreset = (e, id) => {
@@ -112,7 +112,7 @@ export default function SystemPromptModal({
     if (!id) return;
     try {
       await deleteSystemPrompt(id);
-      toast.success("已删除预设");
+      toast.success("已删除模板");
       if (editingId === id) setEditingId(null);
     } catch (e) {
       toast.error("删除失败");
@@ -144,7 +144,7 @@ export default function SystemPromptModal({
               <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center shrink-0">
                 <h3 className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
                   <MessageSquareQuote size={16} className="text-primary" />
-                  预设库
+                  指令模板
                 </h3>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2 fade-scrollbar">
@@ -158,8 +158,8 @@ export default function SystemPromptModal({
                       <div className="flex justify-between items-start mb-1.5">
                         <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate pr-8">{preset.name}</h4>
                         <div className="preset-actions absolute right-2 top-2 flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-                          <button onClick={(e) => handleEditPreset(e, preset)} aria-label="编辑预设" className="p-1.5 text-zinc-400 hover:text-primary bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 transition-colors"><Edit3 size={14}/></button>
-                          <button onClick={(e) => handleDeletePreset(e, preset._id)} aria-label="删除预设" className="p-1.5 text-zinc-400 hover:text-red-500 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 ml-1 transition-colors"><Trash2 size={14}/></button>
+                          <button onClick={(e) => handleEditPreset(e, preset)} aria-label="编辑模板" className="p-1.5 text-zinc-400 hover:text-primary bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 transition-colors"><Edit3 size={14}/></button>
+                          <button onClick={(e) => handleDeletePreset(e, preset._id)} aria-label="删除模板" className="p-1.5 text-zinc-400 hover:text-red-500 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 ml-1 transition-colors"><Trash2 size={14}/></button>
                         </div>
                       </div>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">{preset.content}</p>
@@ -170,8 +170,8 @@ export default function SystemPromptModal({
                     <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-3">
                       <MessageSquareQuote size={20} className="text-zinc-400" />
                     </div>
-                    <p className="text-sm text-zinc-500">暂无预设</p>
-                    <p className="text-xs text-zinc-400 mt-1">在右侧编辑内容后可存为预设</p>
+                    <p className="text-sm text-zinc-500">暂无模板</p>
+                    <p className="text-xs text-zinc-400 mt-1">在右侧编辑内容后可存为模板</p>
                   </div>
                 )}
               </div>
@@ -196,19 +196,19 @@ export default function SystemPromptModal({
                   <div className="flex flex-col h-full">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                        {editingId === "new" ? "新建预设" : "编辑预设"}
+                        {editingId === "new" ? "新建模板" : "编辑模板"}
                       </h3>
                     </div>
                     <input
                       type="text"
-                      placeholder="预设名称，例如：前端专家"
+                      placeholder="模板名称，例如：前端专家"
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
                       className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary mb-4 transition-all"
                     />
                     <textarea
                       className="flex-1 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 text-sm text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all leading-relaxed fade-scrollbar"
-                      placeholder="输入预设的提示词内容…"
+                      placeholder="输入模板中的对话指令…"
                       value={editContent}
                       onChange={e => setEditContent(e.target.value)}
                     />
@@ -218,7 +218,7 @@ export default function SystemPromptModal({
                       </button>
                       <button onClick={submitPreset} className="btn-primary px-6 py-2.5 text-sm font-medium rounded-xl flex items-center gap-2">
                         <Check size={16} />
-                        保存预设
+                        保存模板
                       </button>
                     </div>
                   </div>
@@ -229,7 +229,7 @@ export default function SystemPromptModal({
                         后续对话使用的指令
                       </label>
                       <button onClick={handleCreatePreset} className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">
-                        <Plus size={14} /> 存为新预设
+                        <Plus size={14} /> 存为新模板
                       </button>
                     </div>
                     <textarea
@@ -246,7 +246,7 @@ export default function SystemPromptModal({
               {!editingId && (
                 <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex justify-between items-center shrink-0">
                   <div className="text-xs text-zinc-500">
-                    配置保存后立即对后续对话生效
+                    保存后将用于后续对话
                   </div>
                   <div className="flex items-center gap-3">
                     <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
@@ -254,7 +254,7 @@ export default function SystemPromptModal({
                     </button>
                     <button disabled={saving} onClick={handleSave} className="btn-primary px-6 py-2.5 text-sm font-medium disabled:opacity-50 rounded-xl flex items-center gap-2">
                       <Check size={16} />
-                      {saving ? "保存中…" : "应用配置"}
+                      {saving ? "保存中…" : "保存指令"}
                     </button>
                   </div>
                 </div>
@@ -268,8 +268,8 @@ export default function SystemPromptModal({
         open={Boolean(deleteConfirmId)}
         onClose={() => setDeleteConfirmId(null)}
         onConfirm={confirmDeletePreset}
-        title="删除预设"
-        message="确定要删除这个预设吗？此操作无法撤销。"
+        title="删除模板"
+        message="确定要删除这个模板吗？此操作无法撤销。"
         confirmText="删除"
         danger
       />

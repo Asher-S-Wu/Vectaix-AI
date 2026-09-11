@@ -1,5 +1,6 @@
 "use client";
 
+import UseInChatButton from '@/app/components/media/UseInChatButton';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -28,7 +29,6 @@ import VoicePicker, { mapDoubaoCustomVoice } from "@/app/components/media/VoiceP
 import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
 import { createDoubaoAudioVoicePageAdapter } from "@/lib/media/client/audioVoiceSelection.mjs";
 import { readLocalSetting, writeLocalSetting } from "@/lib/client/localSettings";
-import { useCredits } from "@/lib/client/credits/CreditContext";
 import {
   createDoubaoAudioGeneration,
   createDoubaoVoice,
@@ -60,7 +60,6 @@ function sampleRateLabel(value) {
 }
 
 export default function DoubaoAudioWorkspacePage() {
-  const { pricing } = useCredits();
   const reduceMotion = useReducedMotion();
   const textRef = useRef(null);
   const generationsVersionRef = useRef(0);
@@ -406,6 +405,7 @@ export default function DoubaoAudioWorkspacePage() {
                 </AnimatePresence>
               </div>
 
+              <UseInChatButton section="audio" value={{provider:'doubao',voiceId,instruction:instruction.trim(),format,sampleRate,speechRate,loudnessRate,pitchRate}} disabled={generating || !voiceId} />
               <AudioFormError message={generationError || voicesError} />
               <button
                 type="submit"
@@ -415,9 +415,6 @@ export default function DoubaoAudioWorkspacePage() {
                 {generating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <WandSparkles className="h-5 w-5" />}
                 {generating ? "正在生成语音…" : (voices.length ? "生成语音" : "请先添加声音")}
               </button>
-              {Number.isInteger(pricing?.seedAudio?.maximum120Seconds) ? (
-                <p className="text-center text-xs text-zinc-500">本次最多冻结 {pricing.seedAudio.maximum120Seconds.toLocaleString("zh-CN")} 积分，完成后按实际原始音频时长退回差额</p>
-              ) : null}
               <div className="sr-only" aria-live="polite">{generating ? "正在生成语音，请稍候" : latest ? "语音已经生成并保存" : ""}</div>
             </form>
           </section>

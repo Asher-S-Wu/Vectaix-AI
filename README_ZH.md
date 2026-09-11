@@ -27,16 +27,16 @@
 
 <table>
 <tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--5.6%20Sol-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-5.6 Sol"/><br/><sub><b>OpenAI</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--6%20Astra-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-6 Astra"/><br/><sub><b>OpenAI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.6%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.8%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.6-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.6"/><br/><sub><b>xAI</b></sub></td>
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>阿里云</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-HappyHorse-615CED?style=for-the-badge&logoColor=white" alt="HappyHorse"/><br/><sub><b>阿里云</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max"/><br/><sub><b>Alibaba Cloud</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max%200902-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max 0902"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 </tr>
 </table>
 
@@ -50,7 +50,7 @@
 
 ## 项目概述
 
-**Vectaix AI** 是一个生产级的多模型 AI 聊天平台，将全球领先的语言模型汇聚于一个优雅的统一界面。不再局限于单一 AI 服务商，Vectaix 让你自由地在多个前沿模型之间切换。
+**Vectaix AI** 支持多模型对话、联网搜索，以及图片、视频和语音创作。
 
 <br/>
 
@@ -60,18 +60,18 @@
 
 ## 功能特性
 
-### 🤖 多模型智能
+### 🤖 多模型对话
 
-支持 6 个聊天模型，通过统一界面访问。对话中切换模型时会新建话题，避免不同模型的上下文相互混淆。
+支持 6 个聊天模型，通过统一界面访问。切换模型时会新建对话，各自保留独立的聊天记录。
 
 | 模型 | 供应商 | 上下文窗口 | 输入类型 | 深度思考 | 联网搜索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **GPT-5.6 Sol** | OpenAI | 105 万 | 文本、图像 | ✅ | ✅ |
-| **Claude Opus 5** | Anthropic | 100 万 | 文本、图像 | ✅ | ✅ |
-| **Gemini 3.7 Flash** | Google | 100 万 | 文本、图像、音频、视频 | ✅ | ✅ |
-| **Grok 4.6** | xAI | 50 万 | 文本、图像 | ✅ | ✅ |
-| **Kimi K3** | Moonshot AI | 100 万 | 文本、图像 | ✅ | ✅ |
-| **Qwen 3.8 Max** | 阿里云 | 100 万 | 文本、图像 | ✅ | ✅ |
+| **GPT-6 Astra** | OpenAI | 1,000,000 | 文本、图像 | ✅ | ✅ |
+| **Claude Opus 5** | Anthropic | 1,000,000 | 文本、图像 | ✅ | ✅ |
+| **Gemini 3.8 Flash** | Google | 1,000,000 | 文本、图像、音频、视频 | ✅ | ✅ |
+| **Grok 4.6** | xAI | 256,000 | 文本、图像 | ✅ | ✅ |
+| **Kimi K3** | Moonshot AI | 262,144 | 文本、图像 | ✅ | ✅ |
+| **Qwen 3.8 Max 0902** | 阿里云 | 262,144 | 文本、图像 | ✅ | ✅ |
 
 独立媒体模型：
 
@@ -87,14 +87,14 @@
 
 ### 🌐 联网搜索与浏览
 
-具备实时互联网访问能力，支持智能多轮浏览。
+支持搜索网页，并读取多个页面作为回答的参考。
 
 - **智能搜索** — 通过免费的 TinyFish Search 查找最新网页，搜索语言跟随当前提问
 - **网页内容提取** — 通过免费的 TinyFish Fetch 将选定页面提取为干净的 Markdown
-- **多页浏览** — 单次会话中抓取多个页面
-- **行内引用** — 每个论点都有可溯源的参考链接
+- **多页浏览** — 一次回答中读取多个页面
+- **行内引用** — 支持在回答中附上来源链接
 
-搜索和网页读取不额外扣积分；AI 阅读资料和生成回答仍按模型用量计费。
+搜索和网页读取不额外收费；AI 阅读资料和生成回答的模型调用费用另计。
 
 <br/>
 
@@ -110,7 +110,7 @@
 
 <br/>
 
-### ✨ 精致的用户体验
+### ✨ 对话与个性化设置
 
 <table>
 <tr>
@@ -125,7 +125,7 @@
 <td width="50%">
 
 **🎨 主题与个性化**
-- 深色 / 浅色模式，丝滑过渡
+- 深色 / 浅色模式，可跟随系统切换
 - 可调节字体大小
 - 完成提示音及音量控制
 - 自定义用户头像
@@ -147,7 +147,7 @@
 **🔐 认证与安全**
 - 基于 MongoDB 的服务端会话管理
 - Bcrypt 密码哈希
-- 全端点限速保护
+- 限制登录和注册的请求频率
 - 管理员用户管理面板
 
 </td>
@@ -156,19 +156,17 @@
 <td width="50%">
 
 **⚙️ 高级控制**
-- 按模型调节思考深度
-- 最大输出 Token 数控制
-- 自定义系统提示词，支持预设
+- 自定义助手名称、回复语言和表达风格
+- 设置对话指令，支持保存为模板
 - 媒体分辨率设置
 
 </td>
 <td width="50%">
 
 **📱 渐进式 Web 应用**
-- 可安装到任何设备
+- 支持的浏览器可将网站添加到主屏幕
 - 移动端优化的响应式 UI
 - 触控友好的交互界面
-- 离线可用的 PWA 清单
 
 </td>
 </tr>
@@ -275,10 +273,11 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | 挂载硬盘目录，Zeabur 使用 `/data/vectaix` |
 | `ADMIN_EMAILS` | — | 管理员邮箱，多个邮箱使用英文逗号分隔 |
 | `OPENROUTER_API_KEY` | — | GPT、Grok、Claude、Gemini、Kimi K3 等聊天模型共用的 OpenRouter API 密钥 |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max、Qwen Image 3.0 Pro、HappyHorse 视频和 Qwen Audio 3.0 TTS Plus 使用的新加坡区域阿里云百炼 API 密钥 |
+| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max 0902、Qwen Image 3.0 Pro、HappyHorse 视频和 Qwen Audio 3.0 TTS Plus 使用的新加坡区域阿里云百炼 API 密钥 |
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 使用的北京区域阿里云百炼 API 密钥 |
 | `AI_MEDIAKIT_API_KEY` | — | AI MediaKit 画质增强（大模型版）使用的 API Key，实际启用时配置 |
-| `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址，供 HappyHorse 和 MiniMax 声音复刻读取输入素材 |
+| `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址；通行密钥登录、HappyHorse 和 MiniMax 声音复刻读取素材时需要 |
+| `APP_SECRETS_KEY` | — | 用于加密外部连接凭据、浏览器登录状态和定时备份密码；启用这些功能时需要。值为 32 字节随机密钥的 Base64 编码，请妥善保存 |
 | `TINYFISH_API_KEY` | — | TinyFish 免费 Search 与 Fetch 接口共用的 API 密钥，启用联网时必需 |
 
 > [!TIP]
@@ -323,8 +322,6 @@ vectaix-ai/
 [![GitHub Forks](https://img.shields.io/github/forks/Noah-Wu66/Vectaix-AI?style=for-the-badge&logo=github&logoColor=white&label=Forks&color=60a5fa)](https://github.com/Noah-Wu66/Vectaix-AI/network/members)
 
 <br/>
-
-<sub>以智能构建，让创作更自由。</sub>
 
 <br/>
 
