@@ -26,6 +26,31 @@ test.before(async () => { database = await MongoMemoryServer.create(); await mon
 test.after(async () => { await mongoose.disconnect(); await database?.stop(); await rm(directory, { recursive: true, force: true }); });
 const userId = String(new mongoose.Types.ObjectId()), other = String(new mongoose.Types.ObjectId());
 
+test('library exposes deletion reasons and rejects a mixed batch before deleting any file', async () => {
+  const owner = String(new mongoose.Types.ObjectId());
+  const [ordinary, managed] = await files.uploadLibrary(owner, [new File(['ordinary'], 'ordinary.txt'), new File(['managed'], 'generated.txt')], null);
+  await StoredFile.updateOne({ fileId: managed.fileId }, { $set: { ownerType: 'image-result' } });
+  const listing = await files.listLibrary(owner, null);
+  assert.equal(listing.files.find(file => file.fileId === ordinary.fileId).deletionBlockedReason, null);
+  assert.match(listing.files.find(file => file.fileId === managed.fileId).deletionBlockedReason, /图片生成/);
+  await assert.rejects(() => files.deleteLibraryFiles(owner, [ordinary.fileId, managed.fileId]), error => error.status === 409 && /generated.txt/.test(error.message));
+  assert.equal(await StoredFile.countDocuments({ userId: owner }), 2);
+  await assert.rejects(() => files.deleteLibraryFiles(other, [ordinary.fileId]), /不存在/);
+  await files.deleteLibraryFiles(owner, [ordinary.fileId]);
+  assert.equal(await StoredFile.exists({ fileId: ordinary.fileId }), null);
+  assert.ok(await StoredFile.exists({ fileId: managed.fileId }));
+});
+
+test('library reports reference restrictions and rechecks them when deleting a batch', async () => {
+  const owner = String(new mongoose.Types.ObjectId());
+  const [first, referenced] = await files.uploadLibrary(owner, [new File(['first'], 'first.txt'), new File(['reference'], 'reference.txt')], null);
+  assert.equal((await files.listLibrary(owner, null)).files[0].deletionBlockedReason, null);
+  await Conversation.create({ userId: owner, title: '引用', messages: [{ role: 'user', content: `/api/files/${referenced.fileId}` }] });
+  assert.match((await files.listLibrary(owner, null)).files.find(file => file.fileId === referenced.fileId).deletionBlockedReason, /仍被/);
+  await assert.rejects(() => files.deleteLibraryFiles(owner, [first.fileId, referenced.fileId]), /reference.txt/);
+  assert.equal(await StoredFile.countDocuments({ userId: owner }), 2);
+});
+
 test('skill ZIP import retains metadata and assets, owner scope, edit and export', async () => {
   const chunks = []; for await (const chunk of zipStream([{ name: 'demo/SKILL.md', buffer: Buffer.from('---\nname: 文档整理\ndescription: 整理资料\nlicense: MIT\n---\n工作步骤') }, { name: 'demo/scripts/run.py', buffer: Buffer.from('print("stored only")') }])) chunks.push(chunk);
   const skill = await skills.importSkill(userId, { name: 'demo.skill', buffer: Buffer.concat(chunks) });
