@@ -6,6 +6,7 @@ import dbConnect from "@/lib/db";
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import {
   DOCUMENT_EXTENSIONS,
+  getAttachmentCategory,
   getAttachmentInputType,
   getAttachmentLimits,
   getFileExtension,
@@ -16,8 +17,8 @@ import {
   isMediaGenerationModel,
 } from "@/lib/shared/models";
 import {
-  IMAGE_EDIT_ACCEPTED_EXTENSIONS,
-  IMAGE_EDIT_MAX_BYTES,
+  getImageModelConfig,
+  validateImageReferences,
 } from "@/lib/media/shared/models";
 import { inspectUploadedFile } from "@/lib/server/storage/fileInspection";
 import {
@@ -59,11 +60,15 @@ export async function POST(request) {
     const model = String(formData.get("model") || "").trim();
     if (!(file instanceof File)) return jsonError("缺少上传文件");
     if (kind !== "chat" && kind !== "avatar") return jsonError("上传用途不合法");
+    const imageConfig = kind === "chat" && isImageGenerationModel(model)
+      ? getImageModelConfig(model)
+      : null;
     const originalName = String(file.name || "").trim();
     const extension = getFileExtension(originalName);
     if (!extension || !isSupportedUploadExtension(extension)) {
       return jsonError("不支持该文件类型");
     }
+    if (imageConfig) validateImageReferences(model, [file], { requireImages: true });
     if (DOCUMENT_EXTENSIONS.includes(extension)) {
       if (kind !== "chat" || isMediaGenerationModel(model)) return jsonError("当前用途不支持文档");
       await dbConnect();
@@ -74,20 +79,13 @@ export async function POST(request) {
     }
     if (
       QWEN_ONLY_IMAGE_EXTENSIONS.has(extension)
-      && (kind !== "chat" || !isImageGenerationModel(model))
+      && imageConfig?.service !== "qwen"
     ) {
       return jsonError("该图片格式仅支持千问图片模型");
     }
-    const isImageExtension = IMAGE_EDIT_ACCEPTED_EXTENSIONS.includes(extension);
-    const limits = getAttachmentLimits(
-      isImageExtension
-        ? "image"
-        : ["mp3", "wav", "m4a", "aac", "ogg", "weba"].includes(extension)
-          ? "audio"
-          : "video"
-    );
-    const maxBytes = kind === "chat" && isImageGenerationModel(model) && isImageExtension
-      ? IMAGE_EDIT_MAX_BYTES
+    const limits = getAttachmentLimits(getAttachmentCategory({ extension }));
+    const maxBytes = imageConfig
+      ? imageConfig.maxImageBytes
       : limits.maxBytes;
     if (file.size <= 0 || file.size > maxBytes) {
       const maxMb = Math.round(maxBytes / (1024 * 1024));
@@ -97,6 +95,9 @@ export async function POST(request) {
     const inspected = inspectUploadedFile(input, extension);
     if (!inspected) return jsonError("文件内容与扩展名不匹配");
     const { mimeType, category } = inspected;
+    if (imageConfig) {
+      validateImageReferences(model, [{ name: originalName, type: mimeType, size: input.length }], { requireImages: true });
+    }
     if (kind === "avatar" && category !== "image") {
       return jsonError("头像仅支持图片文件");
     }

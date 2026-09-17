@@ -41,12 +41,9 @@ import {
   isImageGenerationModel,
   modelSupportsAvailableInput,
 } from "@/lib/shared/models";
-import { getFileExtension } from "@/lib/shared/attachments";
 import {
-  IMAGE_EDIT_ACCEPTED_EXTENSIONS,
-  IMAGE_EDIT_ACCEPTED_MIME_TYPES,
-  IMAGE_EDIT_MAX_BYTES,
-  IMAGE_EDIT_MAX_COUNT,
+  getImageModelConfig,
+  validateImageReferences,
 } from "@/lib/media/shared/models";
 import {
   STARTER_PROMPTS,
@@ -111,7 +108,23 @@ export default function MessageList({
   const [copiedIndex, setCopiedIndex] = useState(null);
   const copyTimerRef = useRef(null);
   const canEditImages = modelSupportsAvailableInput(model, "image");
-  const editingImageLimit = isImageGenerationModel(model) ? IMAGE_EDIT_MAX_COUNT : 1;
+  const imageConfig = isImageGenerationModel(model) ? getImageModelConfig(model) : null;
+  const editingImageLimit = imageConfig ? imageConfig.maxReferenceImages : 1;
+  let editingImageError = "";
+  if (imageConfig) {
+    try {
+      validateImageReferences(model, editingImages.map((image) => ({
+        name: image.name,
+        type: image.mimeType,
+        size: image.size,
+      })));
+      if (editingImages.some((image) => image.uploadStatus === "error")) {
+        editingImageError = "参考图片未上传成功，请移除后重新选择";
+      }
+    } catch (error) {
+      editingImageError = error.message;
+    }
+  }
   const toast = useToast();
   const hasWaitingFirstChunk = messages.some((message) => message?.isWaitingFirstChunk);
   const hasStreamingContent = messages.some((message) => (message?.isStreaming && !message?.isWaitingFirstChunk) || message?.isSearching);
@@ -182,19 +195,22 @@ export default function MessageList({
       toast.warning(`最多保留 ${editingImageLimit} 张参考图片`);
       return;
     }
+    if (imageConfig) {
+      try {
+        validateImageReferences(model, [
+          ...editingImages.map((image) => ({ name: image.name, type: image.mimeType, size: image.size })),
+          ...files,
+        ]);
+      } catch (error) {
+        toast.warning(error.message);
+        return;
+      }
+    }
 
     const selected = [];
     for (const file of files) {
-      const extension = getFileExtension(file.name);
-      const isQwenImage = isImageGenerationModel(model);
-      const hasAllowedType = IMAGE_EDIT_ACCEPTED_MIME_TYPES.includes(file.type)
-        || IMAGE_EDIT_ACCEPTED_EXTENSIONS.includes(extension);
-      if ((isQwenImage && !hasAllowedType) || (!isQwenImage && !file.type.startsWith("image/"))) {
+      if (!imageConfig && !file.type.startsWith("image/")) {
         toast.warning(`“${file.name}”不是支持的图片格式`);
-        return;
-      }
-      if (isQwenImage && (file.size <= 0 || file.size > IMAGE_EDIT_MAX_BYTES)) {
-        toast.warning(`“${file.name}”不能超过 10MB`);
         return;
       }
       const preview = await readImagePreview(file).catch(() => "");
@@ -207,6 +223,7 @@ export default function MessageList({
         preview,
         name: file.name,
         mimeType: file.type,
+        size: file.size,
       });
     }
     onEditingImagesSelect?.(selected);
@@ -431,10 +448,10 @@ export default function MessageList({
                             ref={editFileInputRef}
                             onChange={handleEditFileSelect}
                             className="hidden"
-                            accept={isImageGenerationModel(model)
+                            accept={imageConfig
                               ? [
-                                  ...IMAGE_EDIT_ACCEPTED_MIME_TYPES,
-                                  ...IMAGE_EDIT_ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`),
+                                  ...imageConfig.mimeTypes,
+                                  ...imageConfig.extensions.map((extension) => `.${extension}`),
                                 ].join(",")
                               : "image/*"}
                             multiple={editingImageLimit > 1}
@@ -478,6 +495,8 @@ export default function MessageList({
                               </span>
                             ) : null}
                           </div>
+                          {imageConfig ? <p className="mb-2 text-[11px] text-zinc-500">单张不超过 {imageConfig.maxImageBytes / (1024 * 1024)}MB，合计不超过 {imageConfig.maxTotalImageBytes / (1024 * 1024)}MB</p> : null}
+                          {editingImageError ? <p role="alert" className="mb-2 text-xs text-red-500">{editingImageError}</p> : null}
                         </>
                       ) : null}
                       <textarea
@@ -490,8 +509,8 @@ export default function MessageList({
                     <div className="flex gap-2">
                       <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors">取消</button>
                       <button
-                        onClick={() => onSubmitEdit(i)}
-                        disabled={isEditingImageUploading}
+                        onClick={() => { if (!editingImageError) onSubmitEdit(i); }}
+                        disabled={isEditingImageUploading || Boolean(editingImageError)}
                         className="btn-primary px-3 py-1.5 text-xs rounded-lg disabled:opacity-40"
                       >
                         {isEditingImageUploading ? "上传中" : "提交"}

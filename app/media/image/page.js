@@ -8,52 +8,78 @@ import { ImagePlus, Loader2, RefreshCw, Sparkles, Upload, Wand2, X } from 'lucid
 import ImageResultCard from '@/app/components/media/image-result-card';
 import { editImage, generateImage } from '@/lib/media/client/media';
 import {
-  IMAGE_EDIT_ACCEPTED_MIME_TYPES,
-  IMAGE_EDIT_ACCEPTED_EXTENSIONS,
-  IMAGE_EDIT_MAX_BYTES,
-  IMAGE_EDIT_MAX_COUNT,
-  IMAGE_MODEL_NAME,
-  IMAGE_PROMPT_MAX_LENGTH,
-  IMAGE_SIZE_OPTIONS,
+  IMAGE_MODEL,
+  IMAGE_MODELS,
+  getImageModelConfig,
+  validateImageOptions,
+  validateImageReferences,
 } from '@/lib/media/shared/models';
-
-const IMAGE_EDIT_MAX_MB = Math.round(IMAGE_EDIT_MAX_BYTES / (1024 * 1024));
-
-function getSourceImageError(file) {
-  const extension = file.name.split('.').pop()?.toLowerCase() || '';
-  if (
-    !IMAGE_EDIT_ACCEPTED_MIME_TYPES.includes(file.type)
-    && !IMAGE_EDIT_ACCEPTED_EXTENSIONS.includes(extension)
-  ) {
-    return `“${file.name}”的格式不支持，请选择常见图片格式`;
-  }
-  if (file.size > IMAGE_EDIT_MAX_BYTES) {
-    return `“${file.name}”超过 ${IMAGE_EDIT_MAX_MB}MB，请压缩后再上传`;
-  }
-  return '';
-}
 
 export default function ImageGenerationPage() {
   const [mode, setMode] = useState('generate');
   const [prompt, setPrompt] = useState('');
-  const [size, setSize] = useState('auto');
+  const [model, setModel] = useState(IMAGE_MODEL);
+  const [optionsByModel, setOptionsByModel] = useState(() => Object.fromEntries(
+    IMAGE_MODELS.map((config) => [config.id, {
+      size: config.defaultSize,
+      ...(config.qualities.length > 0 ? { quality: config.defaultQuality } : {}),
+    }]),
+  ));
   const [isGenerating, setIsGenerating] = useState(false);
+  const requestControllerRef = useRef(null);
+  const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [resultTitle, setResultTitle] = useState('生成的图片');
   const [sourceImages, setSourceImages] = useState([]);
   const sourceImagesRef = useRef([]);
   const [sourceInputKey, setSourceInputKey] = useState(0);
+  const modelConfig = getImageModelConfig(model);
+  const selectedOptions = { model, ...optionsByModel[model] };
+  const { size, quality } = selectedOptions;
+  let optionsError = '';
+  let referenceError = '';
+  try {
+    validateImageOptions(selectedOptions);
+  } catch (validationError) {
+    optionsError = validationError.message;
+  }
+  if (mode === 'edit') {
+    try {
+      validateImageReferences(model, sourceImages.map(({ file }) => file), { requireImages: true });
+    } catch (validationError) {
+      referenceError = validationError.message;
+    }
+  }
+  const validationError = optionsError || referenceError;
+  const displayedError = error || validationError;
 
   useEffect(() => () => {
+    const controller = requestControllerRef.current;
+    requestControllerRef.current = null;
+    controller?.abort();
     sourceImagesRef.current.forEach(({ previewUrl }) => URL.revokeObjectURL(previewUrl));
   }, []);
 
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
     setError('');
+    setNotice('');
     setImageUrl('');
     setResultTitle(nextMode === 'edit' ? '编辑后的图片' : '生成的图片');
+  };
+
+  const handleModelChange = (nextModel) => {
+    setModel(nextModel);
+    setError('');
+  };
+
+  const handleOptionChange = (field, value) => {
+    setOptionsByModel((current) => ({
+      ...current,
+      [model]: { ...current[model], [field]: value },
+    }));
+    setError('');
   };
 
   const handleSourceImagesChange = (fileList) => {
@@ -63,14 +89,10 @@ export default function ImageGenerationPage() {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
 
-    if (sourceImages.length + files.length > IMAGE_EDIT_MAX_COUNT) {
-      setError(`最多可选择 ${IMAGE_EDIT_MAX_COUNT} 张参考图片`);
-      return;
-    }
-
-    const validationError = files.map(getSourceImageError).find(Boolean);
-    if (validationError) {
-      setError(validationError);
+    try {
+      validateImageReferences(model, [...sourceImages.map(({ file }) => file), ...files]);
+    } catch (validationError) {
+      setError(validationError.message);
       return;
     }
 
@@ -98,46 +120,57 @@ export default function ImageGenerationPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (requestControllerRef.current) return;
     setError('');
+    setNotice('');
 
     if (!prompt.trim()) {
       setError('请输入图片描述');
       return;
     }
 
-    if (prompt.trim().length > IMAGE_PROMPT_MAX_LENGTH) {
-      setError(`描述最多支持 ${IMAGE_PROMPT_MAX_LENGTH} 个字符`);
+    if (prompt.trim().length > modelConfig.promptMaxLength) {
+      setError(`描述最多支持 ${modelConfig.promptMaxLength} 个字符`);
       return;
     }
 
-    if (mode === 'edit') {
-      if (sourceImages.length === 0) {
-        setError('请至少选择一张参考图片');
-        return;
+    let options;
+    try {
+      options = validateImageOptions(selectedOptions);
+      if (mode === 'edit') {
+        validateImageReferences(model, sourceImages.map(({ file }) => file), { requireImages: true });
       }
-      if (sourceImages.length > IMAGE_EDIT_MAX_COUNT) {
-        setError(`最多可选择 ${IMAGE_EDIT_MAX_COUNT} 张参考图片`);
-        return;
-      }
-      const validationError = sourceImages.map(({ file }) => getSourceImageError(file)).find(Boolean);
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
+    } catch (validationError) {
+      setError(validationError.message);
+      return;
     }
 
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
     setIsGenerating(true);
     try {
-      const url = mode === 'edit' && sourceImages.length > 0
-        ? await editImage({ prompt: prompt.trim(), size, images: sourceImages.map(({ file }) => file) })
-        : await generateImage({ prompt: prompt.trim(), size });
+      const url = mode === 'edit'
+        ? await editImage({ prompt: prompt.trim(), ...options, images: sourceImages.map(({ file }) => file) }, { signal: controller.signal })
+        : await generateImage({ prompt: prompt.trim(), ...options }, { signal: controller.signal });
+      if (controller.signal.aborted || requestControllerRef.current !== controller) return;
       setImageUrl(url);
       setResultTitle(mode === 'edit' ? '编辑后的图片' : '生成的图片');
     } catch (generateError) {
+      if (controller.signal.aborted || requestControllerRef.current !== controller) return;
       setError(generateError instanceof Error ? generateError.message : '图片处理失败，请稍后再试');
     } finally {
-      setIsGenerating(false);
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+        setIsGenerating(false);
+      }
     }
+  };
+
+  const handleCancel = () => {
+    const controller = requestControllerRef.current;
+    if (!controller || controller.signal.aborted) return;
+    controller.abort();
+    setNotice('已取消本次请求');
   };
 
   return (
@@ -147,13 +180,13 @@ export default function ImageGenerationPage() {
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Wand2 className="h-5 w-5" /></span>
           <div>
             <h2 className="text-lg font-semibold">图片生成</h2>
-            <p className="text-sm text-zinc-500">使用 {IMAGE_MODEL_NAME}，生成新图片或编辑已有图片。</p>
+            <p className="text-sm text-zinc-500">使用 {modelConfig.name}，生成新图片或编辑已有图片。</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <AnimatePresence initial={false}>
-            {error ? (
+            {displayedError ? (
               <motion.div
                 key="form-error"
                 initial={{ opacity: 0, height: 0 }}
@@ -162,14 +195,25 @@ export default function ImageGenerationPage() {
                 className="overflow-hidden"
               >
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                  <span>{error}</span>
-                  <button type="submit" className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline">
-                    <RefreshCw className="h-3 w-3" /> 重试
-                  </button>
+                  <span role="alert">{displayedError}</span>
+                  {!validationError ? (
+                    <button type="submit" disabled={isGenerating} className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline disabled:opacity-50">
+                      <RefreshCw className="h-3 w-3" /> 重试
+                    </button>
+                  ) : null}
                 </div>
               </motion.div>
             ) : null}
           </AnimatePresence>
+
+          <div className="space-y-2">
+            <label htmlFor="image-model" className="text-sm font-medium">图片模型</label>
+            <select id="image-model" value={model} onChange={(event) => handleModelChange(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
+              {IMAGE_MODELS.map((option) => (
+                <option key={option.id} value={option.id}>{option.name}</option>
+              ))}
+            </select>
+          </div>
 
           <div className="relative grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/70 dark:bg-zinc-900/70 p-1">
             <button type="button" onClick={() => handleModeChange('generate')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'generate' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
@@ -198,29 +242,30 @@ export default function ImageGenerationPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor="source-images" className="text-sm font-medium">参考图片</label>
-                <span className="text-xs text-zinc-500">已选 {sourceImages.length}/{IMAGE_EDIT_MAX_COUNT} 张</span>
+                <span className="text-xs text-zinc-500">已选 {sourceImages.length}/{modelConfig.maxReferenceImages} 张</span>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label
                   htmlFor="source-images"
-                  className={`flex min-h-[164px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-5 text-center text-sm text-zinc-500 transition-colors ${sourceImages.length >= IMAGE_EDIT_MAX_COUNT ? 'cursor-default opacity-70' : 'cursor-pointer hover:border-primary hover:text-primary'}`}
+                  className={`flex min-h-[164px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-5 text-center text-sm text-zinc-500 transition-colors ${sourceImages.length >= modelConfig.maxReferenceImages ? 'cursor-default opacity-70' : 'cursor-pointer hover:border-primary hover:text-primary'}`}
                 >
                   <Upload className="mb-2 h-6 w-6" />
                   <span className="font-medium">
-                    {sourceImages.length >= IMAGE_EDIT_MAX_COUNT ? '已选满，移除后可继续添加' : (sourceImages.length > 0 ? '继续添加参考图片' : '选择参考图片')}
+                    {sourceImages.length >= modelConfig.maxReferenceImages ? '已选满，移除后可继续添加' : (sourceImages.length > 0 ? '继续添加参考图片' : '选择参考图片')}
                   </span>
-                  <span className="mt-1 text-xs">可一次选择多张，最多 {IMAGE_EDIT_MAX_COUNT} 张</span>
-                  <span className="mt-1 text-xs">每张不超过 {IMAGE_EDIT_MAX_MB}MB</span>
+                  <span className="mt-1 text-xs">可一次选择多张，最多 {modelConfig.maxReferenceImages} 张</span>
+                  <span className="mt-1 text-xs">每张不超过 {modelConfig.maxImageBytes / (1024 * 1024)}MB，合计不超过 {modelConfig.maxTotalImageBytes / (1024 * 1024)}MB</span>
+                  {modelConfig.service === 'micu' ? <span className="mt-1 text-xs">支持 PNG、JPEG、WebP</span> : null}
                   <input
                     key={sourceInputKey}
                     id="source-images"
                     type="file"
                     accept={[
-                      ...IMAGE_EDIT_ACCEPTED_MIME_TYPES,
-                      ...IMAGE_EDIT_ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`),
+                      ...modelConfig.mimeTypes,
+                      ...modelConfig.extensions.map((extension) => `.${extension}`),
                     ].join(',')}
                     multiple
-                    disabled={sourceImages.length >= IMAGE_EDIT_MAX_COUNT}
+                    disabled={sourceImages.length >= modelConfig.maxReferenceImages}
                     className="sr-only"
                     onChange={(event) => handleSourceImagesChange(event.target.files)}
                   />
@@ -228,8 +273,8 @@ export default function ImageGenerationPage() {
 
                 {sourceImages.map(({ file, previewUrl }, index) => (
                   <div key={previewUrl} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
-                    <div className="relative">
-                      <NextImage src={previewUrl} alt={`第 ${index + 1} 张参考图片：${file.name}`} width={512} height={132} unoptimized className="h-[132px] w-full object-contain" />
+                    <div className="relative h-[132px]">
+                      <NextImage src={previewUrl} alt={`第 ${index + 1} 张参考图片：${file.name}`} fill sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 25vw" unoptimized className="object-contain" />
                       <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs text-white">第 {index + 1} 张</span>
                       <button type="button" onClick={() => handleRemoveSourceImage(previewUrl)} className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label={`移除第 ${index + 1} 张参考图片`}>
                         <X className="h-4 w-4" />
@@ -244,24 +289,41 @@ export default function ImageGenerationPage() {
 
           <div className="space-y-2">
             <label htmlFor="image-prompt" className="text-sm font-medium">图片描述</label>
-            <textarea id="image-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={IMAGE_PROMPT_MAX_LENGTH} placeholder={mode === 'edit' ? '描述你想修改的地方' : '描述你想生成的画面'} className="min-h-[140px] w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-sm outline-none focus:border-primary" />
-            <div className="text-right text-xs text-zinc-500">{prompt.length}/{IMAGE_PROMPT_MAX_LENGTH}</div>
+            <textarea id="image-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={modelConfig.promptMaxLength} placeholder={mode === 'edit' ? '描述你想修改的地方' : '描述你想生成的画面'} className="min-h-[140px] w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-sm outline-none focus:border-primary" />
+            <div className="text-right text-xs text-zinc-500">{prompt.length}/{modelConfig.promptMaxLength}</div>
           </div>
 
           <div className="space-y-2">
             <label htmlFor="image-size" className="text-sm font-medium">图片尺寸</label>
-            <select id="image-size" value={size} onChange={(event) => setSize(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
-              {IMAGE_SIZE_OPTIONS.map((option) => (
+            <select id="image-size" value={size} onChange={(event) => handleOptionChange('size', event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
+              {modelConfig.sizes.map((option) => (
                 <option key={option.id} value={option.id}>{option.label}</option>
               ))}
             </select>
           </div>
 
-          <UseInChatButton section="image" value={{size}} disabled={isGenerating} />
-          <button type="submit" disabled={isGenerating} className="btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">
+          {modelConfig.qualities.length > 0 ? (
+            <div className="space-y-2">
+              <label htmlFor="image-quality" className="text-sm font-medium">图片画质</label>
+              <select id="image-quality" value={quality} onChange={(event) => handleOptionChange('quality', event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
+                {modelConfig.qualities.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          <UseInChatButton section="image" value={selectedOptions} disabled={isGenerating || Boolean(optionsError)} />
+          <button type="submit" disabled={isGenerating || Boolean(validationError)} className="btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">
             {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
             {isGenerating ? '处理中…' : (mode === 'edit' ? '编辑图片' : '生成图片')}
           </button>
+          {isGenerating ? (
+            <button type="button" onClick={handleCancel} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
+              <X className="h-4 w-4" /> 取消
+            </button>
+          ) : null}
+          {notice ? <p role="status" className="text-sm text-zinc-500">{notice}</p> : null}
         </form>
       </div>
 
@@ -282,7 +344,7 @@ export default function ImageGenerationPage() {
             <div aria-hidden className="absolute inset-0 animate-pulse bg-gradient-to-br from-primary/10 via-transparent to-primary/10" />
             <div className="relative flex flex-col items-center gap-3 text-primary/70">
               <ImagePlus className="h-10 w-10 animate-pulse" />
-              <span className="text-xs">图片生成通常需要十几秒</span>
+              <span className="text-xs">正在绘制画面与细节，请保持页面打开</span>
             </div>
           </div>
         </motion.div>

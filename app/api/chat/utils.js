@@ -141,6 +141,8 @@ export function getStoredPartsFromMessage(msg, { includeThoughtSignature = false
                             fileId,
                             url,
                             mimeType: isNonEmptyString(mimeType) ? mimeType : 'image/jpeg',
+                            ...(isNonEmptyString(part.inlineData.name) ? { name: part.inlineData.name } : {}),
+                            ...(Number.isSafeInteger(part.inlineData.size) && part.inlineData.size > 0 ? { size: part.inlineData.size } : {}),
                         };
                     }
                 }

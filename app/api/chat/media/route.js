@@ -1,14 +1,12 @@
 import dbConnect from "@/lib/db";
 import { billingResult, creditErrorResponse } from "@/lib/server/credits/api";
 import { CreditError } from "@/lib/server/credits/errors";
-import { calculateQwenImageCost } from "@/lib/server/credits/pricing";
 import {
   releaseMediaCredits,
   reserveMediaCredits,
   reviewMediaCredits,
-  settleMediaCredits,
 } from "@/lib/media/server/billing";
-import { requireMediaCreditOperation } from "@/lib/media/server/creditOperation";
+import { assertMediaCreditOperationUnused, requireMediaCreditOperation } from "@/lib/media/server/creditOperation";
 import Conversation from "@/models/Conversation";
 import User from "@/models/User";
 import { getAuthPayload } from "@/lib/auth";
@@ -18,18 +16,18 @@ import {
   isImageGenerationModel,
 } from "@/lib/shared/models";
 import {
-  IMAGE_EDIT_ACCEPTED_MIME_TYPES,
-  IMAGE_EDIT_MAX_BYTES,
-  IMAGE_EDIT_MAX_COUNT,
-  IMAGE_MODEL_NAME,
-  IMAGE_PROMPT_MAX_LENGTH,
-  IMAGE_SIZE_OPTIONS,
+  getImageModelConfig,
+  validateImageOptions,
+  validateImageReferences,
 } from "@/lib/media/shared/models";
 import {
-  editAndStoreImageFile,
-  generateAndStoreImageFile,
-  isExplicitQwenImageRejection,
-} from "@/lib/media/server/qwenImage";
+  createAndStoreImageFile,
+  finalizeImageBilling,
+  getImageFeature,
+  imageBillingUsage,
+  resolveImageServiceConfig,
+  validateImagePrompt,
+} from "@/lib/media/server/imageService";
 import {
   isNonEmptyString,
   generateMessageId,
@@ -64,26 +62,15 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const IMAGE_SIZES = new Set(IMAGE_SIZE_OPTIONS.map((option) => option.id));
-const IMAGE_REFERENCE_MIME_TYPES = new Set(IMAGE_EDIT_ACCEPTED_MIME_TYPES);
-
 function createHttpError(message, status = 400) {
   const error = new Error(message);
   error.status = status;
   return error;
 }
 
-function readAllowedOption(value, allowed, defaultValue, errorMessage) {
-  if (value === undefined || value === null || value === "") return defaultValue;
-  if (!allowed.has(value)) throw createHttpError(errorMessage);
-  return value;
-}
-
-function normalizeImageOptions(value) {
+function normalizeImageOptions(model, value) {
   const input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
-  return {
-    size: readAllowedOption(input.size, IMAGE_SIZES, "auto", "不支持的图片尺寸"),
-  };
+  return validateImageOptions({ model, size: input.size, quality: input.quality });
 }
 
 function getMessagePrompt(message, fallbackPrompt) {
@@ -105,32 +92,22 @@ function getMessageImageFileIds(message) {
   return Array.from(new Set(fileIds));
 }
 
-function validateReferenceImageCount(fileIds) {
-  if (fileIds.length > IMAGE_EDIT_MAX_COUNT) {
-    throw createHttpError(`最多支持 ${IMAGE_EDIT_MAX_COUNT} 张参考图片`);
+async function loadReferenceImages({ userId, fileIds, model }) {
+  const config = getImageModelConfig(model);
+  if (fileIds.length > config.maxReferenceImages) throw createHttpError(`最多支持 ${config.maxReferenceImages} 张参考图片`);
+  const files = [];
+  for (const fileId of fileIds) {
+    const stored = await findOwnedStoredFile({ userId, fileId });
+    if (!stored) throw createHttpError("参考图片不存在或无权访问", 404);
+    if (stored.category !== "image") throw createHttpError("参考图片格式不受支持");
+    files.push(stored);
   }
-}
-
-function validateImagePrompt(prompt) {
-  if (!prompt) throw createHttpError("请输入图片描述");
-  if (prompt.length > IMAGE_PROMPT_MAX_LENGTH) {
-    throw createHttpError(`图片描述最多支持 ${IMAGE_PROMPT_MAX_LENGTH} 个字符`);
+  validateImageReferences(model, files.map(file => ({ name: file.originalName, type: file.mimeType, size: file.size })));
+  const images = [];
+  for (const file of files) {
+    images.push(new File([await readStoredFileBuffer(file)], file.originalName, { type: file.mimeType }));
   }
-}
-
-async function loadReferenceImage({ userId, fileId, acceptedMimeTypes, maxBytes }) {
-  if (!fileId) return null;
-  const stored = await findOwnedStoredFile({ userId, fileId });
-  if (!stored) throw createHttpError("参考图片不存在或无权访问", 404);
-  if (stored.category !== "image" || !acceptedMimeTypes.has(stored.mimeType)) {
-    throw createHttpError("参考图片格式不受支持");
-  }
-  if (stored.size <= 0 || stored.size > maxBytes) {
-    const maxMb = Math.round(maxBytes / (1024 * 1024));
-    throw createHttpError(`每张参考图片不能超过 ${maxMb}MB`);
-  }
-  const buffer = await readStoredFileBuffer(stored);
-  return new File([buffer], stored.originalName, { type: stored.mimeType });
+  return images;
 }
 
 export async function POST(req) {
@@ -229,26 +206,27 @@ export async function POST(req) {
     let removedFileIdsAfterRegenerate = [];
     let currentUserMessage = null;
     let mediaOptions = null;
-    let resolution = "";
+    let referenceImages = [];
     const reserveImageCredits = async (inputImageCount, fingerprintInput) => {
-      resolution = mediaOptions.size === "auto" ? "2K" : "1K";
-      const feature = inputImageCount ? "qwen_image_edit" : "qwen_image_generate";
+      resolveImageServiceConfig(model);
+      const feature = getImageFeature(model, inputImageCount > 0);
       const creditOperation = requireMediaCreditOperation(req, {
         userId: auth.userId,
         feature,
         fingerprintInput,
       });
       billingOperationId = creditOperation.operationId;
+      await assertMediaCreditOperationUnused({ ...creditOperation, userId: auth.userId });
       const billingSettings = await (await import("@/lib/server/credits/settings")).getBillingSettings();
       reservation = await reserveMediaCredits({
         operationId: billingOperationId,
         userId: auth.userId,
-        feature: inputImageCount ? "qwen_image_edit" : "qwen_image_generate",
-        provider: "qwen",
-        model: model || IMAGE_MODEL_NAME,
+        feature,
+        provider: getImageModelConfig(model).service,
+        model,
 
         settings: billingSettings,
-        usage: { resolution, inputImageCount },
+        usage: imageBillingUsage(mediaOptions, inputImageCount),
         executionClaimId: creditOperation.executionClaimId,
         requestFingerprint: creditOperation.requestFingerprint,
       });
@@ -263,9 +241,9 @@ export async function POST(req) {
       }
       const regeneratedPrompt = getMessagePrompt(currentUserMessage, prompt);
       const regeneratedImageIds = getMessageImageFileIds(currentUserMessage);
-      validateReferenceImageCount(regeneratedImageIds);
-      validateImagePrompt(regeneratedPrompt);
-      mediaOptions = normalizeImageOptions(currentUserMessage?.providerState?.media);
+      validateImagePrompt(model, regeneratedPrompt);
+      mediaOptions = normalizeImageOptions(model, currentUserMessage?.providerState?.media);
+      referenceImages = await loadReferenceImages({ userId: auth.userId, fileIds: regeneratedImageIds, model });
       await reserveImageCredits(regeneratedImageIds.length, {
         prompt: regeneratedPrompt,
         mediaOptions,
@@ -295,16 +273,16 @@ export async function POST(req) {
       if (!updated) throw createHttpError("Not found", 404);
       writePermitTime = updated.updatedAt?.getTime?.() ?? updatedAt.getTime();
     } else {
-      mediaOptions = normalizeImageOptions(config?.media);
+      mediaOptions = normalizeImageOptions(model, config?.media);
       const requestedImages = Array.isArray(config?.images)
         ? config.images.filter((item) => isNonEmptyString(item?.fileId))
         : [];
       const requestedImageIds = Array.from(new Set(
         requestedImages.map((item) => item.fileId.trim())
       ));
-      validateReferenceImageCount(requestedImageIds);
       const promptText = prompt.trim();
-      validateImagePrompt(promptText);
+      validateImagePrompt(model, promptText);
+      referenceImages = await loadReferenceImages({ userId: auth.userId, fileIds: requestedImageIds, model });
       await reserveImageCredits(requestedImageIds.length, {
         prompt: promptText,
         mediaOptions,
@@ -358,6 +336,8 @@ export async function POST(req) {
             fileId: storedReference.fileId,
             url: storedReference.url,
             mimeType: storedReference.mimeType,
+            name: storedReference.name,
+            size: storedReference.size,
           },
         });
       }
@@ -381,9 +361,7 @@ export async function POST(req) {
     }
 
     const effectivePrompt = getMessagePrompt(currentUserMessage, prompt);
-    const referenceFileIds = getMessageImageFileIds(currentUserMessage);
-    validateReferenceImageCount(referenceFileIds);
-    validateImagePrompt(effectivePrompt);
+    validateImagePrompt(model, effectivePrompt);
 
     const encoder = new TextEncoder();
     let clientAborted = false;
@@ -436,54 +414,30 @@ export async function POST(req) {
             type: "credit_reserved",
             billing: billingResult(reservation.transaction),
           });
-          const referenceImages = [];
-          for (const fileId of referenceFileIds) {
-            referenceImages.push(await loadReferenceImage({
-              userId: auth.userId,
-              fileId,
-              acceptedMimeTypes: IMAGE_REFERENCE_MIME_TYPES,
-              maxBytes: IMAGE_EDIT_MAX_BYTES,
-            }));
-          }
           await assertMediaWriteLeaseActive(mediaWriteLease);
           const billingCallbacks = {
             onRequestDispatched: () => {
               requestDispatched = true;
             },
-            onUpstreamComplete: async ({ requestId }) => {
+            onUpstreamComplete: async ({ requestId, usage }) => {
               upstreamComplete = true;
               upstreamRequestIds = [requestId].filter(Boolean);
-              const settled = await settleMediaCredits({
+              const settled = await finalizeImageBilling({
                 reservation,
-                operationId: billingOperationId,
-                userId: auth.userId,
-                actual: calculateQwenImageCost({
-                  resolution,
-                  inputImageCount: referenceImages.length,
-                }, reservation.settings),
-                usage: { resolution, inputImageCount: referenceImages.length },
+                options: mediaOptions,
+                inputImageCount: referenceImages.length,
+                upstreamUsage: usage,
                 upstreamRequestIds,
               });
               billingFinalized = true;
-              sendEvent({ type: "credit_settled", billing: settled.billing });
+              sendEvent({ type: settled.billing.status === "review_required" ? "credit_review_required" : "credit_settled", billing: settled.billing });
             },
           };
-          const saved = referenceImages.length > 0
-            ? await editAndStoreImageFile({
+          const saved = await createAndStoreImageFile({
+                ...mediaOptions,
                 userId: auth.userId,
                 prompt: effectivePrompt,
                 images: referenceImages,
-                size: mediaOptions.size,
-                ownerType: "conversation",
-                ownerId: currentConversationId,
-                signal: req.signal,
-                mediaWriteLease,
-                ...billingCallbacks,
-              })
-            : await generateAndStoreImageFile({
-                userId: auth.userId,
-                prompt: effectivePrompt,
-                size: mediaOptions.size,
                 ownerType: "conversation",
                 ownerId: currentConversationId,
                 signal: req.signal,
@@ -502,9 +456,11 @@ export async function POST(req) {
                 fileId: saved.fileId,
                 url: saved.url,
                 mimeType: saved.mimeType,
+                name: saved.name,
+                size: saved.size,
               },
             }],
-            providerState: { media: { type: "image", model: IMAGE_MODEL_NAME, options: mediaOptions } },
+            providerState: { media: { type: "image", model, options: mediaOptions } },
           };
 
           if (clientAborted) {
@@ -543,12 +499,12 @@ export async function POST(req) {
         } catch (error) {
           if (reservation && !billingFinalized) {
             try {
-              const result = !requestDispatched || isExplicitQwenImageRejection(error)
+              const result = !requestDispatched || error?.upstreamRejected === true
                 ? await releaseMediaCredits({
                     reservation,
                     operationId: billingOperationId,
                     userId: auth.userId,
-                    usage: { resolution, inputImageCount: referenceFileIds.length },
+                    usage: reservation.transaction.usage,
                     upstreamRequestIds: [error?.requestId].filter(Boolean),
                   })
                 : await reviewMediaCredits({
@@ -556,9 +512,9 @@ export async function POST(req) {
                     operationId: billingOperationId,
                     userId: auth.userId,
                     reason: upstreamComplete
-                      ? "聊天图片上游已成功，但固定成本结算未完成"
+                      ? "聊天图片上游已成功，但费用记录未完成"
                       : "聊天图片上游请求已发出，但未能确认完整结果",
-                    usage: { resolution, inputImageCount: referenceFileIds.length },
+                    usage: reservation.transaction.usage,
                     upstreamRequestIds: upstreamRequestIds.length
                       ? upstreamRequestIds
                       : [error?.requestId].filter(Boolean),
@@ -611,7 +567,7 @@ export async function POST(req) {
           reservation,
           operationId: billingOperationId,
           userId: authenticatedUserId,
-          usage: { failedBeforeUpstream: true },
+          usage: { ...reservation.transaction.usage, failedBeforeUpstream: true },
         });
         preUpstreamBilling = released.billing;
       } catch (billingError) {

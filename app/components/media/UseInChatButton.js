@@ -4,14 +4,16 @@ import { apiJson } from '@/lib/client/apiClient';
 
 export default function UseInChatButton({ section, value, disabled=false }) {
   const [busy,setBusy]=useState(false);
-  const [notice,setNotice]=useState('');
+  const [savedSelection,setSavedSelection]=useState('');
   const [error,setError]=useState('');
+  const selection=JSON.stringify({section,value});
+  const notice=savedSelection===selection ? (section==='audio'?'对话配音和朗读已使用当前配置':'对话创作已使用当前配置') : '';
   async function save() {
-    setBusy(true);setNotice('');setError('');
+    setBusy(true);setSavedSelection('');setError('');
     try {
       const {settings}=await apiJson('/api/settings');
       await apiJson('/api/settings',{method:'PUT',body:{chatMediaSettings:{...settings.chatMediaSettings,[section]:value}}});
-      setNotice(section==='audio'?'对话配音和朗读已使用当前配置':'对话创作已使用当前配置');
+      setSavedSelection(selection);
     } catch(error) {setError(error.message);} finally {setBusy(false);}
   }
   return <div className="space-y-2">

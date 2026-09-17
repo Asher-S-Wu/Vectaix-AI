@@ -23,11 +23,10 @@ import {
   isMediaGenerationModel,
 } from "@/lib/shared/models";
 import {
-  IMAGE_EDIT_ACCEPTED_EXTENSIONS,
-  IMAGE_EDIT_ACCEPTED_MIME_TYPES,
-  IMAGE_EDIT_MAX_BYTES,
-  IMAGE_EDIT_MAX_COUNT,
-  IMAGE_SIZE_OPTIONS,
+  IMAGE_MODELS,
+  getImageModelConfig,
+  validateImageOptions,
+  validateImageReferences,
 } from "@/lib/media/shared/models";
 import {
   getAttachmentInputType,
@@ -66,7 +65,12 @@ export default function Composer({
   const [input, setInput] = useState("");
   const [selectedAttachments, setSelectedAttachments] = useState([]);
   const [isMainInputFocused, setIsMainInputFocused] = useState(false);
-  const [imageSize, setImageSize] = useState("auto");
+  const [imageOptionsByModel, setImageOptionsByModel] = useState(() => Object.fromEntries(
+    IMAGE_MODELS.map((config) => [config.id, {
+      size: config.defaultSize,
+      ...(config.qualities.length > 0 ? { quality: config.defaultQuality } : {}),
+    }]),
+  ));
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const mountedRef = useRef(true);
@@ -81,17 +85,35 @@ export default function Composer({
   } = getModelAttachmentSupport(model);
   const isMediaModel = isMediaGenerationModel(model);
   const isImageModel = isImageGenerationModel(model);
+  const imageConfig = isImageModel ? getImageModelConfig(model) : null;
+  const imageOptions = isImageModel ? { model, ...imageOptionsByModel[model] } : null;
+  let imageValidationError = "";
+  if (isImageModel) {
+    try {
+      validateImageOptions(imageOptions);
+      validateImageReferences(model, selectedAttachments.map((item) => ({
+        name: item.name,
+        type: item.mimeType,
+        size: item.size,
+      })));
+      if (selectedAttachments.some((item) => item.uploadStatus === "error")) {
+        imageValidationError = "参考图片未上传成功，请重试或移除后再发送";
+      }
+    } catch (error) {
+      imageValidationError = error.message;
+    }
+  }
   const supportsDocuments = !isMediaModel;
   const supportsFilePicker = supportsModelFilePicker || supportsDocuments;
   const attachmentLimit = isImageModel
-    ? IMAGE_EDIT_MAX_COUNT
+    ? imageConfig.maxReferenceImages
     : isMediaModel
       ? 1
       : MAX_CHAT_ATTACHMENTS;
   const attachmentAccept = isImageModel
     ? [
-        ...IMAGE_EDIT_ACCEPTED_MIME_TYPES,
-        ...IMAGE_EDIT_ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`),
+        ...imageConfig.mimeTypes,
+        ...imageConfig.extensions.map((extension) => `.${extension}`),
       ].join(",")
     : getAttachmentAcceptForModel({
         supportsImages,
@@ -153,6 +175,7 @@ export default function Composer({
   }, [prefill]);
 
   useEffect(() => {
+    if (isImageModel) return;
     const timer = setTimeout(() => {
     if (!supportsFilePicker) {
       if (selectedAttachments.length > 0) {
@@ -193,6 +216,19 @@ export default function Composer({
     if (!supportsFilePicker) return;
     if (!files.length) return;
 
+    if (isImageModel) {
+      try {
+        validateImageReferences(model, [
+          ...selectedAttachments.map((item) => ({ name: item.name, type: item.mimeType, size: item.size })),
+          ...files,
+        ]);
+      } catch (error) {
+        toast.warning(error.message);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+    }
+
     const remainingSlots = attachmentLimit - selectedAttachments.length;
     const filesToAdd = files.slice(0, remainingSlots);
     const nextAttachments = [];
@@ -213,7 +249,7 @@ export default function Composer({
 
       const limits = getAttachmentLimits(local.category);
       const maxBytes = isImageModel && local.category === "image"
-        ? IMAGE_EDIT_MAX_BYTES
+        ? imageConfig.maxImageBytes
         : limits?.maxBytes;
       if (maxBytes && file.size > maxBytes) {
         oversizedFiles.push(file.name);
@@ -237,9 +273,7 @@ export default function Composer({
 
       if (isImageAttachment(local)) {
         let processedFile = file;
-        const isNativeQwenImage = isImageModel
-          && IMAGE_EDIT_ACCEPTED_EXTENSIONS.includes(local.extension);
-        if (!IMAGE_MIME_TYPES.includes(file.type) && !isNativeQwenImage) {
+        if (!isImageModel && !IMAGE_MIME_TYPES.includes(file.type)) {
           const converted = await convertImageFileToPng(file);
           if (!converted) {
             invalidFiles.push(file.name);
@@ -271,7 +305,9 @@ export default function Composer({
     }
 
     if (nextAttachments.length > 0 && mountedRef.current) {
-      setSelectedAttachments((prev) => [...prev, ...nextAttachments].slice(0, attachmentLimit));
+      setSelectedAttachments((prev) => isImageModel
+        ? [...prev, ...nextAttachments]
+        : [...prev, ...nextAttachments].slice(0, attachmentLimit));
 
       for (const att of nextAttachments) {
         uploadAttachmentInBackground(att);
@@ -381,7 +417,16 @@ export default function Composer({
 
   const isUploading = selectedAttachments.some((item) => item.uploadStatus === "uploading");
   const hasReadyAttachment = selectedAttachments.some((item) => item.uploadStatus === "ready");
-  const canSend = isImageModel ? Boolean(input.trim()) : Boolean(input.trim()) || hasReadyAttachment;
+  const canSend = isImageModel
+    ? Boolean(input.trim()) && !imageValidationError
+    : Boolean(input.trim()) || hasReadyAttachment;
+
+  const handleImageOptionChange = (field, value) => {
+    setImageOptionsByModel((current) => ({
+      ...current,
+      [model]: { ...current[model], [field]: value },
+    }));
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -400,12 +445,20 @@ export default function Composer({
       toast.warning("请输入图片描述");
       return;
     }
+    if (isImageModel && imageValidationError) {
+      toast.warning(imageValidationError);
+      return;
+    }
+    if (isImageModel && text.length > imageConfig.promptMaxLength) {
+      toast.warning(`图片描述最多支持 ${imageConfig.promptMaxLength} 个字符`);
+      return;
+    }
     const validAttachments = selectedAttachments.filter((item) => item.uploadStatus === "ready");
     if (!text && validAttachments.length === 0) {
       toast.warning("附件未上传成功，请重试或移除后再发送");
       return;
     }
-    const mediaOptions = isImageModel ? { size: imageSize } : undefined;
+    const mediaOptions = isImageModel ? validateImageOptions(imageOptions) : undefined;
     const sent = await onSend({ text, attachments: validAttachments, mediaOptions });
     if (sent !== true) return;
     setInput(current => current.trim() === text ? "" : current);
@@ -504,16 +557,30 @@ export default function Composer({
           {isMediaModel ? (
             <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5">
               {isImageModel ? (
-                <select
-                  aria-label="图片尺寸"
-                  value={imageSize}
-                  onChange={(event) => setImageSize(event.target.value)}
-                  className="h-8 max-w-[170px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
-                >
-                  {IMAGE_SIZE_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    aria-label="图片尺寸"
+                    value={imageOptions.size}
+                    onChange={(event) => handleImageOptionChange("size", event.target.value)}
+                    className="h-8 max-w-[170px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
+                  >
+                    {imageConfig.sizes.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                  {imageConfig.qualities.length > 0 ? (
+                    <select
+                      aria-label="图片画质"
+                      value={imageOptions.quality}
+                      onChange={(event) => handleImageOptionChange("quality", event.target.value)}
+                      className="h-8 rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
+                    >
+                      {imageConfig.qualities.map((option) => (
+                        <option key={option.id} value={option.id}>{option.label}</option>
+                      ))}
+                    </select>
+                  ) : null}
+                </>
               ) : null}
             </div>
           ) : (
@@ -532,6 +599,12 @@ export default function Composer({
             />
           )}
         </div>
+        {isImageModel ? (
+          <div className="px-4 pt-1 text-xs text-zinc-500">
+            <p>最多 {imageConfig.maxReferenceImages} 张参考图，单张 {imageConfig.maxImageBytes / (1024 * 1024)}MB，合计 {imageConfig.maxTotalImageBytes / (1024 * 1024)}MB</p>
+            {imageValidationError ? <p role="alert" className="mt-1 text-red-500">{imageValidationError}</p> : null}
+          </div>
+        ) : null}
         {!isMediaModel && <div className="flex items-center px-4 pt-1"><DeviceActions permissions={permissions} onSettings={onOpenCapabilities} onFiles={handleFileSelect} onText={text => setInput(previous => [previous,text].filter(Boolean).join("\n"))} disabled={loading || !modelReady} /></div>}
         <div className="relative flex items-end gap-2 p-3 md:p-4 rounded-b-[24px]">
           {supportsFilePicker && (
@@ -560,6 +633,7 @@ export default function Composer({
           <textarea
             ref={textareaRef}
             value={input}
+            maxLength={isImageModel ? imageConfig.promptMaxLength : undefined}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
