@@ -29,7 +29,7 @@ test('Qwen keeps automatic sizing and excludes quality from its validated option
 test('Micu models accept every documented size and quality without replacing supplied values', () => {
   assert.equal(typeof imageModels.validateImageOptions, 'function');
   for (const model of [SUNBURST, FLARE]) {
-    for (const size of ['1024x1024', '1280x720', '720x1280', '1024x1536', '1536x1024', '2048x2048', '2048x1152', '1152x2048', '3840x2160', '2160x3840']) {
+    for (const size of ['auto', '1024x1024', '1280x720', '720x1280', '1024x1536', '1536x1024', '1152x864', '864x1152', '1344x576', '2048x2048', '2048x1152', '1152x2048', '3840x2160', '2160x3840']) {
       for (const quality of ['auto', 'low', 'medium', 'high', 'xhigh', 'max']) {
         assert.deepEqual(imageModels.validateImageOptions({ model, size, quality }), { model, size, quality });
       }
@@ -43,7 +43,7 @@ test('invalid or missing image options are rejected instead of using defaults', 
     {},
     { model: 'unknown', size: '1024x1024', quality: 'auto' },
     { model: QWEN },
-    { model: SUNBURST, size: 'auto', quality: 'auto' },
+    { model: SUNBURST, size: 'not-a-size', quality: 'auto' },
     { model: FLARE, size: '1024x1024' },
     { model: FLARE, size: '1024x1024', quality: 'ultra' },
   ]) rejectsOptions(options);

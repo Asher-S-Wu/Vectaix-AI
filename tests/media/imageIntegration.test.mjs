@@ -90,7 +90,7 @@ test('编辑缺少用量仍保存图片，费用保持待核对且金额为空',
 
 test('无效尺寸和伪装文件在发送上游之前被拒绝', async t => {
   t.mock.method(undici, 'fetch', () => { throw new Error('不应发送'); });
-  const invalid = await generateImage({ userId, body: { ...options, size: 'auto', prompt: 'test' }, clientOperationId: crypto.randomUUID() });
+  const invalid = await generateImage({ userId, body: { ...options, size: '999x999', prompt: 'test' }, clientOperationId: crypto.randomUUID() });
   assert.equal(invalid.status, 400);
   const edited = await editImage({ userId, body: { ...options, prompt: 'test', images: [new File(['not an image'], 'fake.png', { type: 'image/png' })] }, clientOperationId: crypto.randomUUID() });
   assert.equal(edited.status, 400);

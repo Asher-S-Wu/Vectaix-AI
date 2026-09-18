@@ -294,7 +294,7 @@ export default function ImageGenerationPage() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="image-size" className="text-sm font-medium">图片尺寸</label>
+            <label htmlFor="image-size" className="text-sm font-medium">图片比例</label>
             <select id="image-size" value={size} onChange={(event) => handleOptionChange('size', event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
               {modelConfig.sizes.map((option) => (
                 <option key={option.id} value={option.id}>{option.label}</option>

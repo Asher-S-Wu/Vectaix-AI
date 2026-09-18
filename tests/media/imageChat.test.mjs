@@ -107,7 +107,7 @@ for (const model of models) {
 
 test('聊天图片不接收不支持的尺寸和他人的参考图', async t => {
   t.mock.method(undici, 'fetch', () => { throw new Error('不应发送'); });
-  const input = { model: models[0], prompt: 'test', history: [], config: { media: { size: 'auto', quality: 'auto' } } };
+  const input = { model: models[0], prompt: 'test', history: [], config: { media: { size: '999x999', quality: 'auto' } } };
   assert.equal((await call(input)).status, 400);
   input.config.media.size = '1024x1024';
   input.config.images = [{ fileId: randomUUID() }];

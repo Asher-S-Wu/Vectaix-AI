@@ -559,7 +559,7 @@ export default function Composer({
               {isImageModel ? (
                 <>
                   <select
-                    aria-label="图片尺寸"
+                    aria-label="图片比例"
                     value={imageOptions.size}
                     onChange={(event) => handleImageOptionChange("size", event.target.value)}
                     className="h-8 max-w-[170px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"

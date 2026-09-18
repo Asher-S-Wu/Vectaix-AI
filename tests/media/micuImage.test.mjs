@@ -114,7 +114,7 @@ test("文生图只发一次 JSON 请求并解码图片、保留用量和真实�
   assert.deepEqual(result, { input: PNG, mimeType: "image/png", requestId: "req-micu-1", usage });
 });
 
-test("两款模型的十种尺寸与六档画质都按选择发送给 Micu", async (t) => {
+test("两款模型的十四种尺寸选项与六档画质都按选择发送给 Micu", async (t) => {
   const { requestMicuImage } = await requestModule(t);
   const { IMAGE_MODELS } = await import("../../lib/media/shared/models.js");
   let expected;
@@ -130,7 +130,7 @@ test("两款模型的十种尺寸与六档画质都按选择发送给 Micu", asy
       }
     }
   }
-  assert.equal(fetchMock.mock.callCount(), 120);
+  assert.equal(fetchMock.mock.callCount(), 168);
 });
 
 for (const count of [1, 2]) {
