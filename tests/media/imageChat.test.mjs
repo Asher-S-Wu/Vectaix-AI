@@ -1,4 +1,5 @@
 import test from 'node:test';
+import undici from 'undici';
 import assert from 'node:assert/strict';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -49,7 +50,7 @@ for (const model of models) {
   test(`${model} 聊天生成、单图及多图编辑保存参数、图片信息和待核对费用`, async t => {
     const options = { model, size: '1024x1024', quality: 'auto' };
     let calls = 0;
-    t.mock.method(globalThis, 'fetch', async (url, init) => {
+    t.mock.method(undici, 'fetch', async (url, init) => {
       calls++;
       if (calls === 1) {
         assert.match(String(url), /\/generations$/);
@@ -94,7 +95,7 @@ for (const model of models) {
     const backup = safeConversation(await Conversation.findById(conversationId).lean());
     const restoredMessages = backup.messages.slice(0, 1);
     assert.deepEqual(restoredMessages[0].providerState.media, options);
-    t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    t.mock.method(undici, 'fetch', async (_url, init) => {
       assert.equal(JSON.parse(init.body).quality, options.quality);
       assert.equal(JSON.parse(init.body).size, options.size);
       return Response.json({ data: [{ b64_json: png.toString('base64') }] });
@@ -105,13 +106,13 @@ for (const model of models) {
 }
 
 test('聊天图片不接收不支持的尺寸和他人的参考图', async t => {
-  t.mock.method(globalThis, 'fetch', () => { throw new Error('不应发送'); });
+  t.mock.method(undici, 'fetch', () => { throw new Error('不应发送'); });
   const input = { model: models[0], prompt: 'test', history: [], config: { media: { size: 'auto', quality: 'auto' } } };
   assert.equal((await call(input)).status, 400);
   input.config.media.size = '1024x1024';
   input.config.images = [{ fileId: randomUUID() }];
   assert.equal((await call(input)).status, 404);
-  assert.equal(globalThis.fetch.mock.callCount(), 0);
+  assert.equal(undici.fetch.mock.callCount(), 0);
 });
 
 test('消息经过客户端和服务端保存仍保留图片名称、大小', async () => {

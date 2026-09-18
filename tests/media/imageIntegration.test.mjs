@@ -1,4 +1,5 @@
 import test from 'node:test';
+import undici from 'undici';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -45,7 +46,7 @@ test.after(async () => {
 
 test('Micu 生成保存真实文件，按实际用量计费，同一操作不再次调用', async t => {
   let requests = 0;
-  t.mock.method(globalThis, 'fetch', async (url, init) => {
+  t.mock.method(undici, 'fetch', async (url, init) => {
     requests++;
     assert.equal(String(url), 'https://www.micuapi.ai/v1/images/generations');
     assert.equal(JSON.parse(init.body).model, model);
@@ -74,7 +75,7 @@ test('Micu 生成保存真实文件，按实际用量计费，同一操作不再
 
 test('编辑缺少用量仍保存图片，费用保持待核对且金额为空', async t => {
   const before = await StoredFile.countDocuments({ userId });
-  t.mock.method(globalThis, 'fetch', async (url, init) => {
+  t.mock.method(undici, 'fetch', async (url, init) => {
     assert.equal(String(url), 'https://www.micuapi.ai/v1/images/edits');
     assert.equal(init.body.getAll('image[]').length, 10);
     assert.equal(init.body.get('quality'), 'max');
@@ -88,12 +89,12 @@ test('编辑缺少用量仍保存图片，费用保持待核对且金额为空',
 });
 
 test('无效尺寸和伪装文件在发送上游之前被拒绝', async t => {
-  t.mock.method(globalThis, 'fetch', () => { throw new Error('不应发送'); });
+  t.mock.method(undici, 'fetch', () => { throw new Error('不应发送'); });
   const invalid = await generateImage({ userId, body: { ...options, size: 'auto', prompt: 'test' }, clientOperationId: crypto.randomUUID() });
   assert.equal(invalid.status, 400);
   const edited = await editImage({ userId, body: { ...options, prompt: 'test', images: [new File(['not an image'], 'fake.png', { type: 'image/png' })] }, clientOperationId: crypto.randomUUID() });
   assert.equal(edited.status, 400);
-  assert.equal(globalThis.fetch.mock.callCount(), 0);
+  assert.equal(undici.fetch.mock.callCount(), 0);
 });
 
 test('任务能力按所选图片服务配置，历史仅尺寸设置提示重新保存', async () => {
@@ -141,7 +142,7 @@ for (const savedOptions of [options, { model: 'gpt-image-2.5-flare', size: '1152
   test(`对话图片工具使用已保存的 ${savedOptions.model} 参数，登记生成、编辑产物及实际费用`, async t => {
     const { task, tool } = await createImageTask(savedOptions);
     const upstreamRequests = [];
-    t.mock.method(globalThis, 'fetch', async (url, init) => {
+    t.mock.method(undici, 'fetch', async (url, init) => {
       const editing = String(url) === 'https://www.micuapi.ai/v1/images/edits';
       assert.ok(editing || String(url) === 'https://www.micuapi.ai/v1/images/generations');
       const input = editing ? Object.fromEntries(init.body.entries()) : JSON.parse(init.body);
