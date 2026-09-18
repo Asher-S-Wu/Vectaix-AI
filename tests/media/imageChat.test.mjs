@@ -105,6 +105,25 @@ for (const model of models) {
   });
 }
 
+test('聊天图片传递 Micu 的实际拒绝原因并释放费用', async t => {
+  const upstream = t.mock.method(undici, 'fetch', async () => Response.json({
+    error: { message: 'upstream: Too Many Requests' }, request_id: 'chat-rejection',
+  }, { status: 400 }));
+  t.mock.method(console, 'error', () => {});
+  const response = await call({
+    model: models[0], prompt: '测试拒绝请求', history: [],
+    config: { media: { size: '1024x1024', quality: 'auto' } },
+  });
+  const events = await response.text();
+  assert.match(events, /stream_error/);
+  assert.match(events, /请求过于频繁.*Too Many Requests/);
+  assert.doesNotMatch(events, /image_gen_complete/);
+  const record = await Transaction.findOne({ userId, upstreamRequestIds: 'chat-rejection' }).lean();
+  assert.equal(record.status, 'released');
+  assert.equal(record.actualCostCny, 0);
+  assert.equal(upstream.mock.callCount(), 1);
+});
+
 test('聊天图片不接收不支持的尺寸和他人的参考图', async t => {
   t.mock.method(undici, 'fetch', () => { throw new Error('不应发送'); });
   const input = { model: models[0], prompt: 'test', history: [], config: { media: { size: '999x999', quality: 'auto' } } };

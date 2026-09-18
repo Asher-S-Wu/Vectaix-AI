@@ -227,8 +227,8 @@ for (const [status, expectedMessage, rejected] of [
   [401, /密钥.*无效/, true],
   [403, /权限/, true],
   [429, /频繁/, true],
-  [400, /参数/, true],
-  [422, /参数/, true],
+  [400, /拒绝/, true],
+  [422, /拒绝/, true],
   [500, /服务.*失败/, false],
   [503, /服务.*失败/, false],
 ]) {
@@ -248,6 +248,60 @@ for (const [status, expectedMessage, rejected] of [
     assert.equal(fetchMock.mock.callCount(), 1);
   });
 }
+
+for (const [label, responseBody, expectedStatus, expectedMessage] of [
+  ["具体参数错误", { error: { message: "Unsupported value for size: auto", type: "invalid_request_error", param: "size" } }, 400, /Unsupported value for size: auto/],
+  ["被包装成 400 的限流", { error: { message: "upstream: Too Many Requests" } }, 429, /请求过于频繁/],
+  ["顶层限流消息", { message: "rate_limit_exceeded" }, 429, /请求过于频繁/],
+  ["内容拒绝", { error: { message: "Request rejected by safety system", code: "moderation_blocked" } }, 400, /Request rejected by safety system/],
+  ["纯文本限流", "upstream: Too Many Requests", 429, /请求过于频繁/],
+]) {
+  test(`Micu ${label}保留真实原因、请求编号和参数，且只请求一次`, async (t) => {
+    const { requestMicuImage } = await requestModule(t);
+    const log = t.mock.method(console, "error", () => {});
+    const fetchMock = t.mock.method(undici, "fetch", async () => new Response(
+      typeof responseBody === "string" ? responseBody : JSON.stringify(responseBody),
+      { status: 400, headers: { "x-request-id": "rejected-request" } },
+    ));
+    await assert.rejects(requestMicuImage(PARAMS), (error) => {
+      assert.equal(error.status, expectedStatus);
+      assert.equal(error.upstreamStatus, 400);
+      assert.equal(error.upstreamRejected, true);
+      assert.equal(error.requestId, "rejected-request");
+      assert.match(error.message, expectedMessage);
+      if (expectedStatus === 429) assert.equal(error.code, "UPSTREAM_RATE_LIMITED");
+      if (responseBody.error?.param) {
+        assert.equal(error.upstreamType, "invalid_request_error");
+        assert.equal(error.upstreamParam, "size");
+      }
+      return true;
+    });
+    assert.equal(fetchMock.mock.callCount(), 1);
+    assert.equal(log.mock.callCount(), 1);
+    const [label, details] = log.mock.calls[0].arguments;
+    assert.equal(label, "[Micu Image] request failed:");
+    for (const key of ["model", "size", "quality"]) assert.equal(details[key], PARAMS[key]);
+    assert.equal(details.inputImageCount, 0);
+    assert.equal(details.upstreamStatus, 400);
+    assert.equal(details.requestId, "rejected-request");
+    assert.ok(!Object.hasOwn(details, "prompt"));
+  });
+}
+
+test("Micu 拒绝详情隐藏密钥并限制长度", async (t) => {
+  const { requestMicuImage } = await requestModule(t);
+  const log = t.mock.method(console, "error", () => {});
+  t.mock.method(undici, "fetch", async () => Response.json({ error: {
+    message: `Invalid key server-secret; Authorization: Bearer upstream-private-token; sk-provider-secret; ${"detail ".repeat(300)}`,
+  } }, { status: 400 }));
+  await assert.rejects(requestMicuImage(PARAMS), (error) => {
+    assert.match(error.message, /Invalid key/);
+    assert.doesNotMatch(error.message, /server-secret|upstream-private-token|sk-provider-secret/);
+    assert.ok(error.upstreamMessage.length <= 800);
+    return true;
+  });
+  assert.doesNotMatch(JSON.stringify(log.mock.calls[0].arguments), /server-secret|upstream-private-token|sk-provider-secret/);
+});
 
 test("断网不是明确拒绝，且不会重新请求", async (t) => {
   const { requestMicuImage } = await requestModule(t);

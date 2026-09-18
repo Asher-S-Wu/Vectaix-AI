@@ -88,6 +88,34 @@ test('编辑缺少用量仍保存图片，费用保持待核对且金额为空',
   assert.equal(await StoredFile.countDocuments({ userId }), before + 1);
 });
 
+for (const count of [0, 1, 2]) {
+  test(`Micu 拒绝 ${count} 张参考图的请求时返回具体原因，释放费用且不保存图片`, async t => {
+    const before = await StoredFile.countDocuments({ userId });
+    const requestId = `rejected-${count}`;
+    const detail = count === 0 ? 'Too Many Requests' : 'Invalid quality for this request';
+    const upstream = t.mock.method(undici, 'fetch', async () => Response.json({
+      error: { message: detail }, request_id: requestId,
+    }, { status: 400 }));
+    t.mock.method(console, 'error', () => {});
+    const operation = count === 0 ? generateImage : editImage;
+    const result = await operation({
+      userId,
+      body: { ...options, prompt: '测试拒绝请求', images: Array.from({ length: count }, (_, i) => new File([png], `${i}.png`, { type: 'image/png' })) },
+      clientOperationId: crypto.randomUUID(),
+    });
+    assert.equal(result.status, count === 0 ? 429 : 400);
+    assert.equal(result.data.success, false);
+    assert.ok(result.data.message.includes(detail));
+    assert.equal(result.data.billing.status, 'released');
+    const record = await Transaction.findOne({ userId, upstreamRequestIds: requestId }).lean();
+    assert.equal(record.status, 'released');
+    assert.equal(record.actualCostCny, 0);
+    assert.equal(record.actualCostUsd, 0);
+    assert.equal(await StoredFile.countDocuments({ userId }), before);
+    assert.equal(upstream.mock.callCount(), 1);
+  });
+}
+
 test('无效尺寸和伪装文件在发送上游之前被拒绝', async t => {
   t.mock.method(undici, 'fetch', () => { throw new Error('不应发送'); });
   const invalid = await generateImage({ userId, body: { ...options, size: '999x999', prompt: 'test' }, clientOperationId: crypto.randomUUID() });
