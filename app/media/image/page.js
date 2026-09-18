@@ -22,7 +22,7 @@ export default function ImageGenerationPage() {
   const [optionsByModel, setOptionsByModel] = useState(() => Object.fromEntries(
     IMAGE_MODELS.map((config) => [config.id, {
       size: config.defaultSize,
-      ...(config.qualities.length > 0 ? { quality: config.defaultQuality } : {}),
+      ...(config.fixedQuality ? { quality: config.fixedQuality } : {}),
     }]),
   ));
   const [isGenerating, setIsGenerating] = useState(false);
@@ -36,7 +36,7 @@ export default function ImageGenerationPage() {
   const [sourceInputKey, setSourceInputKey] = useState(0);
   const modelConfig = getImageModelConfig(model);
   const selectedOptions = { model, ...optionsByModel[model] };
-  const { size, quality } = selectedOptions;
+  const { size } = selectedOptions;
   let optionsError = '';
   let referenceError = '';
   try {
@@ -301,17 +301,6 @@ export default function ImageGenerationPage() {
               ))}
             </select>
           </div>
-
-          {modelConfig.qualities.length > 0 ? (
-            <div className="space-y-2">
-              <label htmlFor="image-quality" className="text-sm font-medium">图片画质</label>
-              <select id="image-quality" value={quality} onChange={(event) => handleOptionChange('quality', event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
-                {modelConfig.qualities.map((option) => (
-                  <option key={option.id} value={option.id}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-          ) : null}
 
           <UseInChatButton section="image" value={selectedOptions} disabled={isGenerating || Boolean(optionsError)} />
           <button type="submit" disabled={isGenerating || Boolean(validationError)} className="btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">

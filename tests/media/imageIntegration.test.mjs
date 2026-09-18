@@ -44,12 +44,13 @@ test.after(async () => {
   if (directory) await rm(directory, { recursive: true, force: true });
 });
 
-test('Micu 生成保存真实文件，按实际用量计费，同一操作不再次调用', async t => {
+test('Micu 生成忽略旧画质并保存真实文件，按实际用量计费，同一操作不再次调用', async t => {
   let requests = 0;
   t.mock.method(undici, 'fetch', async (url, init) => {
     requests++;
     assert.equal(String(url), 'https://www.micuapi.ai/v1/images/generations');
     assert.equal(JSON.parse(init.body).model, model);
+    assert.equal(JSON.parse(init.body).quality, 'low');
     return Response.json({ data: [{ b64_json: png.toString('base64') }], usage: { input_tokens: 150, input_tokens_details: { text_tokens: 100, image_tokens: 50 }, output_tokens: 200, total_tokens: 350 } }, { headers: { 'x-request-id': 'micu-generated' } });
   });
   const clientOperationId = crypto.randomUUID();
@@ -63,13 +64,15 @@ test('Micu 生成保存真实文件，按实际用量计费，同一操作不再
   assert.equal(record.status, 'settled');
   assert.ok(Math.abs(record.actualCostUsd - 0.0069) < 1e-12);
   assert.ok(Math.abs(record.actualCostCny - 0.046368) < 1e-12);
-  assert.equal(record.usage.quality, 'max');
+  assert.equal(record.usage.quality, 'low');
   const file = await StoredFile.findOne({ userId, ownerType: 'image-result' }).lean();
   assert.equal(file.size, png.length);
   const repeated = await generateImage(input);
   assert.equal(repeated.status, 409);
   const changed = await generateImage({ ...input, body: { ...input.body, quality: 'high' } });
   assert.equal(changed.status, 409);
+  const changedSize = await generateImage({ ...input, body: { ...input.body, size: '1024x1024' } });
+  assert.equal(changedSize.status, 409);
   assert.equal(requests, 1);
 });
 
@@ -78,7 +81,7 @@ test('编辑缺少用量仍保存图片，费用保持待核对且金额为空',
   t.mock.method(undici, 'fetch', async (url, init) => {
     assert.equal(String(url), 'https://www.micuapi.ai/v1/images/edits');
     assert.equal(init.body.getAll('image[]').length, 10);
-    assert.equal(init.body.get('quality'), 'max');
+    assert.equal(init.body.get('quality'), 'low');
     return Response.json({ data: [{ b64_json: png.toString('base64') }] });
   });
   const result = await editImage({ userId, body: { ...options, prompt: '组合参考图', images: Array.from({ length: 10 }, (_, i) => new File([png], `${i}.png`, { type: 'image/png' })) }, clientOperationId: crypto.randomUUID() });
@@ -167,7 +170,7 @@ async function createImageTask(image) {
 }
 
 for (const savedOptions of [options, { model: 'gpt-image-2.5-flare', size: '1152x2048', quality: 'xhigh' }]) {
-  test(`对话图片工具使用已保存的 ${savedOptions.model} 参数，登记生成、编辑产物及实际费用`, async t => {
+  test(`对话图片工具使用已保存的 ${savedOptions.model} 和尺寸，固定 low 并登记生成、编辑产物及费用`, async t => {
     const { task, tool } = await createImageTask(savedOptions);
     const upstreamRequests = [];
     t.mock.method(undici, 'fetch', async (url, init) => {
@@ -176,7 +179,7 @@ for (const savedOptions of [options, { model: 'gpt-image-2.5-flare', size: '1152
       const input = editing ? Object.fromEntries(init.body.entries()) : JSON.parse(init.body);
       assert.equal(input.model, savedOptions.model);
       assert.equal(input.size, savedOptions.size);
-      assert.equal(input.quality, savedOptions.quality);
+      assert.equal(input.quality, 'low');
       assert.equal(input.prompt, editing ? '把花瓶改成绿色' : '蓝色花瓶');
       if (editing) {
         const images = init.body.getAll('image');
@@ -207,7 +210,7 @@ for (const savedOptions of [options, { model: 'gpt-image-2.5-flare', size: '1152
       assert.equal(transaction.provider, 'micu');
       assert.equal(transaction.status, 'settled');
       assert.equal(transaction.usage.size, savedOptions.size);
-      assert.equal(transaction.usage.quality, savedOptions.quality);
+      assert.equal(transaction.usage.quality, 'low');
       assert.ok(Math.abs(transaction.actualCostCny - expectedCost) < 1e-12);
       const file = await StoredFile.findOne({ fileId: result.artifact.fileId, userId }).lean();
       assert.equal(file.ownerType, 'task');
@@ -273,12 +276,12 @@ test('千问仍按原接口生成和三图编辑，自动尺寸与逐图计价�
 });
 
 test('真实个人设置保存模型尺寸画质，拒绝无效参数，并通过加密备份恢复', async () => {
-  const savedOptions = { model: 'gpt-image-2.5-flare', size: '2048x2048', quality: 'max' };
+  const savedOptions = { model: 'gpt-image-2.5-flare', size: '2048x2048', quality: 'low' };
   const saved = await updateUserProfileSettings(userId, { chatMediaSettings: { image: savedOptions } });
   assert.deepEqual(saved.chatMediaSettings.image, savedOptions);
   assert.deepEqual((await getUserSettings(userId)).chatMediaSettings.image, savedOptions);
   await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { image: { size: 'auto' } } }), /模型/);
-  await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { image: { ...savedOptions, quality: 'invalid' } } }), /画质/);
+  await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { image: { ...savedOptions, size: '999x999' } } }), /尺寸/);
   assert.deepEqual((await UserSettings.findOne({ userId }).lean()).chatMediaSettings.image, savedOptions);
   const password = 'image-backup-test-2026';
   const job = await backups.createBackup(userId, { selection: ['settings'], password });

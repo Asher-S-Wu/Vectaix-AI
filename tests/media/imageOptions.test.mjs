@@ -26,13 +26,21 @@ test('Qwen keeps automatic sizing and excludes quality from its validated option
   rejectsOptions({ model: QWEN, size: '2048x2048' });
 });
 
-test('Micu models accept every documented size and quality without replacing supplied values', () => {
+test('Micu models accept every offered size with low quality without replacing supplied values', () => {
   assert.equal(typeof imageModels.validateImageOptions, 'function');
   for (const model of [SUNBURST, FLARE]) {
     for (const size of ['auto', '1024x1024', '1280x720', '720x1280', '1024x1536', '1536x1024', '1152x864', '864x1152', '1344x576', '2048x2048', '2048x1152', '1152x2048', '3840x2160', '2160x3840']) {
-      for (const quality of ['auto', 'low', 'medium', 'high', 'xhigh', 'max']) {
-        assert.deepEqual(imageModels.validateImageOptions({ model, size, quality }), { model, size, quality });
-      }
+      assert.deepEqual(imageModels.validateImageOptions({ model, size, quality: 'low' }), { model, size, quality: 'low' });
+    }
+  }
+});
+
+test('Micu fixes quality to low regardless of missing or previously saved quality without mutating input', () => {
+  for (const model of [SUNBURST, FLARE]) {
+    for (const quality of [undefined, 'auto', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']) {
+      const options = { model, size: '1024x1024', quality };
+      assert.deepEqual(imageModels.validateImageOptions(options), { model, size: '1024x1024', quality: 'low' });
+      assert.equal(options.quality, quality);
     }
   }
 });
@@ -44,8 +52,7 @@ test('invalid or missing image options are rejected instead of using defaults', 
     { model: 'unknown', size: '1024x1024', quality: 'auto' },
     { model: QWEN },
     { model: SUNBURST, size: 'not-a-size', quality: 'auto' },
-    { model: FLARE, size: '1024x1024' },
-    { model: FLARE, size: '1024x1024', quality: 'ultra' },
+    { model: FLARE },
   ]) rejectsOptions(options);
   assert.throws(() => imageModels.getImageModelConfig('unknown'), (error) => error.status === 400);
 });
@@ -57,10 +64,9 @@ test('each model configuration supplies a valid explicit initial selection', () 
     const validated = imageModels.validateImageOptions({
       model,
       size: config.defaultSize,
-      quality: config.defaultQuality,
     });
     assert.equal(validated.size, model === QWEN ? 'auto' : '1024x1024');
-    assert.equal(validated.quality, model === QWEN ? undefined : 'auto');
+    assert.equal(validated.quality, model === QWEN ? undefined : 'low');
   }
 });
 

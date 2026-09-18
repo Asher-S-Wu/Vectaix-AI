@@ -47,18 +47,19 @@ test.after(async () => {
 });
 
 for (const model of models) {
-  test(`${model} 聊天生成、单图及多图编辑保存参数、图片信息和待核对费用`, async t => {
+  test(`${model} 聊天生成、单图及多图编辑将旧画质固定为 low 并保存图片和费用`, async t => {
     const options = { model, size: '1024x1024', quality: 'auto' };
+    const effectiveOptions = { ...options, quality: 'low' };
     let calls = 0;
     t.mock.method(undici, 'fetch', async (url, init) => {
       calls++;
       if (calls === 1) {
         assert.match(String(url), /\/generations$/);
-        assert.deepEqual(JSON.parse(init.body), { ...options, prompt: '蓝色花瓶', n: 1, response_format: 'b64_json' });
+        assert.deepEqual(JSON.parse(init.body), { ...effectiveOptions, prompt: '蓝色花瓶', n: 1, response_format: 'b64_json' });
       } else {
         assert.match(String(url), /\/edits$/);
         assert.equal(init.body.get('model'), model);
-        assert.equal(init.body.get('quality'), 'auto');
+        assert.equal(init.body.get('quality'), 'low');
         assert.equal(init.body.getAll(calls === 2 ? 'image' : 'image[]').length, calls - 1);
       }
       return Response.json({ data: [{ b64_json: png.toString('base64') }] });
@@ -76,7 +77,7 @@ for (const model of models) {
     const first = conversation.messages[1].parts[0].inlineData;
     assert.equal(first.size, png.length);
     assert.match(first.name, /\.png$/);
-    assert.equal(conversation.messages[1].providerState.media.model, model);
+    assert.deepEqual(conversation.messages[1].providerState.media, { type: 'image', model, options: effectiveOptions });
     assert.equal((await call(input, operationId)).status, 409);
     const edited = await call({ ...input, conversationId, config: { media: options, images: [first] } });
     assert.doesNotMatch(await edited.text(), /stream_error/);
@@ -89,14 +90,15 @@ for (const model of models) {
     const billings = await Transaction.find({ userId, model }).lean();
     assert.equal(billings.length, 3);
     assert.ok(billings.every(item => item.status === 'review_required' && item.actualCostCny === null));
-    assert.ok(billings.every(item => item.usage.requestFingerprint && item.usage.quality === 'auto'));
+    assert.ok(billings.every(item => item.usage.requestFingerprint && item.usage.quality === 'low'));
 
     const { safeConversation } = await import('../../lib/server/backups/snapshot.mjs');
     const backup = safeConversation(await Conversation.findById(conversationId).lean());
     const restoredMessages = backup.messages.slice(0, 1);
-    assert.deepEqual(restoredMessages[0].providerState.media, options);
+    assert.deepEqual(restoredMessages[0].providerState.media, effectiveOptions);
+    restoredMessages[0].providerState.media.quality = 'high';
     t.mock.method(undici, 'fetch', async (_url, init) => {
-      assert.equal(JSON.parse(init.body).quality, options.quality);
+      assert.equal(JSON.parse(init.body).quality, 'low');
       assert.equal(JSON.parse(init.body).size, options.size);
       return Response.json({ data: [{ b64_json: png.toString('base64') }] });
     });

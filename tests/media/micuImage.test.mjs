@@ -5,7 +5,7 @@ import undici from "undici";
 import * as modelRoutes from "../../lib/modelRoutes.js";
 
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=", "base64");
-const PARAMS = { model: "gpt-image-2.5-sunburst", prompt: "一只猫", size: "1024x1024", quality: "high" };
+const PARAMS = { model: "gpt-image-2.5-sunburst", prompt: "一只猫", size: "1024x1024", quality: "low" };
 
 async function requestModule(t) {
   const previous = process.env.MICU_API_KEY;
@@ -114,7 +114,7 @@ test("文生图只发一次 JSON 请求并解码图片、保留用量和真实�
   assert.deepEqual(result, { input: PNG, mimeType: "image/png", requestId: "req-micu-1", usage });
 });
 
-test("两款模型的十四种尺寸选项与六档画质都按选择发送给 Micu", async (t) => {
+test("两款模型的十四种尺寸选项均固定发送 low 给 Micu", async (t) => {
   const { requestMicuImage } = await requestModule(t);
   const { IMAGE_MODELS } = await import("../../lib/media/shared/models.js");
   let expected;
@@ -124,13 +124,35 @@ test("两款模型的十四种尺寸选项与六档画质都按选择发送给 M
   });
   for (const config of IMAGE_MODELS.filter(model => model.service === "micu")) {
     for (const size of config.sizes) {
-      for (const quality of config.qualities) {
-        expected = { model: config.id, prompt: "test", size: size.id, quality: quality.id };
-        await requestMicuImage(expected);
+      expected = { model: config.id, prompt: "test", size: size.id, quality: "low" };
+      await requestMicuImage(expected);
+    }
+  }
+  assert.equal(fetchMock.mock.callCount(), 28);
+});
+
+test("生成、单图和多图编辑忽略旧画质参数，两款模型只发送 low 且不重试", async (t) => {
+  const { requestMicuImage } = await requestModule(t);
+  let expectedModel;
+  let expectedCount;
+  const fetchMock = t.mock.method(undici, "fetch", async (url, options) => {
+    const input = expectedCount ? Object.fromEntries(options.body.entries()) : JSON.parse(options.body);
+    assert.equal(input.model, expectedModel);
+    assert.equal(input.quality, "low");
+    assert.equal(url, `https://www.micuapi.ai/v1/images/${expectedCount ? "edits" : "generations"}`);
+    return imageResponse();
+  });
+  for (const model of ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare"]) {
+    expectedModel = model;
+    for (const count of [0, 1, 2]) {
+      expectedCount = count;
+      const images = Array.from({ length: count }, (_, i) => new File([PNG], `${i}.png`, { type: "image/png" }));
+      for (const quality of [undefined, "auto", "medium", "high", "xhigh", "max"]) {
+        await requestMicuImage({ ...PARAMS, model, quality, images });
       }
     }
   }
-  assert.equal(fetchMock.mock.callCount(), 168);
+  assert.equal(fetchMock.mock.callCount(), 36);
 });
 
 for (const count of [1, 2]) {

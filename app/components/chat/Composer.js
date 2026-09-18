@@ -68,7 +68,7 @@ export default function Composer({
   const [imageOptionsByModel, setImageOptionsByModel] = useState(() => Object.fromEntries(
     IMAGE_MODELS.map((config) => [config.id, {
       size: config.defaultSize,
-      ...(config.qualities.length > 0 ? { quality: config.defaultQuality } : {}),
+      ...(config.fixedQuality ? { quality: config.fixedQuality } : {}),
     }]),
   ));
   const fileInputRef = useRef(null);
@@ -557,30 +557,16 @@ export default function Composer({
           {isMediaModel ? (
             <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5">
               {isImageModel ? (
-                <>
-                  <select
-                    aria-label="图片比例"
-                    value={imageOptions.size}
-                    onChange={(event) => handleImageOptionChange("size", event.target.value)}
-                    className="h-8 max-w-[170px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
-                  >
-                    {imageConfig.sizes.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
-                    ))}
-                  </select>
-                  {imageConfig.qualities.length > 0 ? (
-                    <select
-                      aria-label="图片画质"
-                      value={imageOptions.quality}
-                      onChange={(event) => handleImageOptionChange("quality", event.target.value)}
-                      className="h-8 rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
-                    >
-                      {imageConfig.qualities.map((option) => (
-                        <option key={option.id} value={option.id}>{option.label}</option>
-                      ))}
-                    </select>
-                  ) : null}
-                </>
+                <select
+                  aria-label="图片比例"
+                  value={imageOptions.size}
+                  onChange={(event) => handleImageOptionChange("size", event.target.value)}
+                  className="h-8 max-w-[170px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
+                >
+                  {imageConfig.sizes.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
               ) : null}
             </div>
           ) : (
