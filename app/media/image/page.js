@@ -9,8 +9,9 @@ import ImageResultCard from '@/app/components/media/image-result-card';
 import { editImage, generateImage } from '@/lib/media/client/media';
 import {
   IMAGE_MODEL,
-  IMAGE_MODELS,
+  IMAGE_MODEL_OPTIONS,
   getImageModelConfig,
+  getImageModelOption,
   validateImageOptions,
   validateImageReferences,
 } from '@/lib/media/shared/models';
@@ -19,11 +20,8 @@ export default function ImageGenerationPage() {
   const [mode, setMode] = useState('generate');
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState(IMAGE_MODEL);
-  const [optionsByModel, setOptionsByModel] = useState(() => Object.fromEntries(
-    IMAGE_MODELS.map((config) => [config.id, {
-      size: config.defaultSize,
-      ...(config.fixedQuality ? { quality: config.fixedQuality } : {}),
-    }]),
+  const [sizesByModel, setSizesByModel] = useState(() => Object.fromEntries(
+    IMAGE_MODEL_OPTIONS.map(({ id }) => [id, getImageModelConfig(id).defaultSize]),
   ));
   const [isGenerating, setIsGenerating] = useState(false);
   const requestControllerRef = useRef(null);
@@ -35,8 +33,9 @@ export default function ImageGenerationPage() {
   const sourceImagesRef = useRef([]);
   const [sourceInputKey, setSourceInputKey] = useState(0);
   const modelConfig = getImageModelConfig(model);
-  const selectedOptions = { model, ...optionsByModel[model] };
-  const { size } = selectedOptions;
+  const modelOption = getImageModelOption(model);
+  const size = sizesByModel[modelOption.id];
+  const selectedOptions = { model, size, ...(modelConfig.fixedQuality ? { quality: modelConfig.fixedQuality } : {}) };
   let optionsError = '';
   let referenceError = '';
   try {
@@ -74,10 +73,10 @@ export default function ImageGenerationPage() {
     setError('');
   };
 
-  const handleOptionChange = (field, value) => {
-    setOptionsByModel((current) => ({
+  const handleSizeChange = (value) => {
+    setSizesByModel((current) => ({
       ...current,
-      [model]: { ...current[model], [field]: value },
+      [modelOption.id]: value,
     }));
     setError('');
   };
@@ -208,12 +207,23 @@ export default function ImageGenerationPage() {
 
           <div className="space-y-2">
             <label htmlFor="image-model" className="text-sm font-medium">图片模型</label>
-            <select id="image-model" value={model} onChange={(event) => handleModelChange(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
-              {IMAGE_MODELS.map((option) => (
+            <select id="image-model" value={modelOption.id} onChange={(event) => handleModelChange(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
+              {IMAGE_MODEL_OPTIONS.map((option) => (
                 <option key={option.id} value={option.id}>{option.name}</option>
               ))}
             </select>
           </div>
+
+          {modelOption.modes.length > 0 ? (
+            <div className="space-y-2">
+              <label htmlFor="image-generation-mode" className="text-sm font-medium">生成模式</label>
+              <select id="image-generation-mode" value={model} onChange={(event) => handleModelChange(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
+                {modelOption.modes.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
 
           <div className="relative grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/70 dark:bg-zinc-900/70 p-1">
             <button type="button" onClick={() => handleModeChange('generate')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'generate' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
@@ -295,7 +305,7 @@ export default function ImageGenerationPage() {
 
           <div className="space-y-2">
             <label htmlFor="image-size" className="text-sm font-medium">图片比例</label>
-            <select id="image-size" value={size} onChange={(event) => handleOptionChange('size', event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
+            <select id="image-size" value={size} onChange={(event) => handleSizeChange(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
               {modelConfig.sizes.map((option) => (
                 <option key={option.id} value={option.id}>{option.label}</option>
               ))}

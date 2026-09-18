@@ -16,6 +16,24 @@ const rejectsReferences = (model, images, options) => assert.throws(
   (error) => error.status === 400,
 );
 
+test('initial image options use Image 2.5 quality mode with fixed low API quality', () => {
+  const config = imageModels.getImageModelConfig(imageModels.IMAGE_MODEL);
+  assert.deepEqual(imageModels.validateImageOptions({ model: config.id, size: config.defaultSize }), {
+    model: SUNBURST, size: '1024x1024', quality: 'low',
+  });
+});
+
+test('Image 2.5 modes map to one model selection while retaining distinct request models', () => {
+  assert.equal(typeof imageModels.getImageModelOption, 'function');
+  const quality = imageModels.getImageModelOption(SUNBURST);
+  const speed = imageModels.getImageModelOption(FLARE);
+  assert.equal(quality, speed);
+  assert.deepEqual(quality.modes, [{ id: SUNBURST, label: '质量' }, { id: FLARE, label: '速度' }]);
+  assert.equal(imageModels.getImageModelOption(QWEN).id, QWEN);
+  assert.deepEqual(imageModels.getImageModelOption(QWEN).modes, []);
+  assert.throws(() => imageModels.getImageModelOption('unknown'), error => error.status === 400);
+});
+
 test('Qwen keeps automatic sizing and excludes quality from its validated options', () => {
   assert.equal(typeof imageModels.validateImageOptions, 'function');
   assert.deepEqual(imageModels.validateImageOptions({ model: QWEN, size: 'auto' }), {

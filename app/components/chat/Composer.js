@@ -23,8 +23,9 @@ import {
   isMediaGenerationModel,
 } from "@/lib/shared/models";
 import {
-  IMAGE_MODELS,
+  IMAGE_MODEL_OPTIONS,
   getImageModelConfig,
+  getImageModelOption,
   validateImageOptions,
   validateImageReferences,
 } from "@/lib/media/shared/models";
@@ -65,11 +66,8 @@ export default function Composer({
   const [input, setInput] = useState("");
   const [selectedAttachments, setSelectedAttachments] = useState([]);
   const [isMainInputFocused, setIsMainInputFocused] = useState(false);
-  const [imageOptionsByModel, setImageOptionsByModel] = useState(() => Object.fromEntries(
-    IMAGE_MODELS.map((config) => [config.id, {
-      size: config.defaultSize,
-      ...(config.fixedQuality ? { quality: config.fixedQuality } : {}),
-    }]),
+  const [imageSizesByModel, setImageSizesByModel] = useState(() => Object.fromEntries(
+    IMAGE_MODEL_OPTIONS.map(({ id }) => [id, getImageModelConfig(id).defaultSize]),
   ));
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -86,7 +84,12 @@ export default function Composer({
   const isMediaModel = isMediaGenerationModel(model);
   const isImageModel = isImageGenerationModel(model);
   const imageConfig = isImageModel ? getImageModelConfig(model) : null;
-  const imageOptions = isImageModel ? { model, ...imageOptionsByModel[model] } : null;
+  const imageModelOption = isImageModel ? getImageModelOption(model) : null;
+  const imageOptions = isImageModel ? {
+    model,
+    size: imageSizesByModel[imageModelOption.id],
+    ...(imageConfig.fixedQuality ? { quality: imageConfig.fixedQuality } : {}),
+  } : null;
   let imageValidationError = "";
   if (isImageModel) {
     try {
@@ -421,10 +424,10 @@ export default function Composer({
     ? Boolean(input.trim()) && !imageValidationError
     : Boolean(input.trim()) || hasReadyAttachment;
 
-  const handleImageOptionChange = (field, value) => {
-    setImageOptionsByModel((current) => ({
+  const handleImageSizeChange = (value) => {
+    setImageSizesByModel((current) => ({
       ...current,
-      [model]: { ...current[model], [field]: value },
+      [imageModelOption.id]: value,
     }));
   };
 
@@ -556,11 +559,24 @@ export default function Composer({
           />
           {isMediaModel ? (
             <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5">
+              {isImageModel && imageModelOption.modes.length > 0 ? (
+                <select
+                  aria-label="生成模式"
+                  value={model}
+                  onChange={(event) => onModelChange(event.target.value)}
+                  disabled={loading}
+                  className="h-8 rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
+                >
+                  {imageModelOption.modes.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              ) : null}
               {isImageModel ? (
                 <select
                   aria-label="图片比例"
                   value={imageOptions.size}
-                  onChange={(event) => handleImageOptionChange("size", event.target.value)}
+                  onChange={(event) => handleImageSizeChange(event.target.value)}
                   className="h-8 max-w-[170px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
                 >
                   {imageConfig.sizes.map((option) => (
