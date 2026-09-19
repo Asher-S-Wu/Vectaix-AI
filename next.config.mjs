@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["ffmpeg-static", "@ffprobe-installer/ffprobe", "pdfjs-dist", "playwright-chromium", "undici", "@modelcontextprotocol/sdk"],
+  serverExternalPackages: ["ffmpeg-static", "@ffprobe-installer/ffprobe", "pdfjs-dist", "playwright-chromium", "undici", "@modelcontextprotocol/sdk", "exceljs"],
   // 禁用页面缓存，确保每次获取最新版本
   async headers() {
     return [

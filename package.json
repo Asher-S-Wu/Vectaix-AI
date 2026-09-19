@@ -59,12 +59,18 @@
     "react-dom": "19.2.4",
     "postcss": "8.5.23",
     "exceljs": {
+      "fast-csv": "^5.0.7",
+      "glob": "^13.0.6",
+      "unzipper": "^0.12.5",
       "uuid": "^11.1.1"
     }
   },
   "allowScripts": {
     "@ffprobe-installer/linux-x64@5.2.0": true,
+    "esbuild@0.28.2": true,
     "ffmpeg-static@5.3.0": true,
+    "mongodb-memory-server@11.2.0": false,
+    "playwright-chromium@1.63.0": false,
     "protobufjs@7.6.5": true,
     "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true
