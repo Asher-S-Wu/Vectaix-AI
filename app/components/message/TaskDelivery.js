@@ -7,21 +7,17 @@ import { Check, Download, FileText, LoaderCircle, OctagonX } from "lucide-react"
 const LABELS = { queued: "正在排队", running: "正在处理", waiting_media: "正在生成素材", waiting_approval: "等待你的确认", completed: "已完成", failed: "执行失败", stopped: "已停止", interrupted: "执行已中断" };
 const ACTIVE = new Set(["queued", "running", "waiting_media", "waiting_approval"]);
 
-export default function TaskDelivery({ message, task, limits }) {
+export default function TaskDelivery({ message, task }) {
   const status = task?.status || message.taskStatus;
   const active = ACTIVE.has(status);
   const artifacts = task?.artifacts || message.artifacts || [];
-  const costCny = task?.costCny ?? message.costCny;
   const error = task?.error;
   return (
     <div className="my-2 w-full max-w-2xl space-y-2">
       <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
         {active ? <LoaderCircle size={13} className="animate-spin" /> : status === "completed" ? <Check size={13} /> : <OctagonX size={13} />}
         <span>{task?.stopRequested && active ? "正在停止" : LABELS[status]}</span>
-        {typeof costCny === "number" && <span>· 花费 ¥{costCny.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>}
-        {task?.billingReviewRequired && <span>· 部分用量待核查</span>}
       </div>
-      {active && limits && <p className="text-[11px] text-zinc-400">每次执行最多 {limits.maxSteps} 个步骤、{limits.maxMinutes} 分钟；每人同时执行 {limits.perUserConcurrency} 项。关闭页面后仍会继续。</p>}
       {status === "waiting_approval" && <TaskApprovals taskId={String(message.taskId)} />}
       {error && <p className="text-sm text-red-500">{error}</p>}
       {["failed", "interrupted", "stopped"].includes(status) && <p className="text-xs text-zinc-500">可以继续发送消息，或点击下方“重新生成”重试。</p>}

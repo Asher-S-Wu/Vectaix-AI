@@ -8,7 +8,7 @@ const MODES = [
   { href: "/media", label: "Media" },
 ];
 
-export default function ModeSwitcher() {
+export default function ModeSwitcher({ compact = false }) {
   const pathname = usePathname();
 
   return (
@@ -20,7 +20,7 @@ export default function ModeSwitcher() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors sm:px-4 sm:text-base ${
+            className={`rounded-lg ${compact ? "px-2 text-xs sm:px-4 sm:text-base" : "px-3 text-sm sm:px-4 sm:text-base"} py-2 font-semibold transition-colors ${
               active
                 ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white"
                 : "text-zinc-500 hover:bg-white/60 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-white"

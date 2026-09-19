@@ -72,7 +72,6 @@ const STARTER_ICONS = {
 
 export default function MessageList({
   tasks = [],
-  taskLimits,
   messages,
   loading,
   chatEndRef,
@@ -424,7 +423,7 @@ export default function MessageList({
                     )}
                   </div>
                 )}
-                {msg.role === "model" && msg.taskId && <TaskDelivery limits={taskLimits} message={msg} task={tasks.find(task => task._id === String(msg.taskId))} />}
+                {msg.role === "model" && msg.taskId && <TaskDelivery message={msg} task={tasks.find(task => task._id === String(msg.taskId))} />}
                 {msg.role === "model" && (msg.thought || msg.isSearching || msg.searchError || hasThinkingTimeline) && (
                   <ThinkingBlock
                     thought={msg.thought}

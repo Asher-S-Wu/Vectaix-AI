@@ -9,7 +9,7 @@ import Sidebar from "./Sidebar";
 
 export default function ChatLayout({
   resourcesPanel,
-  projects, activeProjectId, onSelectProject, onManageProjects, onMoveConversation, onOpenResources, projectName, tasks, taskLimits,
+  projects, activeProjectId, onSelectProject, onManageProjects, onMoveConversation, onOpenResources, projectName, tasks,
   user,
   assistant,
   isSettingsReady,
@@ -36,6 +36,7 @@ export default function ChatLayout({
   onRenameConversation,
   onTogglePinConversation,
   onOpenProfile,
+  onOpenUsage,
   onLogout,
   onCloseSidebar,
   onToggleSidebar,
@@ -90,10 +91,12 @@ export default function ChatLayout({
           sidebarOpen={sidebarOpen}
           onOpenResources={onOpenResources}
           projectName={projectName}
+          userId={user?.id}
+          tasks={tasks}
+          onOpenUsage={onOpenUsage}
         />
         <main className="flex-1 flex flex-col min-h-0 relative">
           <MessageList
-            taskLimits={taskLimits}
             tasks={tasks}
             messages={messages}
             loading={loading}

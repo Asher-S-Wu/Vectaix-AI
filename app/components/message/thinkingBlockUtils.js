@@ -3,7 +3,7 @@ import { LoadingSweepText } from "./MessageListHelpers";
 export function normalizeTimeline(timeline) {
   if (!Array.isArray(timeline)) return [];
   const normalized = timeline
-    .filter((step) => step && typeof step === "object")
+    .filter((step) => step && typeof step === "object" && step.eventType !== "billing")
     .map((step) => ({
       id: step.id,
       kind: step.kind,

@@ -538,8 +538,8 @@ export default function ChatApp() {
           onManageProjects={() => setShowProjects(true)}
           onMoveConversation={moveConversation}
           onOpenResources={() => setShowResources(true)}
+          onOpenUsage={() => openSettings("usage")}
           projectName={projects.find(item => item._id === projectId)?.name}
-          taskLimits={taskActions.limits}
           tasks={taskActions.tasks}
           conversationsReady={conversationsReady}
           conversationsError={conversationsError}

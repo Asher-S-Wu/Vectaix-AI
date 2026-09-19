@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 const { default: CreditTransaction } = await import('../../models/CreditTransaction.js');
-import { dateFilter, usageSummary, sanitizeEvent } from '../../lib/server/usage/service.js';
+import { currentMonthUsage, dateFilter, usageSummary, sanitizeEvent } from '../../lib/server/usage/service.js';
 
 let database;
 test.before(async () => {
@@ -60,4 +60,24 @@ test('diagnostics expose recorded money without legacy points or private payload
   assert.equal(result.costCny, 0.2);
   assert.equal(result.chargedPoints, undefined);
   assert.equal(JSON.stringify(result).includes('private'), false);
+});
+
+test('current month totals include only the owner’s recorded costs within Shanghai month boundaries', async () => {
+  const userId = new mongoose.Types.ObjectId(), other = new mongoose.Types.ObjectId();
+  const { month, createdAt } = dateFilter(new URLSearchParams());
+  const base = { userId, auditUserKey: 'month-test', type: 'model_usage', status: 'settled', createdAt: createdAt.$gte };
+  await CreditTransaction.create([
+    { ...base, operationId: 'month-start', actualCostCny: 1.25, actualCostUsd: 0.1 },
+    { ...base, operationId: 'month-end', createdAt: new Date(createdAt.$lt.getTime() - 1), actualCostCny: 2.75, actualCostUsd: 0.3 },
+    { ...base, operationId: 'month-unpriced', status: 'review_required' },
+    { ...base, operationId: 'month-other', userId: other, actualCostCny: 800 },
+    { ...base, operationId: 'month-before', createdAt: new Date(createdAt.$gte.getTime() - 1), actualCostCny: 100 },
+    { ...base, operationId: 'month-after', createdAt: createdAt.$lt, actualCostCny: 200 },
+    ...['pending', 'reserved', 'settling', 'released', 'rejected'].map(status => ({ ...base, operationId: `month-${status}`, status, actualCostCny: 500 })),
+  ]);
+  assert.deepEqual(await currentMonthUsage(String(userId)), { month, costCny: 4, costUsd: 0.4, requests: 3, unpricedRequests: 1 });
+  assert.deepEqual(await currentMonthUsage(String(new mongoose.Types.ObjectId())), { month, costCny: 0, costUsd: 0, requests: 0, unpricedRequests: 0 });
+  const summary = await usageSummary(String(userId), new URLSearchParams());
+  assert.equal(summary.currentMonth.costCny, 4);
+  assert.equal(summary.currentMonth.unpricedRequests, 1);
 });

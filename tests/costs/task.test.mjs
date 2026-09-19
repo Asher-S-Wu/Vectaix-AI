@@ -12,6 +12,8 @@ const { createTaskBilling } = await import('../../lib/server/workbench/taskBilli
 const { default: User } = await import('../../models/User.js');
 const { default: Task } = await import('../../models/WorkbenchTask.js');
 const { default: Event } = await import('../../models/WorkbenchTaskEvent.js');
+const { default: Conversation } = await import('../../models/Conversation.js');
+const { appendTaskEvent } = await import('../../lib/server/workbench/events.js');
 const { default: Transaction, ensureCreditTransactionIndexes } = await import('../../models/CreditTransaction.js');
 const {default:dbConnect}=await import('../../lib/db.js');
 await dbConnect();
@@ -20,9 +22,10 @@ test.after(async () => { await mongoose.disconnect(); await mongo.stop(); });
 
 test('高单价模型不限制普通用户输出，逐轮累加实际花费并保留上下文限制', async () => {
   const user = await User.create({ email: 'task-cost@example.com', password: 'test-only' });
+  const conversation = await Conversation.create({ userId: user._id, messages: [{ id: 'model-message', role: 'model', content: '' }] });
   const task = await Task.create({
     userId: user._id, requestId: 'cost-task', fingerprint: 'cost-task-fingerprint',
-    conversationId: new mongoose.Types.ObjectId(), userMessageId: 'user-message', modelMessageId: 'model-message',
+    conversationId: conversation._id, userMessageId: 'user-message', modelMessageId: 'model-message',
     model: 'gpt-6-astra', status: 'running',
   });
   const billing = await createTaskBilling(task, new AbortController().signal);
@@ -53,6 +56,9 @@ test('高单价模型不限制普通用户输出，逐轮累加实际花费并�
   const billingEvents = await Event.find({ taskId: task._id, type: 'billing' }).sort({ seq: 1 }).lean();
   assert.ok(Math.abs(billingEvents[0].data.costCny - 0.7392) < 1e-12);
   assert.ok(Math.abs(billingEvents[1].data.costCny - 0.3696) < 1e-12);
+  await appendTaskEvent(task, 'completed', '执行完成');
+  const saved = await Conversation.findById(conversation._id).lean();
+  assert.deepEqual(saved.messages[0].thinkingTimeline.map(step => step.eventType), ['model', 'model', 'completed']);
   await assert.rejects(billing.onPassComplete({ completion: { usageRecord: { usage: { input_tokens: 1, output_tokens: 1 } } } }), /记录不存在/);
   assert.ok(Math.abs((await Task.findById(task._id)).costCny - 1.1088) < 1e-12);
   await assert.rejects(billing.resolveMaxOutputTokens({ pass: 2, inputPayload: 'x'.repeat(2999998) }), /上下文/);

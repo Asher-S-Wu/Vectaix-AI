@@ -11,11 +11,19 @@ test('usage logs endpoint and settings page return data instead of an HTML 404',
     const anonymous = await context.request.get(`${base}/api/usage/logs`);
     assert.equal(anonymous.status(), 401);
     assert.equal((await anonymous.json()).error, '请先登录');
+    const anonymousMonth = await context.request.get(`${base}/api/usage/current-month`);
+    assert.equal(anonymousMonth.status(), 401);
 
     const login = await context.request.post(`${base}/api/auth/login`, {
       data: { email: 'member@example.test', password: 'Vectaix-Test-2026!' },
     });
     assert.equal(login.status(), 200);
+    const month = await context.request.get(`${base}/api/usage/current-month`);
+    assert.equal(month.status(), 200);
+    assert.match(month.headers()['cache-control'], /no-store/);
+    const monthData = await month.json();
+    assert.equal(typeof monthData.costCny, 'number');
+    assert.equal(typeof monthData.unpricedRequests, 'number');
     const logs = await context.request.get(`${base}/api/usage/logs`);
     assert.equal(logs.status(), 200);
     assert.ok(Array.isArray((await logs.json()).events));
