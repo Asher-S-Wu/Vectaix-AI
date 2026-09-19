@@ -11,7 +11,6 @@ import {
   Loader2,
   Mic2,
   SlidersHorizontal,
-  Sparkles,
   Volume2,
   WandSparkles,
 } from "lucide-react";
@@ -426,10 +425,6 @@ export default function AudioWorkspacePage() {
                 <h2 className="text-lg font-semibold">创作语音</h2>
                 <p className="mt-1 text-sm text-zinc-500">输入内容、挑选音色，再按需要调整表达方式。</p>
               </div>
-              <span className="hidden items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-xs text-zinc-500 dark:bg-zinc-800 sm:inline-flex">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                非实时高品质合成
-              </span>
             </div>
 
             <form onSubmit={handleGenerate} className="space-y-5">
@@ -669,7 +664,7 @@ export default function AudioWorkspacePage() {
             loading={generationsLoading}
             error={generationsError}
             onRefresh={loadGenerations}
-            emptyDescription="在上方输入文字并生成语音，结果会安全保存在这里。"
+            emptyDescription="生成的语音会显示在这里，可播放或下载。"
             renderItem={(generation) => (
               <AudioGenerationCard
                 key={generation.id}

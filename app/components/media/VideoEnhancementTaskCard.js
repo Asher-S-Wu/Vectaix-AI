@@ -163,7 +163,7 @@ export default function VideoEnhancementTaskCard({ task, deleting, onDelete }) {
               src={result.videoUrl}
               className="aspect-video w-full rounded-2xl border border-zinc-200 bg-black object-contain dark:border-zinc-800"
             >
-              您的浏览器暂时无法播放这个视频。
+              你的浏览器暂时无法播放这个视频。
             </video>
             <div className="flex flex-col gap-3 rounded-xl bg-zinc-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-900">
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">

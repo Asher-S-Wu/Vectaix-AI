@@ -190,7 +190,7 @@ export default function AudioSourceClipField({
       {state.status === "uploading" ? (
         <div className="mt-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-950/50" role="status">
           <div className="flex items-center justify-between gap-3 text-xs text-zinc-500">
-            <span className="flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" />正在上传并识别音频…</span>
+            <span className="flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" />正在上传并读取音频信息…</span>
             <span className="tabular-nums">{state.progress}%</span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
@@ -208,7 +208,7 @@ export default function AudioSourceClipField({
       {state.status === "ready" && upload ? (
         <div className="mt-3 space-y-3">
           <p className="text-xs font-medium text-emerald-600" role="status">
-            云端识别完成，提交后会自动转码
+            音频已上传，请选择要使用的片段。
           </p>
           {previewUrl ? (
             <audio ref={playerRef} controls preload="metadata" src={previewUrl} className="h-9 w-full">
@@ -261,7 +261,7 @@ export default function AudioSourceClipField({
             </div>
 
             <p className="mt-3 flex items-center gap-1.5 text-[11px] text-zinc-400">
-              <Clock3 className="h-3.5 w-3.5" />允许 {upload.minClipSeconds}–{upload.maxClipSeconds} 秒，提交时会在云端转换成 16 位 PCM WAV。
+              <Clock3 className="h-3.5 w-3.5" />请选择 {upload.minClipSeconds}–{upload.maxClipSeconds} 秒的片段。
             </p>
           </div>
         </div>

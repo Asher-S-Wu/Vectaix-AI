@@ -32,7 +32,7 @@ export default function AudioHistorySection({
   onRefresh,
   renderItem,
   emptyTitle = "还没有语音记录",
-  emptyDescription = "在上方输入文字并生成语音，结果会安全保存在这里。",
+  emptyDescription = "生成的语音会显示在这里，可播放或下载。",
   onlyLatestHint = "当前只有上方这条新记录。",
 }) {
   const titleId = useId();

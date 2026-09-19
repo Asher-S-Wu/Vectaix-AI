@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
+import { MINIMAX_VOICE_UNLOCK_PRICE_CNY } from "@/lib/media/shared/minimaxAudio";
 import VoiceEditDialog from "@/app/components/media/VoiceEditDialog";
 import { previewAudioVoice } from "@/lib/media/client/media";
 import {
@@ -148,7 +149,7 @@ export function mapMinimaxCustomVoice(voice) {
     ? "已解锁"
     : voice.unlockPending
       ? "首次解锁核对中"
-      : "首次使用另计解锁费";
+      : `首次合成另收 ${MINIMAX_VOICE_UNLOCK_PRICE_CNY} 元解锁费`;
   return {
     id: voice.id,
     voiceId: voice.voiceId,

@@ -13,7 +13,6 @@ import {
   Loader2,
   Mic2,
   SlidersHorizontal,
-  Sparkles,
   Volume2,
   WandSparkles,
 } from "lucide-react";
@@ -54,6 +53,7 @@ import {
   MINIMAX_AUDIO_TEXT_MAX_LENGTH,
   MINIMAX_EXPRESSIVE_TAGS,
   MINIMAX_VOICE_DISPLAY_NAME_MAX_LENGTH,
+  MINIMAX_VOICE_UNLOCK_PRICE_CNY,
 } from "@/lib/media/shared/minimaxAudio";
 
 function merge(items, item) {
@@ -364,10 +364,6 @@ export default function MinimaxAudioWorkspacePage() {
                 <h2 className="text-lg font-semibold">创作语音</h2>
                 <p className="mt-1 text-sm text-zinc-500">输入内容、挑选音色，再按需要调整情感与声音参数。</p>
               </div>
-              <span className="hidden items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-xs text-zinc-500 dark:bg-zinc-800 sm:inline-flex">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                非实时高品质合成
-              </span>
             </div>
 
             <form onSubmit={handleGenerate} className="space-y-5">
@@ -565,6 +561,12 @@ export default function MinimaxAudioWorkspacePage() {
               </div>
 
               <UseInChatButton section="audio" value={{provider:'minimax',model,voiceId,emotion,speed,volume,pitch,languageBoost,format}} disabled={generating || !voiceId} />
+
+              {selectedCustomVoice && !selectedCustomVoice.isUnlocked && !selectedCustomVoice.unlockPending && (
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  此音色首次用于生成语音时收取 {MINIMAX_VOICE_UNLOCK_PRICE_CNY} 元解锁费，另计本次语音合成费用。
+                </p>
+              )}
               <AudioFormError message={generationError || voicesError} />
 
               <button
@@ -606,7 +608,7 @@ export default function MinimaxAudioWorkspacePage() {
             loading={generationsLoading}
             error={generationsError}
             onRefresh={loadGenerations}
-            emptyDescription="在上方输入文字并生成语音，结果会安全保存在这里。"
+            emptyDescription="生成的语音会显示在这里，可播放或下载。"
             renderItem={(generation) => (
               <MinimaxAudioGenerationCard
                 key={generation.id}

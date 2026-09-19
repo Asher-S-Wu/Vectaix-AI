@@ -337,13 +337,13 @@ export default function ImageGenerationPage() {
         >
           <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            正在生成图片，请稍候…
+            {mode === 'edit' ? '正在编辑图片，请稍候…' : '正在生成图片，请稍候…'}
           </div>
           <div className="relative flex h-[320px] items-center justify-center overflow-hidden rounded-xl border border-primary/20 bg-primary/5">
             <div aria-hidden className="absolute inset-0 animate-pulse bg-gradient-to-br from-primary/10 via-transparent to-primary/10" />
             <div className="relative flex flex-col items-center gap-3 text-primary/70">
               <ImagePlus className="h-10 w-10 animate-pulse" />
-              <span className="text-xs">正在绘制画面与细节，请保持页面打开</span>
+              <span className="text-xs">正在处理图片，请保持页面打开</span>
             </div>
           </div>
         </motion.div>
@@ -354,8 +354,8 @@ export default function ImageGenerationPage() {
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <ImagePlus className="h-6 w-6" />
           </span>
-          <p className="text-sm font-medium text-zinc-500">生成的图片会显示在这里</p>
-          <p className="text-xs text-zinc-400">在上方输入描述，点击「生成图片」开始创作</p>
+          <p className="text-sm font-medium text-zinc-500">{mode === 'edit' ? '编辑后的图片会显示在这里' : '生成的图片会显示在这里'}</p>
+          <p className="text-xs text-zinc-400">{mode === 'edit' ? '上传参考图片，描述修改要求，点击「编辑图片」。' : '输入画面描述，点击「生成图片」。'}</p>
         </div>
       )}
     </div>

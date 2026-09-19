@@ -13,7 +13,6 @@ import {
   Loader2,
   MonitorUp,
   RefreshCw,
-  ScanLine,
   ShieldCheck,
   Sparkles,
   Upload,
@@ -479,14 +478,11 @@ export default function VideoEnhancementPage() {
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-cyan-300/25 blur-3xl dark:bg-cyan-500/10" />
         <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
           <div>
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-white/70 px-3 py-1.5 text-xs font-semibold tracking-[0.12em] text-cyan-800 backdrop-blur dark:border-cyan-900 dark:bg-zinc-950/60 dark:text-cyan-300">
-              <ScanLine className="h-3.5 w-3.5" /> VIDEO RESTORATION LAB
-            </div>
             <h1 className="max-w-2xl text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl dark:text-white">
-              视频修复实验台
+              视频画质增强
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base dark:text-zinc-300">
-              提升画面清晰度、细节与观感。提交后在后台持续处理，关闭页面也不会中断任务。
+              上传一段视频，提升画面清晰度与细节。
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center md:w-72">
@@ -837,9 +833,6 @@ export default function VideoEnhancementPage() {
             <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
               平均约需视频时长的 15–20 倍。视频越长、输出画质越高，等待时间通常越久。
             </p>
-            <div className="mt-4 rounded-xl bg-violet-50 px-3.5 py-3 text-xs leading-5 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300">
-              提交成功后可放心关闭页面，任务会继续进行。
-            </div>
           </section>
         </aside>
       </div>
@@ -847,9 +840,8 @@ export default function VideoEnhancementPage() {
       <section aria-labelledby="enhancement-history-title" className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold tracking-[0.14em] text-cyan-600 dark:text-cyan-400">TASK ARCHIVE</p>
             <h2 id="enhancement-history-title" className="mt-1 text-xl font-semibold">增强记录</h2>
-            <p className="mt-1 text-sm text-zinc-500">运行中的任务每 15 秒统一更新一次。</p>
+            <p className="mt-1 text-sm text-zinc-500">处理进度每 15 秒自动刷新。</p>
           </div>
           <button
             type="button"

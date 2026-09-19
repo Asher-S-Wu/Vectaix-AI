@@ -329,7 +329,7 @@ export default function MessageList({
               </motion.div>
               <div className="space-y-3 relative z-10">
                 <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-zinc-900 via-zinc-700 to-primary dark:from-white dark:via-zinc-200 dark:to-primary bg-clip-text text-transparent tracking-tight">
-                  今天能帮您做点什么？
+                  今天能帮你做点什么？
                 </h2>
                 <p className="text-zinc-400 dark:text-zinc-500 text-[15px] max-w-sm mx-auto leading-relaxed">
                   选择一个模型开始对话，或从下面的灵感开始
@@ -412,13 +412,13 @@ export default function MessageList({
                 {msg.role === "user" && (
                   <div className="flex items-center gap-2 pr-1 mb-1 relative">
                     <span className="text-[11px] text-zinc-500 font-medium truncate max-w-[150px]">
-                      {userNickname || "您"}
+                      {userNickname || "你"}
                     </span>
                     {userAvatar ? (
                       <NextImage src={userAvatar} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-md object-cover ring-1 ring-zinc-200/50 dark:ring-zinc-700" />
                     ) : (
                       <div className="w-5 h-5 rounded-md bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-500">
-                        {userNickname?.[0] || "您"}
+                        {userNickname?.[0] || "你"}
                       </div>
                     )}
                   </div>
