@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { ArrowUpRight, AudioLines, Clapperboard, ImagePlus, ScanLine } from "lucide-react";
+import { ArrowUpRight, AudioLines, ImagePlus, ScanLine } from "lucide-react";
 import { MEDIA_WORKSPACES } from "@/lib/media/shared/workspaces";
 
 const WORKSPACE_VISUALS = {
   image: { icon: ImagePlus, label: "图片创作", color: "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400" },
-  video: { icon: Clapperboard, label: "视频创作", color: "bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400" },
   audio: { icon: AudioLines, label: "语音创作", color: "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400" },
   enhancement: { icon: ScanLine, label: "画质增强", color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" },
 };
@@ -18,7 +17,7 @@ export default function MediaPage() {
           让想法变成作品
         </h1>
         <p className="mt-4 max-w-xl text-sm leading-7 text-zinc-500 sm:text-base dark:text-zinc-400">
-          选择一个模型，开始图片、视频或语音创作。
+          选择图片创作、语音合成或视频画质增强工具。
         </p>
       </div>
 

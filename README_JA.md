@@ -34,7 +34,6 @@
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>Alibaba Cloud</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-HappyHorse-615CED?style=for-the-badge&logoColor=white" alt="HappyHorse"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max%200902-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max 0902"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 </tr>
@@ -50,7 +49,7 @@
 
 ## 概要
 
-**Vectaix AI** は、複数のAIモデルとのチャット、ウェブ検索、画像・動画・音声の制作に対応しています。
+**Vectaix AI** は、複数のAIモデルとのチャット、ウェブ検索、画像・音声の制作と動画の画質向上に対応しています。
 
 <br/>
 
@@ -78,7 +77,6 @@
 | モデル | プロバイダー | 機能 |
 |:---:|:---:|:---|
 | **Qwen Image 3.0 Pro** | Alibaba Cloud | 画像生成と1～3枚の参照画像を使った画像編集 |
-| **HappyHorse 1.1 / Video Edit 1.0** | Alibaba Cloud | テキストから動画、先頭フレームから動画、複数参照画像から動画、動画編集 |
 | **AI MediaKit 動画画質向上** | Volcengine | ローカル動画または公開HTTPS URLを生成AIで画質向上（720p／1080p／2K）し、結果をプライベートストレージに保存 |
 | **Qwen Audio 3.0 TTS Plus** | Alibaba Cloud | 多言語音声合成、表現制御、音声クローン |
 | **MiniMax Speech 2.8 HD / Turbo** | Alibaba Cloud | 感情音声合成、システム音声、ユーザー専用音声クローン |
@@ -187,7 +185,7 @@ vectaix-ai/
 │   │   ├── chat/             # マルチプロバイダーチャット
 │   │   ├── auth/             # 認証エンドポイント
 │   │   ├── conversations/    # 会話CRUD
-│   │   ├── media/            # 画像/動画生成
+│   │   ├── media/            # 画像・音声・動画画質向上
 │   │   ├── upload/           # プライベートディスクアップロード
 │   │   └── admin/            # 管理機能
 │   ├── components/           # React UIコンポーネント
@@ -239,7 +237,7 @@ vectaix-ai/
 | **バックエンド** | Next.js API Routes · Node.js · SSE（Server-Sent Events）ストリーミング |
 | **データベース** | MongoDB + Mongoose ODM |
 | **ストレージ** | Zeabur マウントディスク（プライベートメディア） |
-| **AIプロバイダー** | OpenRouter · Alibaba Cloud Model Studio |
+| **AIプロバイダー** | Micu · Alibaba Cloud Model Studio |
 | **認証** | MongoDBサーバーセッション · bcryptjs |
 | **レンダリング** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **デプロイ** | Zeabur ネイティブ Next.js サービス（単一インスタンス） |
@@ -272,11 +270,16 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB接続文字列 |
 | `STORAGE_ROOT` | ✅ | マウントディスクのパス。Zeabur では `/data/vectaix` |
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
-| `OPENROUTER_API_KEY` | — | GPT、Grok、Claude、Gemini、Kimi K3の各チャットモデルで共用するOpenRouter APIキー |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max 0902、Qwen Image 3.0 Pro、HappyHorse動画、Qwen Audio 3.0 TTS Plus 用のシンガポール地域Alibaba Cloud Model Studio APIキー |
+| `MICU_OPENAI_API_KEY` | — | GPT-6 Astra 専用の Micu API キー |
+| `MICU_ANTHROPIC_API_KEY` | — | Claude Opus 5 専用の Micu API キー |
+| `MICU_GOOGLE_API_KEY` | — | Gemini 3.8 Flash 専用の Micu API キー。録音の文字起こしにも使用 |
+| `MICU_XAI_API_KEY` | — | Grok 4.6 専用の Micu API キー |
+| `MICU_MOONSHOT_API_KEY` | — | Kimi K3 専用の Micu API キー |
+| `MICU_OPENAI_IMAGE_API_KEY` | — | Micu 画像サービスのキー。5つのチャットモデルのキーとは個別に設定 |
+| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max 0902、Qwen Image 3.0 Pro、Qwen Audio 3.0 TTS Plus 用のシンガポール地域Alibaba Cloud Model Studio APIキー |
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 用の北京地域Alibaba Cloud Model Studio APIキー |
 | `AI_MEDIAKIT_API_KEY` | — | AI MediaKit画質向上（大規模モデル版）用のAPIキー。有効にする場合に設定 |
-| `PUBLIC_APP_URL` | — | デプロイ済みアプリの公開HTTPSアドレス。パスキーでのログインと、HappyHorse・MiniMax音声クローンによる入力素材の取得に必要 |
+| `PUBLIC_APP_URL` | — | デプロイ済みアプリの公開HTTPSアドレス。パスキーでのログインと、MiniMax音声クローンによる入力素材の取得に必要 |
 | `APP_SECRETS_KEY` | — | 外部接続の認証情報、ブラウザーのログイン状態、定期バックアップのパスワードを暗号化する鍵。これらの機能を使う場合に必要。32バイトのランダムな鍵をBase64形式で指定し、安全に保管してください |
 | `TINYFISH_API_KEY` | — | 無料の TinyFish Search と Fetch 共通の API キー。ウェブブラウジングを有効にする場合は必須 |
 

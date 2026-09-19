@@ -19,6 +19,15 @@ test('未配置创作参数的聊天任务从数据库取出后仍能注册工�
     assert.ok(Object.values(capabilities).every(value => value.available === false));
     assert.ok(entries.some(entry => entry.definition.name === 'list_media'));
     assert.ok(!entries.some(entry => entry.definition.name === 'generate_speech'));
+    process.env.AI_MEDIAKIT_API_KEY = 'test-enhancement-key';
+    task.mediaSettings = { video: { mode: 'text', resolution: '720P', ratio: '16:9', duration: 5, watermark: false }, enhancement: { resolution: '1080p', bitrate: { mode: 'level', value: 'high' } } };
+    const configured = [];
+    await registerMediaTools({ registry: { add: entry => configured.push(entry) }, task, signal: new AbortController().signal, assertActive: async () => {} });
+    const configuredCapabilities = await configured.find(entry => entry.definition.name === 'media_capabilities').execute();
+    assert.equal(configuredCapabilities.video, undefined);
+    assert.equal(configuredCapabilities.enhancement.available, true);
+    assert.ok(!configured.some(entry => entry.definition.name === 'generate_video'));
+    assert.ok(configured.some(entry => entry.definition.name === 'enhance_video'));
   } finally {
     await mongoose.disconnect();
     await mongo.stop();

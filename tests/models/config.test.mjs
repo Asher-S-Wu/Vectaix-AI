@@ -6,8 +6,8 @@ import { getPublicModels, getManagedModel, getModelConnection, getDefaultTranscr
 test('模型目录、默认模型和价格无需数据库，由代码决定',async()=>{
  const catalog=await getPublicModels();
  assert.equal(catalog.models.length,6);
- assert.equal(catalog.defaultModelId,'google/gemini-3.8-flash');
- assert.equal((await getDefaultTranscriptionModel()).id,catalog.defaultModelId);
+ assert.equal(catalog.defaultModelId,'gpt-6-astra');
+ assert.equal((await getDefaultTranscriptionModel()).id,'google/gemini-3.8-flash');
  assert.ok((await getDefaultTranscriptionModel()).nativeInputs.includes('audio'));
  const model=await getManagedModel('gpt-6-astra');
  model.requestOptions.reasoning.effort='low';
@@ -17,13 +17,13 @@ test('模型目录、默认模型和价格无需数据库，由代码决定',asy
  await assert.rejects(getManagedModel('database-custom-model'),/模型不存在/);
 });
 test('连接只读取服务器环境密钥，公开目录不泄漏密钥',async()=>{
- process.env.OPENROUTER_API_KEY='test-env-key';
+ process.env.MICU_OPENAI_API_KEY='test-env-key';
  const connection=await getModelConnection('gpt-6-astra');
  assert.equal(connection.provider.apiKey,'test-env-key');
- assert.equal(connection.provider.baseUrl,'https://openrouter.ai/api/v1');
+ assert.equal(connection.provider.baseUrl,'https://www.micuapi.ai/v1');
  assert.equal(connection.provider.protocol,'responses');
  assert.ok(!JSON.stringify(await getPublicModels()).includes('test-env-key'));
- delete process.env.OPENROUTER_API_KEY;
+ delete process.env.MICU_OPENAI_API_KEY;
  await assert.rejects(getModelConnection('gpt-6-astra'),/尚未配置/);
 });
 test('管理员模型、服务商和积分费率管理接口已删除',async()=>{

@@ -34,7 +34,6 @@
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>阿里云</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-HappyHorse-615CED?style=for-the-badge&logoColor=white" alt="HappyHorse"/><br/><sub><b>阿里云</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max%200902-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max 0902"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 </tr>
@@ -50,7 +49,7 @@
 
 ## 项目概述
 
-**Vectaix AI** 支持多模型对话、联网搜索，以及图片、视频和语音创作。
+**Vectaix AI** 支持多模型对话、联网搜索，以及图片创作、语音合成和视频画质增强。
 
 <br/>
 
@@ -78,7 +77,6 @@
 | 模型 | 供应商 | 能力 |
 |:---:|:---:|:---|
 | **Qwen Image 3.0 Pro** | 阿里云 | 图片生成，以及使用 1–3 张参考图进行图片编辑 |
-| **HappyHorse 1.1 / Video Edit 1.0** | 阿里云 | 文生视频、首帧生视频、多图参考生视频和视频编辑 |
 | **AI MediaKit 视频画质增强** | 火山引擎 | 支持本地视频或公网 HTTPS 地址，进行生成式画质增强（720p、1080p 或 2K），结果保存到私有空间 |
 | **Qwen Audio 3.0 TTS Plus** | 阿里云 | 多语言语音合成、表达控制和声音复刻 |
 | **MiniMax Speech 2.8 HD / Turbo** | 阿里云 | 情感语音合成、系统音色和用户专属声音复刻 |
@@ -187,7 +185,7 @@ vectaix-ai/
 │   │   ├── chat/             # 多供应商聊天
 │   │   ├── auth/             # 认证端点
 │   │   ├── conversations/    # 对话 CRUD
-│   │   ├── media/            # 图片/视频生成
+│   │   ├── media/            # 图片、语音和视频增强
 │   │   ├── upload/           # 私有硬盘文件上传
 │   │   └── admin/            # 管理后台
 │   ├── components/           # React UI 组件
@@ -239,7 +237,7 @@ vectaix-ai/
 | **后端** | Next.js API Routes · Node.js · SSE（Server-Sent Events）流式传输 |
 | **数据库** | MongoDB + Mongoose ODM |
 | **存储** | Zeabur 挂载硬盘（私有媒体文件） |
-| **AI 供应商** | OpenRouter · 阿里云百炼 |
+| **AI 供应商** | Micu · 阿里云百炼 |
 | **认证** | MongoDB 服务端会话 · bcryptjs |
 | **渲染** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **部署** | Zeabur 原生 Next.js 服务（单实例） |
@@ -272,11 +270,16 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB 连接字符串 |
 | `STORAGE_ROOT` | ✅ | 挂载硬盘目录，Zeabur 使用 `/data/vectaix` |
 | `ADMIN_EMAILS` | — | 管理员邮箱，多个邮箱使用英文逗号分隔 |
-| `OPENROUTER_API_KEY` | — | GPT、Grok、Claude、Gemini、Kimi K3 等聊天模型共用的 OpenRouter API 密钥 |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max 0902、Qwen Image 3.0 Pro、HappyHorse 视频和 Qwen Audio 3.0 TTS Plus 使用的新加坡区域阿里云百炼 API 密钥 |
+| `MICU_OPENAI_API_KEY` | — | GPT-6 Astra 专用的 Micu 密钥 |
+| `MICU_ANTHROPIC_API_KEY` | — | Claude Opus 5 专用的 Micu 密钥 |
+| `MICU_GOOGLE_API_KEY` | — | Gemini 3.8 Flash 专用的 Micu 密钥，录音转文字也使用此模型 |
+| `MICU_XAI_API_KEY` | — | Grok 4.6 专用的 Micu 密钥 |
+| `MICU_MOONSHOT_API_KEY` | — | Kimi K3 专用的 Micu 密钥 |
+| `MICU_OPENAI_IMAGE_API_KEY` | — | Micu 图片服务密钥，与五个聊天模型的密钥分别配置 |
+| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max 0902、Qwen Image 3.0 Pro 和 Qwen Audio 3.0 TTS Plus 使用的新加坡区域阿里云百炼 API 密钥 |
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 使用的北京区域阿里云百炼 API 密钥 |
 | `AI_MEDIAKIT_API_KEY` | — | AI MediaKit 画质增强（大模型版）使用的 API Key，实际启用时配置 |
-| `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址；通行密钥登录、HappyHorse 和 MiniMax 声音复刻读取素材时需要 |
+| `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址；通行密钥登录、MiniMax 声音复刻读取素材时需要 |
 | `APP_SECRETS_KEY` | — | 用于加密外部连接凭据、浏览器登录状态和定时备份密码；启用这些功能时需要。值为 32 字节随机密钥的 Base64 编码，请妥善保存 |
 | `TINYFISH_API_KEY` | — | TinyFish 免费 Search 与 Fetch 接口共用的 API 密钥，启用联网时必需 |
 

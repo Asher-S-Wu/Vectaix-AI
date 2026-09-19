@@ -9,7 +9,7 @@ const mongo=await MongoMemoryServer.create();
 process.env.MONGO_URI=mongo.getUri();
 process.env.APP_SECRETS_KEY=Buffer.alloc(32,6).toString('base64');
 process.env.ADMIN_EMAILS='admin@example.com';
-delete process.env.OPENROUTER_API_KEY;
+delete process.env.MICU_OPENAI_API_KEY;
 delete process.env.DASHSCOPE_SINGAPORE_API_KEY;
 const {workAsyncStorage}=await import('next/dist/server/app-render/work-async-storage.external.js');
 const {workUnitAsyncStorage}=await import('next/dist/server/app-render/work-unit-async-storage.external.js');
@@ -40,7 +40,7 @@ test('麦克风未授权时直接请求转写返回禁止，不读取录音或�
 test('模型目录需要登录，并且不公开服务器密钥和请求配置',async()=>{
  const member=await login('member@example.com');
  assert.equal((await call(null,publicModels.GET,new Request('http://test/api/models'))).status,401);
- process.env.OPENROUTER_API_KEY='never-show-this-secret';
+ process.env.MICU_OPENAI_API_KEY='never-show-this-secret';
  const response=await call(member,publicModels.GET,new Request('http://test/api/models'));
  assert.equal(response.status,200);
  const payload=await response.json();
@@ -48,4 +48,5 @@ test('模型目录需要登录，并且不公开服务器密钥和请求配置',
  assert.ok(!JSON.stringify(payload).includes('never-show-this-secret'));
  assert.equal(payload.models[0].baseUrl,undefined);
  assert.equal(payload.models[0].requestOptions,undefined);
+ assert.equal(payload.models[0].headers,undefined);
 });

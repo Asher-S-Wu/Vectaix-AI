@@ -2,7 +2,7 @@
 
 
 import { useState } from "react";
-import { Clapperboard, ImagePlus } from "lucide-react";
+import { ImagePlus } from "lucide-react";
 import { getModelProvider } from "@/lib/shared/models";
 
 const PROVIDER_LOGOS = Object.freeze({
@@ -34,9 +34,6 @@ function ProviderMark({ provider, size }) {
   const [failed, setFailed] = useState(false);
   if (provider === "image-gen") {
     return <ImagePlus aria-hidden style={{ width: size, height: size }} />;
-  }
-  if (provider === "video-gen") {
-    return <Clapperboard aria-hidden style={{ width: size, height: size }} />;
   }
   const logo = PROVIDER_LOGOS[provider];
   if (!logo || failed) {

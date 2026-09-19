@@ -19,7 +19,7 @@ test.before(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), 'vectaix-images-'));
   process.env.MONGO_URI = database.getUri();
   process.env.STORAGE_ROOT = directory;
-  process.env.MICU_API_KEY = 'test-image-key';
+  process.env.MICU_OPENAI_IMAGE_API_KEY = 'test-image-key';
   process.env.DASHSCOPE_SINGAPORE_API_KEY = 'test-qwen-image-key';
   const { default: dbConnect } = await import('../../lib/db.js');
   await dbConnect();
@@ -296,87 +296,25 @@ test('真实个人设置保存模型尺寸画质，拒绝无效参数，并通�
   assert.deepEqual((await getUserSettings(userId)).chatMediaSettings.image, savedOptions);
 });
 
-test('已存的旧图片配置不阻断音频视频设置更新，但不能新保存缺少模型的图片配置', async () => {
+test('已存的旧图片配置不阻断音频和画质增强设置更新，但不能新保存缺少模型的图片配置', async () => {
   await UserSettings.updateOne({ userId }, { $set: { chatMediaSettings: { image: { size: 'auto' } } } });
   const audio = { provider: 'qwen', voiceId: 'Cherry', format: 'mp3' };
   await updateUserProfileSettings(userId, { chatMediaSettings: { image: { size: 'auto' }, audio } });
-  const video = { mode: 'text', resolution: '720P', ratio: '16:9', duration: 5, watermark: false };
-  await updateUserProfileSettings(userId, { chatMediaSettings: { image: { size: 'auto' }, audio, video } });
-  assert.deepEqual((await getUserSettings(userId)).chatMediaSettings, { image: { size: 'auto' }, audio, video });
-  await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { image: { size: '1024x1024' }, audio, video } }), /模型/);
-  assert.deepEqual((await getUserSettings(userId)).chatMediaSettings, { image: { size: 'auto' }, audio, video });
+  const enhancement = { resolution: '1080p', bitrate: { mode: 'level', value: 'high' } };
+  await updateUserProfileSettings(userId, { chatMediaSettings: { image: { size: 'auto' }, audio, enhancement } });
+  assert.deepEqual((await getUserSettings(userId)).chatMediaSettings, { image: { size: 'auto' }, audio, enhancement });
+  await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { image: { size: '1024x1024' }, audio, enhancement } }), /模型/);
+  assert.deepEqual((await getUserSettings(userId)).chatMediaSettings, { image: { size: 'auto' }, audio, enhancement });
 });
 
-test('新图片模型和旧尺寸配置均不影响视频工具，视频仍拒绝十张参考图', async t => {
-  t.mock.method(globalThis, 'fetch', () => { throw new Error('超过视频参考图数量时不应调用上游'); });
-  const transactionCount = await Transaction.countDocuments({ userId });
-  const video = { mode: 'reference', resolution: '720P', ratio: '16:9', duration: 5, watermark: false };
-  const conversation = await Conversation.create({ userId, title: '视频能力回归' });
-  for (const image of [options, { model: 'gpt-image-2.5-flare', size: '2048x2048', quality: 'high' }, { size: 'auto' }]) {
-    const requestId = crypto.randomUUID();
-    const stored = await Task.create({
-      userId, conversationId: conversation._id, requestId, fingerprint: requestId,
-      userMessageId: 'video-user', modelMessageId: 'video-assistant', model: 'gpt-6-astra',
-      status: 'running', mediaSettings: { image, video },
-    });
-    const task = await Task.findById(stored._id).lean();
-    const entries = [];
-    await registerMediaTools({ registry: { add: entry => entries.push(entry) }, task, signal: new AbortController().signal, assertActive: async () => {} });
-    const capabilities = await entries.find(entry => entry.definition.name === 'media_capabilities').execute();
-    assert.equal(capabilities.video.available, true);
-    assert.equal(capabilities.image.available, Boolean(image.model));
-    const generateVideoTool = entries.find(entry => entry.definition.name === 'generate_video');
-    assert.ok(generateVideoTool);
-    await assert.rejects(generateVideoTool.execute({
-      prompt: '组合参考画面生成视频', imageFileIdsJson: JSON.stringify(Array.from({ length: 10 }, () => crypto.randomUUID())), videoFileId: '', name: '参考视频',
-    }, { callId: 'ten-video-references' }), /素材编号列表无效/);
-    const unchanged = await Task.findById(task._id).lean();
-    assert.equal(unchanged.mediaTasks.length, 0);
-    assert.equal(unchanged.costCny, 0);
-  }
-  assert.equal(globalThis.fetch.mock.callCount(), 0);
-  assert.equal(await Transaction.countDocuments({ userId }), transactionCount);
-});
-
-test('视频提交保留所选参数与 HappyHorse 真实模型，记录上游任务而不等待生成', async t => {
-  const { generateVideo } = await import('../../lib/media/server/operations/video.js');
-  const { default: VideoGenerationTask } = await import('../../models/VideoGenerationTask.js');
-  const upstreamTaskId = crypto.randomUUID();
-  const submitted = [];
-  t.mock.method(globalThis, 'fetch', async (url, init) => {
-    submitted.push({ url: String(url), headers: init.headers, body: JSON.parse(init.body) });
-    return Response.json({ request_id: 'video-regression-request', output: { task_id: upstreamTaskId, task_status: 'PENDING' } });
-  });
-  const parameters = { resolution: '1080P', ratio: '9:16', duration: 7, seed: 2026, watermark: true };
-  const input = {
-    userId, clientOperationId: crypto.randomUUID(), signal: new AbortController().signal,
-    body: { mode: 'text', prompt: '日落下的海边', imageFileIds: [], videoFileId: '', ...parameters },
-  };
-  const result = await generateVideo(input);
-  assert.equal(result.status, 201, result.data.message);
-  assert.equal(result.data.success, true);
-  assert.equal(result.data.task.status, 'queued');
-  assert.equal(result.data.task.model, 'happyhorse-1.1-t2v');
-  assert.equal(submitted.length, 1);
-  assert.equal(submitted[0].url, 'https://ws-2t7yj3g991jc5yo6.ap-southeast-1.maas.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis');
-  assert.equal(submitted[0].headers['X-DashScope-Async'], 'enable');
-  assert.deepEqual(submitted[0].body, { model: 'happyhorse-1.1-t2v', input: { prompt: '日落下的海边' }, parameters });
-  const stored = await VideoGenerationTask.findOne({ userId, upstreamTaskId }).lean();
-  assert.ok(stored);
-  assert.equal(stored.model, 'happyhorse-1.1-t2v');
-  assert.equal(stored.mode, 'text');
-  assert.equal(stored.status, 'queued');
-  assert.equal(stored.prompt, '日落下的海边');
-  assert.deepEqual(stored.params, { ...parameters, imageCount: 0, hasSourceVideo: false });
-  assert.deepEqual(stored.inputFileIds, []);
-  assert.equal(stored.videoFileId, null);
-  const transaction = await Transaction.findOne({ userId, operationId: stored.billing.operationId }).lean();
-  assert.equal(transaction.provider, 'happyhorse');
-  assert.equal(transaction.model, 'happyhorse-1.1-t2v');
-  assert.equal(transaction.status, 'reserved');
-  assert.equal(transaction.actualCostCny, null);
-  const repeated = await generateVideo(input);
-  assert.equal(repeated.status, 409);
-  assert.equal(submitted.length, 1);
-  assert.equal(await VideoGenerationTask.countDocuments({ userId, upstreamTaskId }), 1);
+test('创作设置不再接受视频生成参数，已有记录不妨碍保存其他创作设置', async () => {
+  const image = { model: 'qwen-image-3.0-pro', size: 'auto' };
+  await UserSettings.updateOne({ userId }, { $set: { chatMediaSettings: { image, video: { mode: 'text' } } } });
+  const settings = await getUserSettings(userId);
+  assert.deepEqual(settings.chatMediaSettings, { image });
+  await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { video: { mode: 'text' } } }), /创作设置无效/);
+  const audio = { provider: 'qwen', voiceId: 'Cherry', format: 'mp3' };
+  const saved = await updateUserProfileSettings(userId, { chatMediaSettings: { ...settings.chatMediaSettings, audio } });
+  assert.deepEqual(saved.chatMediaSettings, { image, audio });
+  assert.deepEqual((await UserSettings.findOne({ userId }).lean()).chatMediaSettings, { image, audio });
 });

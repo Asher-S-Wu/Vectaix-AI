@@ -12,7 +12,7 @@ async function request(url, options) {
 }
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const sizeLabel = size => size < 1024 ? `${size} B` : size < 1024 * 1024 ? `${(size / 1024).toFixed(1)} KB` : `${(size / 1024 / 1024).toFixed(1)} MB`;
-const ownerLabels = { library: '个人文件', project: '项目文件', conversation: '对话附件', task: '任务文件', temporary: '临时文件', avatar: '头像', 'image-result': '图片生成', 'video-task': '视频生成', 'video-enhancement-task': '视频增强', 'audio-generation': '语音生成', 'voice-profile': '音色', 'audio-processing': '音频处理' };
+const ownerLabels = { library: '个人文件', project: '项目文件', conversation: '对话附件', task: '任务文件', temporary: '临时文件', avatar: '头像', 'image-result': '图片生成', 'video-enhancement-task': '视频增强', 'audio-generation': '语音生成', 'voice-profile': '音色', 'audio-processing': '音频处理' };
 const ownerLabel = type => ownerLabels[type];
 
 export default function FilesPanel() {

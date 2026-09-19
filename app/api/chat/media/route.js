@@ -155,7 +155,7 @@ export async function POST(req) {
 
     if (!isImageGenerationModel(model)) {
       return Response.json(
-        { error: "此接口仅支持图片生成，视频生成请前往视频工作台" },
+        { error: "此接口仅支持图片生成" },
         { status: 400 }
       );
     }

@@ -34,7 +34,6 @@
 </tr>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>Alibaba Cloud</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-HappyHorse-615CED?style=for-the-badge&logoColor=white" alt="HappyHorse"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max%200902-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max 0902"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 </tr>
@@ -50,7 +49,7 @@
 
 ## Overview
 
-**Vectaix AI** supports multi-model chat, web search, and image, video, and speech creation.
+**Vectaix AI** supports multi-model chat, web search, and image and speech creation, and video enhancement.
 
 <br/>
 
@@ -78,7 +77,6 @@ Dedicated media models:
 | Model | Provider | Capability |
 |:---:|:---:|:---|
 | **Qwen Image 3.0 Pro** | Alibaba Cloud | Image generation and editing with 1–3 reference images |
-| **HappyHorse 1.1 / Video Edit 1.0** | Alibaba Cloud | Text-to-video, first-frame-to-video, multi-reference-to-video, and video editing |
 | **AI MediaKit Video Enhancement** | Volcengine | Generative quality enhancement for local videos or public HTTPS URLs at 720p, 1080p, or 2K; results are saved to private storage |
 | **Qwen Audio 3.0 TTS Plus** | Alibaba Cloud | Multilingual speech synthesis, expression control, and voice cloning |
 | **MiniMax Speech 2.8 HD / Turbo** | Alibaba Cloud | Emotional speech synthesis, system voices, and private voice cloning |
@@ -187,7 +185,7 @@ vectaix-ai/
 │   │   ├── chat/             # Multi-provider chat
 │   │   ├── auth/             # Authentication endpoints
 │   │   ├── conversations/    # Conversation CRUD
-│   │   ├── media/            # Image/video generation
+│   │   ├── media/            # Image, audio, and video enhancement
 │   │   ├── upload/           # Private disk file upload
 │   │   └── admin/            # Admin management
 │   ├── components/           # React UI components
@@ -240,7 +238,7 @@ vectaix-ai/
 | **Backend** | Next.js API Routes · Node.js · SSE (Server-Sent Events) Streaming |
 | **Database** | MongoDB with Mongoose ODM |
 | **Storage** | Zeabur mounted disk (private media files) |
-| **AI Providers** | OpenRouter · Alibaba Cloud Model Studio |
+| **AI Providers** | Micu · Alibaba Cloud Model Studio |
 | **Auth** | MongoDB server sessions · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **Deployment** | Zeabur native Next.js service (single instance) |
@@ -273,11 +271,16 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB connection string |
 | `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
-| `OPENROUTER_API_KEY` | — | Shared OpenRouter API key for the GPT, Grok, Claude, Gemini, and Kimi K3 chat models |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen 3.8 Max 0902, Qwen Image 3.0 Pro, HappyHorse video, and Qwen Audio 3.0 TTS Plus |
+| `MICU_OPENAI_API_KEY` | — | Dedicated Micu key for GPT-6 Astra |
+| `MICU_ANTHROPIC_API_KEY` | — | Dedicated Micu key for Claude Opus 5 |
+| `MICU_GOOGLE_API_KEY` | — | Dedicated Micu key for Gemini 3.8 Flash, including recording transcription |
+| `MICU_XAI_API_KEY` | — | Dedicated Micu key for Grok 4.6 |
+| `MICU_MOONSHOT_API_KEY` | — | Dedicated Micu key for Kimi K3 |
+| `MICU_OPENAI_IMAGE_API_KEY` | — | Micu image service key; independent of the five chat model keys |
+| `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen 3.8 Max 0902, Qwen Image 3.0 Pro, and Qwen Audio 3.0 TTS Plus |
 | `DASHSCOPE_BEIJING_API_KEY` | — | Beijing-region Alibaba Cloud Model Studio API key for MiniMax Speech 2.8 HD / Turbo |
 | `AI_MEDIAKIT_API_KEY` | — | API key for AI MediaKit video enhancement (large-model edition); configure when enabled |
-| `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app; required for passkey login and for HappyHorse and MiniMax voice cloning to read input media |
+| `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app; required for passkey login and for MiniMax voice cloning to read input media |
 | `APP_SECRETS_KEY` | — | Encrypts external connection credentials, browser login state, and scheduled backup passwords; required when using these features. Use a Base64-encoded 32-byte random key and keep it safe |
 | `TINYFISH_API_KEY` | — | Shared API key for free TinyFish Search and Fetch; required when web browsing is enabled |
 

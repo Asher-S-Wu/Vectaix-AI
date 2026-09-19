@@ -8,11 +8,11 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 const PARAMS = { model: "gpt-image-2.5-sunburst", prompt: "一只猫", size: "1024x1024", quality: "low" };
 
 async function requestModule(t) {
-  const previous = process.env.MICU_API_KEY;
-  process.env.MICU_API_KEY = "server-secret";
+  const previous = process.env.MICU_OPENAI_IMAGE_API_KEY;
+  process.env.MICU_OPENAI_IMAGE_API_KEY = "server-secret";
   t.after(() => {
-    if (previous === undefined) delete process.env.MICU_API_KEY;
-    else process.env.MICU_API_KEY = previous;
+    if (previous === undefined) delete process.env.MICU_OPENAI_IMAGE_API_KEY;
+    else process.env.MICU_OPENAI_IMAGE_API_KEY = previous;
   });
   return import("../../lib/media/server/micuImage.js");
 }
@@ -73,21 +73,25 @@ test("Micu 使用实际 HTTP 连接完成文生图及单图、多图表单请求
   assert.equal(received.length, 3);
 });
 
-test("Micu 密钥缺失时阻止请求并给出中文配置错误", () => {
-  const previous = process.env.MICU_API_KEY;
-  delete process.env.MICU_API_KEY;
+test("Micu 图片密钥独立于 GPT，缺失时阻止请求并给出中文配置错误", () => {
+  const previous = process.env.MICU_OPENAI_IMAGE_API_KEY;
+  const previousChatKey = process.env.MICU_OPENAI_API_KEY;
+  delete process.env.MICU_OPENAI_IMAGE_API_KEY;
+  process.env.MICU_OPENAI_API_KEY = "chat-only-secret";
   try {
     assert.equal(typeof modelRoutes.resolveMicuImageConfig, "function");
     assert.throws(() => modelRoutes.resolveMicuImageConfig(), /Micu.*尚未配置/);
-    process.env.MICU_API_KEY = "  server-secret  ";
+    process.env.MICU_OPENAI_IMAGE_API_KEY = "  server-secret  ";
     assert.deepEqual(modelRoutes.resolveMicuImageConfig(), {
       apiKey: "server-secret",
       endpoint: "https://www.micuapi.ai/v1/images/generations",
       editEndpoint: "https://www.micuapi.ai/v1/images/edits",
     });
   } finally {
-    if (previous === undefined) delete process.env.MICU_API_KEY;
-    else process.env.MICU_API_KEY = previous;
+    if (previous === undefined) delete process.env.MICU_OPENAI_IMAGE_API_KEY;
+    else process.env.MICU_OPENAI_IMAGE_API_KEY = previous;
+    if (previousChatKey === undefined) delete process.env.MICU_OPENAI_API_KEY;
+    else process.env.MICU_OPENAI_API_KEY = previousChatKey;
   }
 });
 
@@ -232,7 +236,7 @@ test("网络请求不会被 fetch 默认五分钟超时提前截断", async (t) 
 
 test("服务未配置时不发送任何网络请求", async (t) => {
   const { requestMicuImage } = await requestModule(t);
-  delete process.env.MICU_API_KEY;
+  delete process.env.MICU_OPENAI_IMAGE_API_KEY;
   const fetchMock = t.mock.method(undici, "fetch", async () => imageResponse());
   await assert.rejects(requestMicuImage(PARAMS), (error) => {
     assert.match(error.message, /Micu.*尚未配置/);

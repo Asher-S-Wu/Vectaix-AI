@@ -57,3 +57,22 @@ test('媒体成本保留细小金额和原汇率，价格快照无积分设置',
   assert.equal(snapshot.usdToCny, 6.72);
   assert.equal(Object.hasOwn(snapshot, 'costMultiplier'), false);
 });
+
+test('视频画质增强仍可同步最终账单，重复同步不重复记账', async () => {
+  const { default: VideoEnhancementTask } = await import('../../models/VideoEnhancementTask.js');
+  const { reconcileResolvedMediaTaskBilling } = await import('../../lib/media/server/billing.js');
+  const operationId = 'enhancement-billing';
+  await reserveCredits({ operationId, userId: user._id, feature: 'media_video_enhancement', usage: { requestFingerprint: operationId } });
+  const task = await VideoEnhancementTask.create({
+    userId: user._id, sourceType: 'upload', sourceName: 'source.mp4', sourceDurationSeconds: 5,
+    settings: { resolution: '1080p', bitrate: { mode: 'level', value: 'high' } },
+    clientToken: operationId, status: 'canceled', billing: { operationId, status: 'reserved' },
+  });
+  await releaseCredits(operationId);
+  assert.deepEqual(await reconcileResolvedMediaTaskBilling(), { scannedOperations: 1, syncedOperations: 1 });
+  const saved = await VideoEnhancementTask.findById(task._id).lean();
+  assert.equal(saved.billing.status, 'released');
+  assert.equal(saved.billing.actualCostCny, 0);
+  assert.deepEqual(await reconcileResolvedMediaTaskBilling(), { scannedOperations: 0, syncedOperations: 0 });
+  assert.equal(await Transaction.countDocuments({ operationId }), 1);
+});

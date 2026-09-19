@@ -1,5 +1,4 @@
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
-const VIDEO_RECONCILE_INTERVAL_MS = 15 * 1000;
 const MEDIAKIT_RECONCILE_INTERVAL_MS = 15 * 1000;
 const MEDIAKIT_DELETION_RECONCILE_INTERVAL_MS = 15 * 1000;
 const COST_RECONCILE_INTERVAL_MS = 60 * 1000;
@@ -49,8 +48,6 @@ export async function register() {
       },
       { cleanupExpiredAudioSourceUploads },
       { cleanupExpiredVoiceSamples },
-      { reconcileHappyHorseVideoTasks },
-      { ensureHappyHorseVideoTaskIndexes },
       { reconcileMediaKitVideoEnhancementTasks },
       { reconcileMediaKitVideoEnhancementTaskDeletions },
       { ensureVideoEnhancementTaskIndexes },
@@ -68,8 +65,6 @@ export async function register() {
       import("@/lib/server/storage/service"),
       import("@/lib/media/server/audioSourceUploads"),
       import("@/lib/media/server/voiceSampleCleanup"),
-      import("@/lib/media/server/happyhorse/reconciler"),
-      import("@/models/VideoGenerationTask"),
       import("@/lib/media/server/mediaKit/reconciler"),
       import("@/lib/media/server/mediaKit/taskDeletion"),
       import("@/models/VideoEnhancementTask"),
@@ -92,7 +87,6 @@ export async function register() {
     await reconcileCreditTransactions();
     await reconcileMinimaxUnlockClaims();
     await Promise.all([
-      ensureHappyHorseVideoTaskIndexes(),
       ensureVideoEnhancementTaskIndexes(),
       ensureMediaKitUploadTicketIndexes(),
       ensureMinimaxVoiceIndexes(),
@@ -149,23 +143,6 @@ export async function register() {
     };
     const timer = setInterval(cleanup, CLEANUP_INTERVAL_MS);
     timer.unref?.();
-
-    let videoReconcileRunning = false;
-    const reconcileVideos = async () => {
-      if (videoReconcileRunning) return;
-      videoReconcileRunning = true;
-      try {
-        await reconcileHappyHorseVideoTasks();
-      } catch (error) {
-        console.error("[Media Video] scheduled reconcile:", error);
-      } finally {
-        videoReconcileRunning = false;
-      }
-    };
-    const initialVideoReconcile = setTimeout(reconcileVideos, 0);
-    initialVideoReconcile.unref?.();
-    const videoTimer = setInterval(reconcileVideos, VIDEO_RECONCILE_INTERVAL_MS);
-    videoTimer.unref?.();
 
     let mediaKitReconcileRunning = false;
     const reconcileMediaKitTasks = async () => {
