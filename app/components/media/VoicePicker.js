@@ -389,6 +389,7 @@ const PICKER_TABS = [
 ];
 
 export default function VoicePicker({
+  onBusyChange,
   model,
   generationAllowed = true,
   open,
@@ -416,6 +417,10 @@ export default function VoicePicker({
   const [previewError, setPreviewError] = useState("");
   const [renameDialog, setRenameDialog] = useState(null);
   const [renameSubmitting, setRenameSubmitting] = useState(false);
+  useEffect(() => {
+    onBusyChange(renameSubmitting);
+    return () => onBusyChange(false);
+  }, [renameSubmitting, onBusyChange]);
   const [renameError, setRenameError] = useState("");
   const renameDialogRef = useRef(null);
   const showTabs = Boolean(presetSection && customSection);

@@ -59,7 +59,7 @@ test('媒体子模块、资料栏和手机设置切换保留过渡与可操作�
     page.on('pageerror', error => errors.push(error.message));
     const settled = () => page.waitForFunction(() => !document.documentElement.dataset.navigationKind);
     await page.goto(`${base}/media/image`);
-    await page.getByRole('navigation', { name: '媒体工作台' }).getByRole('link', { name: 'Qwen 语音' }).click();
+    await page.getByRole('navigation', { name: '媒体工作台' }).getByRole('link', { name: '语音合成' }).click();
     await page.waitForURL(`${base}/media/audio`);
     await settled();
     await page.evaluate(() => document.documentElement.classList.add('dark-mode'));

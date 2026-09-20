@@ -3,12 +3,13 @@
 import { useId } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
-export default function AudioWorkspaceTabs({ tabs, activeTab, onChange, ariaLabel, idPrefix }) {
+export default function AudioWorkspaceTabs({ tabs, activeTab, onChange, ariaLabel, idPrefix, disabled = false }) {
   const reduceMotion = useReducedMotion();
   const generatedId = useId();
   const layoutId = idPrefix || generatedId;
 
   const handleKeyDown = (event) => {
+    if (disabled) return;
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     const tabElements = Array.from(event.currentTarget.querySelectorAll('[role="tab"]'));
     const currentTab = event.target.closest('[role="tab"]');
@@ -43,11 +44,13 @@ export default function AudioWorkspaceTabs({ tabs, activeTab, onChange, ariaLabe
             id={`${layoutId}-tab-${tab.id}`}
             type="button"
             role="tab"
+            disabled={disabled}
+            aria-controls={`${layoutId}-panel-${tab.id}`}
             aria-selected={active}
             data-tab-id={tab.id}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(tab.id)}
-            className={`relative flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors ${
+            className={`relative flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${
               active ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             }`}
           >

@@ -6,7 +6,6 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AudioLines,
-  AudioWaveform,
   ChevronDown,
   Gauge,
   Languages,
@@ -20,7 +19,6 @@ import AudioFormError from "@/app/components/media/AudioFormError";
 import AudioGeneratingBanner from "@/app/components/media/AudioGeneratingBanner";
 import AudioHistorySection from "@/app/components/media/AudioHistorySection";
 import AudioSliderField from "@/app/components/media/AudioSliderField";
-import AudioWorkspaceHero from "@/app/components/media/AudioWorkspaceHero";
 import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
 import Select from "@/app/components/common/Select";
@@ -60,7 +58,7 @@ function merge(items, item) {
   return [item, ...items.filter((current) => current.id !== item.id)].slice(0, 100);
 }
 
-export default function MinimaxAudioWorkspacePage() {
+export default function MinimaxAudioWorkspace({ onBusyChange }) {
   const searchParams = useSearchParams();
   const requestedModel = searchParams.get("model");
   const availableModels = MINIMAX_AUDIO_MODELS;
@@ -73,6 +71,9 @@ export default function MinimaxAudioWorkspacePage() {
     readSetting: readLocalSetting,
     writeSetting: writeLocalSetting,
   }));
+  const [chatBusy, setChatBusy] = useState(false);
+  const [pickerBusy, setPickerBusy] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
   const [activeTab, setActiveTab] = useState("synthesis");
   const [text, setText] = useState("");
   const [model, setModelState] = useState(() => {
@@ -119,6 +120,11 @@ export default function MinimaxAudioWorkspacePage() {
   const [customVoices, setCustomVoices] = useState([]);
   const [voicesLoading, setVoicesLoading] = useState(true);
   const [voicesError, setVoicesError] = useState("");
+  const busy = generating || Boolean(deletingId) || voiceBusy || pickerBusy || chatBusy;
+  useEffect(() => {
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [busy, onBusyChange]);
 
   const selectVoiceId = useCallback((nextVoiceId) => {
     setVoiceId(voiceSelectionController.select(nextVoiceId));
@@ -337,24 +343,18 @@ export default function MinimaxAudioWorkspacePage() {
   return (
     <div className="space-y-6">
       {!modelAllowed && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700"><p className="mb-3">当前模型已不再开放，请选择可用模型继续。</p><Select ariaLabel="选择可用模型" value="" onChange={setModel} options={availableModels} /></div>}
-      <AudioWorkspaceHero
-        icon={AudioWaveform}
-        title="MiniMax 语音工作台"
-        badge="2.8"
-        description="使用系统音色或你的专属声音，把文字变成自然、有情绪的语音。"
-        modelLabel={availableModels.map((item) => item.label).join(" · ")}
-      >
-        <AudioWorkspaceTabs
-          idPrefix="minimax-audio"
-          tabs={[
-            { id: "synthesis", label: "语音合成", icon: WandSparkles },
-            { id: "cloning", label: "声音复刻", icon: Mic2 },
-          ]}
-          activeTab={activeTab}
-          onChange={setActiveTab}
-          ariaLabel="MiniMax 语音功能"
-        />
-      </AudioWorkspaceHero>
+
+      <AudioWorkspaceTabs
+        idPrefix="minimax-audio"
+        tabs={[
+          { id: "synthesis", label: "语音合成", icon: WandSparkles },
+          { id: "cloning", label: "声音复刻", icon: Mic2 },
+        ]}
+        disabled={busy}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="MiniMax 语音功能"
+      />
 
       <AnimatePresence mode="wait" initial={false}>
       {activeTab === "synthesis" ? (
@@ -561,7 +561,7 @@ export default function MinimaxAudioWorkspacePage() {
                 </AnimatePresence>
               </div>
 
-              <UseInChatButton section="audio" value={{provider:'minimax',model,voiceId,emotion,speed,volume,pitch,languageBoost,format}} disabled={generating || !voiceId} />
+              <UseInChatButton onBusyChange={setChatBusy} section="audio" value={{provider:'minimax',model,voiceId,emotion,speed,volume,pitch,languageBoost,format}} disabled={generating || !voiceId} />
 
               {selectedCustomVoice && !selectedCustomVoice.isUnlocked && !selectedCustomVoice.unlockPending && (
                 <p className="text-sm text-amber-700 dark:text-amber-400">
@@ -624,6 +624,7 @@ export default function MinimaxAudioWorkspacePage() {
       ) : (
         <motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }} key="cloning" id="minimax-audio-panel-cloning" role="tabpanel" aria-labelledby="minimax-audio-tab-cloning">
           <MinimaxVoiceClonePanel
+            onBusyChange={setVoiceBusy}
             model={model}
             onModelChange={setModel}
             availableModels={availableModels}
@@ -641,6 +642,7 @@ export default function MinimaxAudioWorkspacePage() {
       </AnimatePresence>
 
       <VoicePicker
+        onBusyChange={setPickerBusy}
         model={model}
         generationAllowed={modelAllowed}
         open={voicePickerOpen}

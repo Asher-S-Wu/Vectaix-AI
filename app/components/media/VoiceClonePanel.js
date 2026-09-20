@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   CheckCircle2,
@@ -108,6 +108,7 @@ function VoiceStatus({ status }) {
 }
 
 export default function VoiceClonePanel({
+  onBusyChange,
   voices,
   loading,
   error,
@@ -133,6 +134,11 @@ export default function VoiceClonePanel({
   const [dialog, setDialog] = useState(null);
   const [dialogSubmitting, setDialogSubmitting] = useState(false);
   const [dialogError, setDialogError] = useState("");
+  const busy = creating || Boolean(actingVoiceId) || dialogSubmitting || audioSource?.status === "uploading";
+  useEffect(() => {
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [busy, onBusyChange]);
   const [deleteVoice, setDeleteVoice] = useState(null);
 
   const atLimit = voices.length >= CUSTOM_VOICE_MAX_COUNT;

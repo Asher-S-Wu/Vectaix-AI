@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   FileAudio2,
@@ -52,6 +52,7 @@ function formatSize(value) {
 }
 
 export default function DoubaoVoiceLibraryPanel({
+  onBusyChange,
   voices,
   loading,
   error,
@@ -74,6 +75,11 @@ export default function DoubaoVoiceLibraryPanel({
   const [dialog, setDialog] = useState(null);
   const [dialogSubmitting, setDialogSubmitting] = useState(false);
   const [dialogError, setDialogError] = useState("");
+  const busy = creating || Boolean(deletingId) || dialogSubmitting || sampleState?.status === "uploading";
+  useEffect(() => {
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [busy, onBusyChange]);
 
   const atLimit = voices.length >= DOUBAO_CUSTOM_VOICE_MAX_COUNT;
   const formDisabled = loading || creating || atLimit;

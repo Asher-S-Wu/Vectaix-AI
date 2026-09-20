@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AudioLines,
-  AudioWaveform,
   ChevronDown,
   Gauge,
   Loader2,
@@ -19,7 +18,6 @@ import AudioFormError from "@/app/components/media/AudioFormError";
 import AudioGeneratingBanner from "@/app/components/media/AudioGeneratingBanner";
 import AudioHistorySection from "@/app/components/media/AudioHistorySection";
 import AudioSliderField from "@/app/components/media/AudioSliderField";
-import AudioWorkspaceHero from "@/app/components/media/AudioWorkspaceHero";
 import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import DoubaoAudioGenerationCard from "@/app/components/media/DoubaoAudioGenerationCard";
 import DoubaoVoiceLibraryPanel from "@/app/components/media/DoubaoVoiceLibraryPanel";
@@ -59,7 +57,7 @@ function sampleRateLabel(value) {
   return DOUBAO_AUDIO_SAMPLE_RATE_OPTIONS.find((option) => option.id === value).label;
 }
 
-export default function DoubaoAudioWorkspacePage() {
+export default function DoubaoAudioWorkspace({ onBusyChange }) {
   const reduceMotion = useReducedMotion();
   const textRef = useRef(null);
   const generationsVersionRef = useRef(0);
@@ -68,6 +66,9 @@ export default function DoubaoAudioWorkspacePage() {
     readSetting: readLocalSetting,
     writeSetting: writeLocalSetting,
   }));
+  const [chatBusy, setChatBusy] = useState(false);
+  const [pickerBusy, setPickerBusy] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
   const [activeTab, setActiveTab] = useState("synthesis");
   const [text, setText] = useState("");
   const [voiceId, setVoiceId] = useState("");
@@ -90,6 +91,11 @@ export default function DoubaoAudioWorkspacePage() {
   const [voices, setVoices] = useState([]);
   const [voicesLoading, setVoicesLoading] = useState(true);
   const [voicesError, setVoicesError] = useState("");
+  const busy = generating || Boolean(deletingId) || voiceBusy || pickerBusy || chatBusy;
+  useEffect(() => {
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [busy, onBusyChange]);
 
   const selectVoiceId = useCallback((nextVoiceId) => {
     setVoiceId(voiceSelectionController.select(nextVoiceId));
@@ -260,24 +266,18 @@ export default function DoubaoAudioWorkspacePage() {
 
   return (
     <div className="space-y-6">
-      <AudioWorkspaceHero
-        icon={AudioWaveform}
-        title="豆包语音工作台"
-        badge="Seed Audio 1.0"
-        description="使用声音库中的参考声音，把文字生成自然、清晰、富有表现力的语音。"
-        modelLabel={DOUBAO_AUDIO_MODEL}
-      >
-        <AudioWorkspaceTabs
-          idPrefix="doubao-audio"
-          tabs={[
-            { id: "synthesis", label: "语音合成", icon: WandSparkles },
-            { id: "library", label: "声音库", icon: Mic2 },
-          ]}
-          activeTab={activeTab}
-          onChange={setActiveTab}
-          ariaLabel="豆包语音功能"
-        />
-      </AudioWorkspaceHero>
+
+      <AudioWorkspaceTabs
+        idPrefix="doubao-audio"
+        tabs={[
+          { id: "synthesis", label: "语音合成", icon: WandSparkles },
+          { id: "library", label: "声音库", icon: Mic2 },
+        ]}
+        disabled={busy}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="豆包语音功能"
+      />
 
       <AnimatePresence mode="wait" initial={false}>
       {activeTab === "synthesis" ? (
@@ -406,7 +406,7 @@ export default function DoubaoAudioWorkspacePage() {
                 </AnimatePresence>
               </div>
 
-              <UseInChatButton section="audio" value={{provider:'doubao',voiceId,instruction:instruction.trim(),format,sampleRate,speechRate,loudnessRate,pitchRate}} disabled={generating || !voiceId} />
+              <UseInChatButton onBusyChange={setChatBusy} section="audio" value={{provider:'doubao',voiceId,instruction:instruction.trim(),format,sampleRate,speechRate,loudnessRate,pitchRate}} disabled={generating || !voiceId} />
               <AudioFormError message={generationError || voicesError} />
               <button
                 type="submit"
@@ -446,6 +446,7 @@ export default function DoubaoAudioWorkspacePage() {
       ) : (
         <motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }} key="library" id="doubao-audio-panel-library" role="tabpanel" aria-labelledby="doubao-audio-tab-library">
           <DoubaoVoiceLibraryPanel
+            onBusyChange={setVoiceBusy}
             voices={voices}
             loading={voicesLoading}
             error={voicesError}
@@ -459,6 +460,7 @@ export default function DoubaoAudioWorkspacePage() {
       </AnimatePresence>
 
       <VoicePicker
+        onBusyChange={setPickerBusy}
         open={voicePickerOpen}
         brandLabel="Seed Audio 1.0"
         title="选择声音"

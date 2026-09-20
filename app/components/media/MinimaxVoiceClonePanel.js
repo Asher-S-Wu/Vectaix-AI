@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   CheckCircle2,
@@ -49,6 +49,7 @@ function formatDate(value) {
 }
 
 export default function MinimaxVoiceClonePanel({
+  onBusyChange,
   model,
   onModelChange,
   availableModels,
@@ -78,6 +79,11 @@ export default function MinimaxVoiceClonePanel({
   const [dialog, setDialog] = useState(null);
   const [dialogSubmitting, setDialogSubmitting] = useState(false);
   const [dialogError, setDialogError] = useState("");
+  const busy = creating || Boolean(deletingId) || dialogSubmitting || sampleState?.status === "uploading";
+  useEffect(() => {
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [busy, onBusyChange]);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const atLimit = voices.length >= MINIMAX_CUSTOM_VOICE_MAX_COUNT;
