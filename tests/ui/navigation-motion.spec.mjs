@@ -27,25 +27,16 @@ test('工作区滑块先移动，侧栏跨页面滑出与滑入，减少动态�
     const switcher = page.getByRole('navigation', { name: '功能切换', exact: true });
     await switcher.getByRole('link', { name: 'Media', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('[data-mode="media"]'));
-    const thumb = await page.locator('.workspace-switch-thumb').evaluate(element => {
-      const animation = element.getAnimations()[0];
-      if (!animation) return null;
-      animation.pause();
-      animation.currentTime = 90;
-      const x = new DOMMatrix(getComputedStyle(element).transform).m41;
-      const width = element.getBoundingClientRect().width;
-      animation.play();
-      return { x, width };
-    });
-    assert.ok(thumb && thumb.x > 0 && thumb.x < thumb.width);
     await page.waitForURL(`${base}/media`);
     await page.waitForFunction(() => window.motionCaptures.length === 1);
     assert.ok((await page.evaluate(() => window.motionCaptures[0].names)).includes('::view-transition-old(agent-sidebar)'));
+    assert.ok((await page.evaluate(() => window.motionCaptures[0].names)).includes('::view-transition-group(workspace-thumb)'));
     await page.waitForFunction(() => !document.documentElement.dataset.navigationKind);
     await switcher.getByRole('link', { name: 'Agent', exact: true }).click();
     await page.waitForURL(`${base}/`);
     await page.waitForFunction(() => window.motionCaptures.length === 2);
-    assert.ok((await page.evaluate(() => window.motionCaptures[1].names)).includes('::view-transition-new(agent-sidebar)'));
+    await page.waitForFunction(() => document.documentElement.dataset.routeEntering === 'true');
+    assert.ok(await page.locator('.agent-sidebar').evaluate(element => element.getAnimations().some(animation => animation.animationName === 'sidebar-enter')));
     await page.waitForFunction(() => !document.documentElement.dataset.navigationKind);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await switcher.getByRole('link', { name: 'Media', exact: true }).click();
@@ -103,4 +94,50 @@ test('媒体子模块、资料栏和手机设置切换保留过渡与可操作�
     await context.close();
     await browser.close();
   }
+});
+
+test('进入和退出的页面请求被延迟时，动画不冻结渲染等待网络', { timeout: 120000 }, async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const [source, target, label] of [['/', '/media', 'Media'], ['/media', '/', 'Agent']]) {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': source === '/' ? '192.0.2.230' : '192.0.2.231' } });
+      let release;
+      const held = new Promise(resolve => { release = resolve; });
+      try {
+        assert.equal((await context.request.post(`${base}/api/auth/login`, { data: { email: 'member@example.test', password: 'Vectaix-Test-2026!' } })).status(), 200);
+        const page = await context.newPage();
+        await page.route('**/*', async route => {
+          if (new URL(route.request().url()).pathname === target && route.request().headers().rsc === '1') await held;
+          await route.continue();
+        });
+        await page.addInitScript(() => {
+          window.departureReady = false;
+          const start = document.startViewTransition.bind(document);
+          document.startViewTransition = (...args) => {
+            const transition = start(...args);
+            transition.ready.then(() => { window.departureReady = true; });
+            return transition;
+          };
+        });
+        await page.goto(`${base}${source}`);
+        await page.getByRole('navigation', { name: '功能切换', exact: true }).getByRole('link', { name: label, exact: true }).click();
+        await page.waitForFunction(() => window.departureReady, null, { timeout: 2000 });
+        assert.equal(new URL(page.url()).pathname, source);
+        await page.getByRole('status', { name: '正在切换页面' }).waitFor();
+        const frames = await page.evaluate(() => new Promise(resolve => {
+          let frames = 0;
+          const end = performance.now() + 250;
+          const tick = () => { frames++; if (performance.now() >= end) resolve(frames); else requestAnimationFrame(tick); };
+          requestAnimationFrame(tick);
+        }));
+        assert.ok(frames > 3, `等待网络时画面应继续刷新，实际 ${frames} 帧`);
+        release();
+        await page.waitForURL(`${base}${target}`);
+        await page.getByRole('status', { name: '正在切换页面' }).waitFor({ state: 'hidden' });
+      } finally {
+        release();
+        await context.close();
+      }
+    }
+  } finally { await browser.close(); }
 });

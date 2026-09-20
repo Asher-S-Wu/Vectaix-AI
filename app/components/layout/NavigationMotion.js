@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 const NavigationContext = createContext(null);
@@ -30,33 +30,55 @@ export function NavigationMotionProvider({ children }) {
   const [pendingHref, setPendingHref] = useState(null);
   const navigation = useRef(null);
 
-  useLayoutEffect(() => {
-    navigation.current?.commit?.();
-  }, [pathname]);
+  const entryTimer = useRef(null);
 
-  const navigate = async (href, { mode = false } = {}) => {
+  useEffect(() => () => clearTimeout(entryTimer.current), []);
+
+  const finishNavigation = useCallback(() => {
+    const operation = navigation.current;
+    if (!operation?.committed || !operation.animationDone) return;
+    navigation.current = null;
+    setPendingHref(null);
+    delete document.documentElement.dataset.routeLeaving;
+    document.documentElement.dataset.routeEntering = "true";
+    delete document.documentElement.dataset.navigationKind;
+    entryTimer.current = setTimeout(() => {
+      delete document.documentElement.dataset.routeEntering;
+    }, 320);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!navigation.current) return;
+    navigation.current.committed = true;
+    finishNavigation();
+  }, [pathname, finishNavigation]);
+
+  const navigate = (href, { mode = false } = {}) => {
     if (navigation.current || href === window.location.pathname + window.location.search) return;
     if (reduceMotion()) { router.push(href); return; }
-    const operation = {};
+    clearTimeout(entryTimer.current);
+    delete document.documentElement.dataset.routeEntering;
+    const operation = { committed: false, animationDone: false };
     navigation.current = operation;
-    setPendingHref(href);
-    // Let the thumb reach its destination before moving the surrounding workspace.
-    if (mode) await new Promise(resolve => setTimeout(resolve, 180));
+    router.prefetch(href);
     document.documentElement.dataset.navigationKind = mode ? "mode" : "page";
-    const transition = document.startViewTransition(() => new Promise(resolve => {
-      operation.commit = resolve;
+    // Capture only the synchronous departure. Never freeze rendering for a route request.
+    const transition = document.startViewTransition(() => {
+      flushSync(() => setPendingHref(href));
+      document.documentElement.dataset.routeLeaving = "true";
       router.push(href);
-    }));
+    });
     const finish = () => {
-      operation.commit?.();
-      navigation.current = null;
-      setPendingHref(null);
-      delete document.documentElement.dataset.navigationKind;
+      operation.animationDone = true;
+      finishNavigation();
     };
     transition.finished.then(finish, finish);
   };
 
-  return <NavigationContext.Provider value={{ navigate, pendingHref }}>{children}</NavigationContext.Provider>;
+  return <NavigationContext.Provider value={{ navigate, pendingHref }}>
+    {children}
+    {pendingHref && <div role="status" aria-label="正在切换页面" className="route-progress pointer-events-none fixed inset-x-0 top-0 z-[100] h-0.5 overflow-hidden"><span className="block h-full w-1/3 bg-primary" /></div>}
+  </NavigationContext.Provider>;
 }
 
 export function useMotionNavigation() {
@@ -65,7 +87,7 @@ export function useMotionNavigation() {
 
 export default function TransitionLink({ href, mode = false, onNavigate, ...props }) {
   const { navigate } = useMotionNavigation();
-  return <Link {...props} href={href} onNavigate={event => {
+  return <Link prefetch={true} {...props} href={href} onNavigate={event => {
     onNavigate?.(event);
     if (event.defaultPrevented) return;
     event.preventDefault();
