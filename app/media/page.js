@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/app/components/layout/NavigationMotion";
 import { ArrowUpRight, AudioLines, ImagePlus, ScanLine } from "lucide-react";
 import { MEDIA_WORKSPACES } from "@/lib/media/shared/workspaces";
 
@@ -30,13 +30,13 @@ export default function MediaPage() {
               key={workspace.id}
               href={workspace.href}
               aria-labelledby={`workspace-${workspace.kind}-${workspace.id}`}
-              className="group flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white p-5 transition-colors hover:border-sky-300 hover:bg-sky-50/30 focus-visible:outline-offset-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-sky-800 dark:hover:bg-zinc-900"
+              className="group flex h-full flex-col rounded-2xl border border-zinc-200/80 bg-white p-5 transition-[transform,box-shadow,background-color,border-color] duration-200 motion-safe:hover:-translate-y-1 hover:shadow-md hover:border-sky-300 hover:bg-sky-50/30 focus-visible:outline-offset-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-sky-800 dark:hover:bg-zinc-900"
             >
               <div className="mb-6 flex items-center justify-between gap-3">
                 <span className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${visual.color}`}>
                   <Icon size={23} strokeWidth={1.7} aria-hidden="true" />
                 </span>
-                <ArrowUpRight size={18} aria-hidden="true" className="text-zinc-300 transition-colors group-hover:text-sky-500 dark:text-zinc-600 dark:group-hover:text-sky-400" />
+                <ArrowUpRight size={18} aria-hidden="true" className="text-zinc-300 transition-[transform,color] duration-200 motion-safe:group-hover:-translate-y-0.5 motion-safe:group-hover:translate-x-0.5 group-hover:text-sky-500 dark:text-zinc-600 dark:group-hover:text-sky-400" />
               </div>
               <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">{visual.label}</p>
               <h2 id={`workspace-${workspace.kind}-${workspace.id}`} className="text-lg font-semibold leading-7 tracking-tight text-zinc-900 dark:text-zinc-100">

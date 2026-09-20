@@ -84,7 +84,7 @@ export default function ChatLayout({
           />
         ) : null}
       </AnimatePresence>
-      <div className="flex-1 flex flex-col w-full h-full relative overflow-hidden">
+      <div className="min-w-0 flex-1 flex flex-col w-full h-full relative overflow-hidden">
         <ChatHeader
           onToggleSidebar={onToggleSidebar}
           onStartNewChat={onStartNewChat}
@@ -95,7 +95,7 @@ export default function ChatLayout({
           tasks={tasks}
           onOpenUsage={onOpenUsage}
         />
-        <main className="flex-1 flex flex-col min-h-0 relative">
+        <main style={{ viewTransitionName: "workspace-content" }} className="flex-1 flex flex-col min-h-0 relative">
           <MessageList
             tasks={tasks}
             messages={messages}

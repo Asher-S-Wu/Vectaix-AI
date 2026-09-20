@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import Link from 'next/link';
+import Link, { animateChange } from '@/app/components/layout/NavigationMotion';
 import { ArrowLeft, Settings2, Sparkles, BookOpen, Brain, Plug, Globe, FolderOpen, Archive, ShieldCheck, ChartNoAxesCombined, ChevronRight, Users } from 'lucide-react';
 import TaskNotifications from "../common/TaskNotifications";
 import GeneralPanel from './panels/GeneralPanel';
@@ -37,16 +37,16 @@ export default function SettingsCenter({ user, initialSection, conversationId, p
   const [mobileDetail, setMobileDetail] = useState(initialSection !== 'general');
   const current = available.find(item => item[0] === section);
   const Panel = panels[section];
-  const select = id => { setSection(id); setMobileDetail(true); const url = new URL(window.location.href); url.searchParams.set('section', id); window.history.replaceState(null, '', url); };
+  const select = id => animateChange(() => { setSection(id); setMobileDetail(true); const url = new URL(window.location.href); url.searchParams.set('section', id); window.history.replaceState(null, '', url); }, 'settings');
   return <div className="h-dvh overflow-hidden bg-[#f8f9fb] text-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
     <TaskNotifications userId={user.userId} />
     <div className="mx-auto flex h-full max-w-[1440px]">
-      <aside className={`${mobileDetail ? 'hidden md:flex' : 'flex'} w-full flex-col border-r border-zinc-200 bg-white md:w-64 md:shrink-0 dark:border-zinc-800 dark:bg-zinc-900/40`}>
+      <aside style={{ viewTransitionName: "settings-sidebar" }} className={`${mobileDetail ? 'hidden md:flex' : 'flex'} w-full flex-col border-r border-zinc-200 bg-white md:w-64 md:shrink-0 dark:border-zinc-800 dark:bg-zinc-900/40`}>
         <div className="px-6 pb-6 pt-7"><Link href="/" className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-primary"><ArrowLeft size={16} />返回对话</Link><h1 className="mt-7 text-2xl font-semibold tracking-tight">设置</h1><p className="mt-2 truncate text-xs text-zinc-500">{user.email}</p></div>
-        <nav aria-label="设置分类" className="flex-1 space-y-1 overflow-y-auto px-3 pb-6">{available.map(([id, label, Icon, description, admin]) => <button key={id} type="button" onClick={() => select(id)} aria-current={section === id ? 'page' : undefined} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors ${section === id ? 'bg-primary/10 font-semibold text-primary' : 'text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}><Icon size={18} strokeWidth={1.7} /><span className="flex-1">{label}<span className="mt-1 block text-xs font-normal text-zinc-400 md:hidden">{description}</span></span>{admin && <span className="text-[10px]">管理</span>}<ChevronRight className="md:hidden" size={16} /></button>)}</nav>
+        <nav aria-label="设置分类" className="flex-1 space-y-1 overflow-y-auto px-3 pb-6">{available.map(([id, label, Icon, description, admin]) => <button key={id} type="button" onClick={() => select(id)} aria-current={section === id ? 'page' : undefined} className={`relative isolate flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors ${section === id ? 'font-semibold text-primary' : 'text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}>{section === id && <span aria-hidden="true" style={{ viewTransitionName: "settings-active-tab" }} className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-primary/10" />}<Icon size={18} strokeWidth={1.7} /><span className="flex-1">{label}<span className="mt-1 block text-xs font-normal text-zinc-400 md:hidden">{description}</span></span>{admin && <span className="text-[10px]">管理</span>}<ChevronRight className="md:hidden" size={16} /></button>)}</nav>
       </aside>
-      <main className={`${mobileDetail ? 'block' : 'hidden md:block'} min-w-0 flex-1 overflow-y-auto`}>
-        <header className="sticky top-0 z-20 border-b border-zinc-200/70 bg-[#f8f9fb]/95 px-5 py-5 backdrop-blur sm:px-10 dark:border-zinc-800 dark:bg-zinc-950/95"><button className="mb-4 flex items-center gap-1 text-sm text-zinc-500 md:hidden" onClick={() => setMobileDetail(false)}><ArrowLeft size={16} />全部设置</button><h2 className="text-xl font-semibold tracking-tight">{current[1]}</h2><p className="mt-1 text-sm text-zinc-500">{current[3]}</p></header>
+      <main style={{ viewTransitionName: "settings-content" }} className={`${mobileDetail ? 'block' : 'hidden md:block'} min-w-0 flex-1 overflow-y-auto`}>
+        <header className="sticky top-0 z-20 border-b border-zinc-200/70 bg-[#f8f9fb]/95 px-5 py-5 backdrop-blur sm:px-10 dark:border-zinc-800 dark:bg-zinc-950/95"><button className="mb-4 flex items-center gap-1 text-sm text-zinc-500 md:hidden" onClick={() => animateChange(() => setMobileDetail(false), "settings")}><ArrowLeft size={16} />全部设置</button><h2 className="text-xl font-semibold tracking-tight">{current[1]}</h2><p className="mt-1 text-sm text-zinc-500">{current[3]}</p></header>
         <div className="mx-auto max-w-5xl space-y-5 p-5 pb-16 sm:p-10">{<Panel key={section} user={user} conversationId={conversationId} projectId={projectId} />}</div>
       </main>
     </div>

@@ -356,8 +356,9 @@ export default function MinimaxAudioWorkspacePage() {
         />
       </AudioWorkspaceHero>
 
+      <AnimatePresence mode="wait" initial={false}>
       {activeTab === "synthesis" ? (
-        <div id="minimax-audio-panel-synthesis" role="tabpanel" aria-labelledby="minimax-audio-tab-synthesis" className="space-y-6">
+        <motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }} key="synthesis" id="minimax-audio-panel-synthesis" role="tabpanel" aria-labelledby="minimax-audio-tab-synthesis" className="space-y-6">
           <section className="glass-effect rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60 sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
@@ -619,9 +620,9 @@ export default function MinimaxAudioWorkspacePage() {
               />
             )}
           />
-        </div>
+        </motion.div>
       ) : (
-        <div id="minimax-audio-panel-cloning" role="tabpanel" aria-labelledby="minimax-audio-tab-cloning">
+        <motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }} key="cloning" id="minimax-audio-panel-cloning" role="tabpanel" aria-labelledby="minimax-audio-tab-cloning">
           <MinimaxVoiceClonePanel
             model={model}
             onModelChange={setModel}
@@ -635,8 +636,9 @@ export default function MinimaxAudioWorkspacePage() {
             onDelete={handleDeleteVoice}
             onRefresh={loadVoices}
           />
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <VoicePicker
         model={model}

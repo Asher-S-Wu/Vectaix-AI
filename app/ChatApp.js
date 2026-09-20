@@ -1,6 +1,6 @@
 "use client";
+import { animateChange, useMotionNavigation } from "./components/layout/NavigationMotion";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import ChatResourcesPanel from "./components/chat/ChatResourcesPanel";
 import ProjectManager from "./components/chat/ProjectManager";
 import { useConversationTasks } from "@/lib/client/hooks/useConversationTasks";
@@ -28,7 +28,6 @@ import ChatLayout from "./components/layout/ChatLayout";
 const FONT_SIZE_CLASSES = { small: "text-size-small", medium: "text-size-medium", large: "text-size-large" };
 export default function ChatApp() {
   const toast = useToast();
-  const router = useRouter();
   const savedConversationRef = useRef(typeof window !== "undefined" ? window.localStorage.getItem("vectaix-current-conversation") : null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -41,8 +40,9 @@ export default function ChatApp() {
   const [projects, setProjects] = useState([]);
   const [activeProjectId, setActiveProjectId] = useState("all");
   const [showProjects, setShowProjects] = useState(false);
+  const { navigate } = useMotionNavigation();
   const [showResources, setShowResources] = useState(false);
-  const openSettings = (section = "general") => { const query = new URLSearchParams({section}); if (currentConversationId) query.set("conversationId",currentConversationId); if (projectId) query.set("projectId",projectId); router.push(`/settings?${query}`); };
+  const openSettings = (section = "general") => { const query = new URLSearchParams({section}); if (currentConversationId) query.set("conversationId",currentConversationId); if (projectId) query.set("projectId",projectId); navigate(`/settings?${query}`); };
   const selectedConversation = conversations.find(item => item._id === currentConversationId);
   const projectId = currentConversationId ? selectedConversation?.projectId || null : activeProjectId === "all" ? null : activeProjectId;
   const [messages, setMessages] = useState([]);
@@ -514,7 +514,7 @@ export default function ChatApp() {
         <AuthModal authMode={authMode} email={email} password={password} confirmPassword={confirmPassword} onEmailChange={setEmail} onPasswordChange={setPassword} onConfirmPasswordChange={setConfirmPassword} onSubmit={handleAuth} onPasskey={handlePasskeyAuth} onToggleMode={() => setAuthMode((m) => (m === "login" ? "register" : "login"))} loading={authLoading} />
       ) : (
         <ChatLayout
-          resourcesPanel={<ChatResourcesPanel open={showResources} onClose={() => setShowResources(false)} conversationId={currentConversationId} projectId={projectId} tasks={taskActions.tasks} />}
+          resourcesPanel={<ChatResourcesPanel open={showResources} onClose={() => animateChange(() => setShowResources(false), "resources")} conversationId={currentConversationId} projectId={projectId} tasks={taskActions.tasks} />}
           user={user}
           assistant={assistant}
           isAdmin={!!user?.isAdmin}
@@ -537,7 +537,7 @@ export default function ChatApp() {
           onSelectProject={(id) => { setActiveProjectId(id); startNewChat(); }}
           onManageProjects={() => setShowProjects(true)}
           onMoveConversation={moveConversation}
-          onOpenResources={() => setShowResources(true)}
+          onOpenResources={() => animateChange(() => setShowResources(true), "resources")}
           onOpenUsage={() => openSettings("usage")}
           projectName={projects.find(item => item._id === projectId)?.name}
           tasks={taskActions.tasks}

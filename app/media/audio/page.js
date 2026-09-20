@@ -417,8 +417,9 @@ export default function AudioWorkspacePage() {
         />
       </AudioWorkspaceHero>
 
+      <AnimatePresence mode="wait" initial={false}>
       {activeTab === "synthesis" ? (
-        <div id="audio-panel-synthesis" role="tabpanel" aria-labelledby="audio-tab-synthesis" className="space-y-6">
+        <motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }} key="synthesis" id="audio-panel-synthesis" role="tabpanel" aria-labelledby="audio-tab-synthesis" className="space-y-6">
           <section className="glass-effect rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60 sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
@@ -675,9 +676,9 @@ export default function AudioWorkspacePage() {
               />
             )}
           />
-        </div>
+        </motion.div>
       ) : (
-        <div id="audio-panel-cloning" role="tabpanel" aria-labelledby="audio-tab-cloning">
+        <motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }} key="cloning" id="audio-panel-cloning" role="tabpanel" aria-labelledby="audio-tab-cloning">
           <VoiceClonePanel
             voices={voices}
             loading={voicesLoading}
@@ -689,8 +690,9 @@ export default function AudioWorkspacePage() {
             onRefreshVoice={handleRefreshVoice}
             onRefreshList={loadVoices}
           />
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <VoicePicker
         open={voicePickerOpen}

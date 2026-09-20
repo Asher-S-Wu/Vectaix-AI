@@ -16,7 +16,7 @@ export default function ChatHeader({ onToggleSidebar, onStartNewChat, sidebarOpe
         >
           <Menu size={20} />
         </button>
-        <ModeSwitcher compact />
+        <ModeSwitcher />
       </div>
       <div className="ml-auto flex shrink-0 items-center sm:gap-1.5">
         <button type="button" onClick={onOpenResources} className="flex items-center gap-1.5 rounded-lg p-1.5 sm:p-2 text-sm text-zinc-500 hover:text-primary hover:bg-zinc-100" aria-label="查看资料与成果" title={projectName ? `${projectName} · 查看资料与成果` : "查看资料与成果"}>

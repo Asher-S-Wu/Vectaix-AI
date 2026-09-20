@@ -55,7 +55,7 @@ export default function AudioWorkspaceTabs({ tabs, activeTab, onChange, ariaLabe
               <motion.span
                 layoutId={layoutId}
                 transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 28 }}
-                className="absolute inset-0 rounded-xl bg-white shadow-sm dark:bg-zinc-800"
+                className="selection-surface absolute inset-0 rounded-xl shadow-sm"
               />
             ) : null}
             <span className="relative flex items-center gap-2">

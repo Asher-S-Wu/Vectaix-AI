@@ -4,7 +4,7 @@ import Select from '@/app/components/common/Select';
 import UseInChatButton from '@/app/components/media/UseInChatButton';
 import { useEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ImagePlus, Loader2, RefreshCw, Sparkles, Upload, Wand2, X } from 'lucide-react';
 import ImageResults from '@/app/components/media/ImageResults';
 import { editImage, generateImage } from '@/lib/media/client/media';
@@ -19,6 +19,7 @@ import {
 } from '@/lib/media/shared/models';
 
 export default function ImageGenerationPage() {
+  const reduceMotion = useReducedMotion();
   const [mode, setMode] = useState('generate');
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState(IMAGE_MODEL);
@@ -232,8 +233,8 @@ export default function ImageGenerationPage() {
               {mode === 'generate' && (
                 <motion.span
                   layoutId="image-mode-pill"
-                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                  className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-800 shadow-sm"
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 320 }}
+                  className="selection-surface absolute inset-0 rounded-lg shadow-sm"
                 />
               )}
               <span className="relative flex items-center gap-2"><Sparkles className="h-4 w-4" /> 生成图片</span>
@@ -242,16 +243,17 @@ export default function ImageGenerationPage() {
               {mode === 'edit' && (
                 <motion.span
                   layoutId="image-mode-pill"
-                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                  className="absolute inset-0 rounded-lg bg-white dark:bg-zinc-800 shadow-sm"
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 320 }}
+                  className="selection-surface absolute inset-0 rounded-lg shadow-sm"
                 />
               )}
               <span className="relative flex items-center gap-2"><ImagePlus className="h-4 w-4" /> 编辑图片</span>
             </button>
           </div>
 
+          <AnimatePresence initial={false}>
           {mode === 'edit' ? (
-            <div className="space-y-2">
+            <motion.div initial={reduceMotion ? false : { opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: reduceMotion ? 0 : 0.24 }} style={{ overflow: "hidden" }} className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor="source-images" className="text-sm font-medium">参考图片</label>
                 <span className="text-xs text-zinc-500">已选 {sourceImages.length}/{modelConfig.maxReferenceImages} 张</span>
@@ -296,8 +298,9 @@ export default function ImageGenerationPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           ) : null}
+          </AnimatePresence>
 
           <div className="space-y-2">
             <label htmlFor="image-prompt" className="text-sm font-medium">图片描述</label>

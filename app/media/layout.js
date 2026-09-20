@@ -6,7 +6,7 @@ export default function MediaLayout({ children }) {
     <div className="min-h-[var(--app-height,100dvh)] bg-app text-zinc-900 dark:text-zinc-100">
       <PageScrollUnlock />
       <MediaHeader />
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main style={{ viewTransitionName: "workspace-content" }} className="mx-auto max-w-5xl px-4 py-6">{children}</main>
     </div>
   );
 }

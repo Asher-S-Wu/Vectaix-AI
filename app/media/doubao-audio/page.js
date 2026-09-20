@@ -279,8 +279,9 @@ export default function DoubaoAudioWorkspacePage() {
         />
       </AudioWorkspaceHero>
 
+      <AnimatePresence mode="wait" initial={false}>
       {activeTab === "synthesis" ? (
-        <div id="doubao-audio-panel-synthesis" role="tabpanel" aria-labelledby="doubao-audio-tab-synthesis" className="space-y-6">
+        <motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }} key="synthesis" id="doubao-audio-panel-synthesis" role="tabpanel" aria-labelledby="doubao-audio-tab-synthesis" className="space-y-6">
           <section className="glass-effect rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60 sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
@@ -441,9 +442,9 @@ export default function DoubaoAudioWorkspacePage() {
               <DoubaoAudioGenerationCard key={generation.id} generation={generation} deleting={deletingId === generation.id} deleteDisabled={Boolean(deletingId)} onDelete={setDeleteTarget} />
             )}
           />
-        </div>
+        </motion.div>
       ) : (
-        <div id="doubao-audio-panel-library" role="tabpanel" aria-labelledby="doubao-audio-tab-library">
+        <motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }} key="library" id="doubao-audio-panel-library" role="tabpanel" aria-labelledby="doubao-audio-tab-library">
           <DoubaoVoiceLibraryPanel
             voices={voices}
             loading={voicesLoading}
@@ -453,8 +454,9 @@ export default function DoubaoAudioWorkspacePage() {
             onDelete={handleDeleteVoice}
             onRefresh={loadVoices}
           />
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <VoicePicker
         open={voicePickerOpen}

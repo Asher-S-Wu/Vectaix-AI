@@ -954,3 +954,73 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 1;
   }
 }
+
+/* Shared workspace motion keeps outgoing content visible through route commits. */
+.selection-surface { background-color: #fff; }
+.dark-mode .selection-surface { background-color: #3f3f46; }
+.workspace-switch { view-transition-name: workspace-switch; }
+.workspace-switch-thumb {
+  width: calc((100% - 0.5rem) / 2);
+  transform: translateX(0);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.workspace-switch[data-mode="media"] .workspace-switch-thumb { transform: translateX(100%); }
+@media (min-width: 768px) {
+  .agent-sidebar { view-transition-name: agent-sidebar; }
+}
+::view-transition-group(*) {
+  animation-duration: 360ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; }
+::view-transition-old(workspace-content), ::view-transition-old(settings-content) {
+  animation: workspace-leave 120ms ease-in both;
+}
+::view-transition-new(workspace-content), ::view-transition-new(settings-content) {
+  animation: workspace-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
+}
+::view-transition-old(agent-sidebar):only-child,
+::view-transition-old(settings-sidebar):only-child {
+  animation: sidebar-leave 300ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+::view-transition-new(agent-sidebar):only-child,
+::view-transition-new(settings-sidebar):only-child {
+  animation: sidebar-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+::view-transition-old(resources-sidebar):only-child {
+  animation: resources-leave 280ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+::view-transition-new(resources-sidebar):only-child {
+  animation: resources-enter 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html[data-navigation-kind="resources"]::view-transition-old(workspace-content),
+html[data-navigation-kind="resources"]::view-transition-new(workspace-content) {
+  animation: none;
+}
+.module-enter { animation: workspace-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes workspace-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes workspace-leave {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes sidebar-leave {
+  to { opacity: 0; transform: translateX(-100%); }
+}
+@keyframes sidebar-enter {
+  from { opacity: 0; transform: translateX(-100%); }
+}
+@keyframes resources-leave {
+  to { opacity: 0; transform: translateX(100%); }
+}
+@keyframes resources-enter {
+  from { opacity: 0; transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-switch-thumb { transition: none; }
+  .module-enter { animation: none; }
+  .agent-sidebar { transition: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation-duration: 0s; }
+}

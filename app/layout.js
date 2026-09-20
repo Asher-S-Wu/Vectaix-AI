@@ -4,6 +4,7 @@ import 'highlight.js/styles/github-dark.css';
 import { headers } from 'next/headers';
 import { Inter } from 'next/font/google';
 import { ToastProvider } from './components/common/ToastProvider';
+import { NavigationMotionProvider } from './components/layout/NavigationMotion';
 import FadeScrollbarGlobal from './components/layout/FadeScrollbarGlobal';
 import { UI_THEME_MODE_KEY } from '@/lib/shared/storageKeys';
 
@@ -67,9 +68,9 @@ export default async function RootLayout({ children }) {
             <body>
                 <FadeScrollbarGlobal />
                 <ToastProvider>
-                        <div className="main-layout h-full">
+                        <NavigationMotionProvider><div className="main-layout h-full">
                             {children}
-                        </div>
+                        </div></NavigationMotionProvider>
                 </ToastProvider>
             </body>
         </html>

@@ -1,7 +1,7 @@
 "use client";
 
 
-import Link from "next/link";
+import Link from "@/app/components/layout/NavigationMotion";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
@@ -99,6 +99,7 @@ export default function MediaHeader() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                style={{ viewTransitionName: active ? "media-active-tab" : "none" }}
                 className={`shrink-0 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                   active
                     ? "bg-primary/10 text-primary"
