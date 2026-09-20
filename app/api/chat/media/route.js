@@ -21,7 +21,7 @@ import {
   validateImageReferences,
 } from "@/lib/media/shared/models";
 import {
-  createAndStoreImageFile,
+  createAndStoreImageFiles,
   finalizeImageBilling,
   getImageFeature,
   imageBillingUsage,
@@ -70,7 +70,7 @@ function createHttpError(message, status = 400) {
 
 function normalizeImageOptions(model, value) {
   const input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
-  return validateImageOptions({ model, size: input.size, quality: input.quality });
+  return validateImageOptions({ model, size: input.size, quality: input.quality, count: input.count });
 }
 
 function getMessagePrompt(message, fallbackPrompt) {
@@ -376,7 +376,7 @@ export async function POST(req) {
         let finalMessagePersisted = false;
         let billingFinalized = false;
         let requestDispatched = false;
-        let upstreamComplete = false;
+        let batch = null;
         let upstreamRequestIds = [];
         const generatedFileIds = [];
 
@@ -415,51 +415,28 @@ export async function POST(req) {
             billing: billingResult(reservation.transaction),
           });
           await assertMediaWriteLeaseActive(mediaWriteLease);
-          const billingCallbacks = {
-            onRequestDispatched: () => {
-              requestDispatched = true;
-            },
-            onUpstreamComplete: async ({ requestId, usage }) => {
-              upstreamComplete = true;
-              upstreamRequestIds = [requestId].filter(Boolean);
-              const settled = await finalizeImageBilling({
-                reservation,
-                options: mediaOptions,
-                inputImageCount: referenceImages.length,
-                upstreamUsage: usage,
-                upstreamRequestIds,
-              });
-              billingFinalized = true;
-              sendEvent({ type: settled.billing.status === "review_required" ? "credit_review_required" : "credit_settled", billing: settled.billing });
-            },
-          };
-          const saved = await createAndStoreImageFile({
-                ...mediaOptions,
-                userId: auth.userId,
-                prompt: effectivePrompt,
-                images: referenceImages,
-                ownerType: "conversation",
-                ownerId: currentConversationId,
-                signal: req.signal,
-                mediaWriteLease,
-                ...billingCallbacks,
-              });
-          generatedFileIds.push(saved.fileId);
+          batch = await createAndStoreImageFiles({
+            ...mediaOptions, userId: auth.userId, prompt: effectivePrompt,
+            images: referenceImages, ownerType: "conversation", ownerId: currentConversationId,
+            signal: req.signal, mediaWriteLease,
+            onRequestDispatched: () => { requestDispatched = true; },
+            onFileSaved: saved => { generatedFileIds.push(saved.fileId); },
+          });
+          upstreamRequestIds = batch.outcomes.flatMap(item => item.attempts.map(attempt => attempt.requestId)).filter(Boolean);
+          const settled = await finalizeImageBilling({ reservation, options: mediaOptions, inputImageCount: referenceImages.length, outcomes: batch.outcomes });
+          billingFinalized = true;
+          sendEvent({ type: settled.billing.status === "review_required" ? "credit_review_required" : "credit_settled", billing: settled.billing });
+          if (!batch.results.some(item => item.success)) throw createHttpError(batch.results.map((item, index) => `第 ${index + 1} 张：${item.message}`).join("；"), batch.results[0].status);
+
           const modelMessage = {
             id: resolvedModelMessageId,
             role: "model",
             model,
             content: "",
             type: "parts",
-            parts: [{
-              inlineData: {
-                fileId: saved.fileId,
-                url: saved.url,
-                mimeType: saved.mimeType,
-                name: saved.name,
-                size: saved.size,
-              },
-            }],
+            parts: batch.results.map((item, index) => item.success ? {
+              inlineData: { fileId: item.fileId, url: item.url, mimeType: item.mimeType, name: item.name, size: item.size },
+            } : { text: `第 ${index + 1} 张生成失败：${item.message}` }),
             providerState: { media: { type: "image", model, options: mediaOptions } },
           };
 
@@ -504,17 +481,15 @@ export async function POST(req) {
                     reservation,
                     operationId: billingOperationId,
                     userId: auth.userId,
-                    usage: reservation.transaction.usage,
+                    usage: { ...reservation.transaction.usage, ...(batch ? { imageOutcomes: batch.outcomes } : {}) },
                     upstreamRequestIds: [error?.requestId].filter(Boolean),
                   })
                 : await reviewMediaCredits({
                     reservation,
                     operationId: billingOperationId,
                     userId: auth.userId,
-                    reason: upstreamComplete
-                      ? "聊天图片上游已成功，但费用记录未完成"
-                      : "聊天图片上游请求已发出，但未能确认完整结果",
-                    usage: reservation.transaction.usage,
+                    reason: "聊天图片费用记录未完成",
+                    usage: { ...reservation.transaction.usage, ...(batch ? { imageOutcomes: batch.outcomes } : {}) },
                     upstreamRequestIds: upstreamRequestIds.length
                       ? upstreamRequestIds
                       : [error?.requestId].filter(Boolean),

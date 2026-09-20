@@ -1,5 +1,7 @@
 import test from 'node:test';
 import undici from 'undici';
+import timers from 'node:timers/promises';
+test.beforeEach(t => { t.mock.method(timers, 'setTimeout', async () => {}); });
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -58,7 +60,7 @@ test('Micu 生成忽略旧画质并保存真实文件，按实际用量计费，
   const result = await generateImage(input);
   assert.equal(result.status, 200);
   assert.equal(result.data.success, true);
-  assert.match(result.data.imageUrl, /^\/api\/files\//);
+  assert.match(result.data.results[0].url, /^\/api\/files\//);
   const record = await Transaction.findOne({ model }).lean();
   assert.equal(record.provider, 'micu');
   assert.equal(record.status, 'settled');
@@ -115,7 +117,7 @@ for (const count of [0, 1, 2]) {
     assert.equal(record.actualCostCny, 0);
     assert.equal(record.actualCostUsd, 0);
     assert.equal(await StoredFile.countDocuments({ userId }), before);
-    assert.equal(upstream.mock.callCount(), 1);
+    assert.equal(upstream.mock.callCount(), count === 0 ? 5 : 1);
   });
 }
 
@@ -194,12 +196,12 @@ for (const savedOptions of [options, { model: 'gpt-image-2.5-flare', size: '1152
     });
     const generated = await tool('generate_image').execute({ prompt: '蓝色花瓶', name: '原始花瓶' }, { callId: 'generate-vase' });
     assert.equal(generated.completed, true);
-    const edited = await tool('edit_image').execute({ prompt: '把花瓶改成绿色', name: '绿色花瓶', imageFileIdsJson: JSON.stringify([generated.artifact.fileId]) }, { callId: 'edit-vase' });
+    const edited = await tool('edit_image').execute({ prompt: '把花瓶改成绿色', name: '绿色花瓶', imageFileIdsJson: JSON.stringify([generated.artifacts[0].fileId]) }, { callId: 'edit-vase' });
     assert.equal(edited.completed, true);
-    assert.notEqual(edited.artifact.fileId, generated.artifact.fileId);
+    assert.notEqual(edited.artifacts[0].fileId, generated.artifacts[0].fileId);
     const recorded = await Task.findById(task._id).lean();
     assert.deepEqual(recorded.mediaSettings.image, savedOptions);
-    assert.deepEqual(recorded.artifacts.map(item => item.fileId), [generated.artifact.fileId, edited.artifact.fileId]);
+    assert.deepEqual(recorded.artifacts.map(item => item.fileId), [generated.artifacts[0].fileId, edited.artifacts[0].fileId]);
     assert.deepEqual(recorded.mediaTasks.map(item => item.status), ['completed', 'completed']);
     assert.deepEqual(recorded.mediaTasks.map(item => item.billingStatus), ['settled', 'settled']);
     assert.ok(Math.abs(recorded.costCny - 0.1344) < 1e-12);
@@ -212,13 +214,13 @@ for (const savedOptions of [options, { model: 'gpt-image-2.5-flare', size: '1152
       assert.equal(transaction.usage.size, savedOptions.size);
       assert.equal(transaction.usage.quality, 'low');
       assert.ok(Math.abs(transaction.actualCostCny - expectedCost) < 1e-12);
-      const file = await StoredFile.findOne({ fileId: result.artifact.fileId, userId }).lean();
+      const file = await StoredFile.findOne({ fileId: result.artifacts[0].fileId, userId }).lean();
       assert.equal(file.ownerType, 'task');
       assert.equal(file.ownerId, String(task._id));
       assert.equal(file.category, 'image');
       assert.deepEqual(await readStoredFileBuffer(file), png);
       const media = recorded.mediaTasks.find(item => item.operationId === result.operationId);
-      assert.equal(media.artifactFileId, file.fileId);
+      assert.equal(media.imageArtifactFileIds[0], file.fileId);
       assert.equal(media.artifactClaimed, true);
       assert.ok(Math.abs(media.accountedCostCny - expectedCost) < 1e-12);
     }
@@ -266,7 +268,7 @@ test('千问仍按原接口生成和三图编辑，自动尺寸与逐图计价�
   assert.equal(records[0].actualCostCny, 0.562065);
   assert.ok(Math.abs(records[1].actualCostCny - 0.367217) < 1e-12);
   for (const result of [generated, edited]) {
-    const file = await StoredFile.findOne({ userId, fileId: result.data.imageUrl.slice('/api/files/'.length) }).lean();
+    const file = await StoredFile.findOne({ userId, fileId: result.data.results[0].url.slice('/api/files/'.length) }).lean();
     assert.deepEqual(await readStoredFileBuffer(file), png);
   }
   const tooMany = await editImage({ userId, body: { model: 'qwen-image-3.0-pro', size: 'auto', prompt: '四图不应提交', images: [...images, images[0]] }, clientOperationId: crypto.randomUUID() });
@@ -317,4 +319,119 @@ test('创作设置不再接受视频生成参数，已有记录不妨碍保存�
   const saved = await updateUserProfileSettings(userId, { chatMediaSettings: { ...settings.chatMediaSettings, audio } });
   assert.deepEqual(saved.chatMediaSettings, { image, audio });
   assert.deepEqual((await UserSettings.findOne({ userId }).lean()).chatMediaSettings, { image, audio });
+});
+
+test('四图并行按原顺序返回部分成功，整组只记一次费用', async t => {
+  let calls = 0;
+  const releases = [];
+  t.mock.method(undici, 'fetch', async () => {
+    const index = calls++;
+    await new Promise(resolve => { releases[index] = resolve; setTimeout(resolve, 100); if (releases.length === 4) releases.toReversed().forEach(release => release()); });
+    if (index === 1) return Response.json({ error: { message: 'content policy violation' }, request_id: 'batch-rejected' }, { status: 400 });
+    return Response.json({ request_id: `batch-${index}`, data: [{ b64_json: png.toString('base64') }], usage: { input_tokens: 100, input_tokens_details: { text_tokens: 100, image_tokens: 0 }, output_tokens: 200, total_tokens: 300 } });
+  });
+  const result = await generateImage({ userId, body: { ...options, count: 4, prompt: '四张花瓶' }, clientOperationId: crypto.randomUUID() });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.results.length, 4);
+  assert.deepEqual(result.data.results.map(item => item.success), [true, false, true, true]);
+  assert.equal(result.data.results[1].message.includes('content policy'), true);
+  assert.equal(calls, 4);
+  assert.equal(result.data.billing.status, 'settled');
+  assert.ok(Math.abs(result.data.billing.actualCostCny - 0.13104) < 1e-12);
+  for (const item of result.data.results.filter(item => item.success)) assert.ok(await StoredFile.exists({ fileId: item.fileId, userId }));
+  assert.equal(await Transaction.countDocuments({ userId, upstreamRequestIds: 'batch-0' }), 1);
+});
+
+test('图片数量仅接受 1 至 4 的整数', async () => {
+  const { validateImageOptions } = await import('../../lib/media/shared/models.js');
+  for (const count of [0, 5, 1.5, '2', null]) assert.throws(() => validateImageOptions({ ...options, count }), /数量/);
+  assert.equal(validateImageOptions(options).count, 1);
+  assert.equal(validateImageOptions({ ...options, count: 4 }).count, 4);
+});
+
+test('助手交付全部图片文件，部分失败仍登记成功产物', async t => {
+  const { task, tool } = await createImageTask({ ...options, count: 3 });
+  let calls = 0;
+  t.mock.method(undici, 'fetch', async () => {
+    if (++calls === 2) return Response.json({ error: { message: 'safety rejection' } }, { status: 400 });
+    return Response.json({ data: [{ b64_json: png.toString('base64') }] });
+  });
+  const result = await tool('generate_image').execute({ prompt: '花瓶', name: '花瓶' }, { callId: 'batch-vase' });
+  assert.equal(result.artifacts.length, 2);
+  assert.equal(result.failures.length, 1);
+  const recorded = await Task.findById(task._id).lean();
+  assert.equal(recorded.artifacts.length, 2);
+  assert.equal(new Set(recorded.artifacts.map(item => item.fileId)).size, 2);
+});
+
+for (const lastResponse of ['success', 'rejected']) {
+  test(`网络结果不明后${lastResponse}仍将整组费用保留待核对`, async t => {
+    let calls = 0;
+    t.mock.method(undici, 'fetch', async () => {
+      if (++calls === 1) throw new TypeError('network failure');
+      return lastResponse === 'success'
+        ? Response.json({ request_id: 'after-network', data: [{ b64_json: png.toString('base64') }], usage: { input_tokens: 100, input_tokens_details: { text_tokens: 100, image_tokens: 0 }, output_tokens: 200, total_tokens: 300 } })
+        : Response.json({ request_id: 'after-network', error: { code: 'insufficient_quota' } }, { status: 429 });
+    });
+    const result = await generateImage({ userId, body: { ...options, prompt: '花瓶' }, clientOperationId: crypto.randomUUID() });
+    assert.equal(result.data.billing.status, 'review_required');
+    assert.equal(result.data.billing.actualCostCny, null);
+    assert.equal(calls, 2);
+    assert.equal(result.data.success, lastResponse === 'success');
+    const record = await Transaction.findOne({ operationId: result.data.billing.operationId }).lean();
+    assert.equal(record.usage.imageOutcomes[0].attempts.length, 2);
+  });
+}
+
+for (const count of [1, 2, 3, 4]) {
+  test(`Qwen ${count} 张生成和编辑均按单张费用累计，单张错误不重试`, async t => {
+    let requests = 0;
+    t.mock.method(globalThis, 'fetch', async (url, init) => {
+      if (String(url).startsWith('https://images.example/')) return new Response(png);
+      requests++;
+      assert.equal(JSON.parse(init.body).parameters.n, 1);
+      return Response.json({ request_id: `qwen-batch-${requests}`, output: { choices: [{ message: { content: [{ image: 'https://images.example/test.png' }] } }] } });
+    });
+    const input = { model: 'qwen-image-3.0-pro', size: 'auto', count, prompt: '花瓶' };
+    for (const editing of [false, true]) {
+      const result = await (editing ? editImage : generateImage)({ userId, body: { ...input, ...(editing ? { images: [new File([png], 'reference.png', { type: 'image/png' })] } : {}) }, clientOperationId: crypto.randomUUID() });
+      assert.equal(result.data.results.length, count);
+      assert.equal(result.data.results.every(item => item.success), true);
+      const expected = editing ? 0.584548 * count : 0.562065 * count;
+      assert.ok(Math.abs(result.data.billing.actualCostCny - expected) < 1e-10);
+    }
+    assert.equal(requests, count * 2);
+  });
+}
+
+test('Qwen 出错只请求一次，GPT 保存文件失败不重新生成且保留用量', async t => {
+  const qwen = t.mock.method(globalThis, 'fetch', async () => Response.json({ code: 'InternalError', message: 'temporary' }, { status: 500 }));
+  const failed = await generateImage({ userId, body: { model: 'qwen-image-3.0-pro', size: 'auto', count: 2, prompt: '花瓶' }, clientOperationId: crypto.randomUUID() });
+  assert.equal(qwen.mock.callCount(), 2);
+  assert.equal(failed.data.results.every(item => !item.success), true);
+  const upstream = t.mock.method(undici, 'fetch', async () => Response.json({ data: [{ b64_json: png.toString('base64') }], usage: { input_tokens: 100, input_tokens_details: { text_tokens: 100, image_tokens: 0 }, output_tokens: 200, total_tokens: 300 } }));
+  t.mock.method(StoredFile, 'create', async () => { throw new Error('disk write failed'); });
+  const stored = await generateImage({ userId, body: { ...options, prompt: '花瓶' }, clientOperationId: crypto.randomUUID() });
+  assert.equal(stored.data.success, false);
+  assert.equal(upstream.mock.callCount(), 1);
+  assert.equal(stored.data.billing.status, 'settled');
+});
+
+test('取消整组会停止四个未完成请求且不再重试', async t => {
+  const controller = new AbortController();
+  let resolveStarted;
+  const started = new Promise(resolve => { resolveStarted = resolve; });
+  let calls = 0;
+  t.mock.method(undici, 'fetch', async (_url, { signal }) => {
+    if (++calls === 4) resolveStarted();
+    return new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+  });
+  const resultPromise = generateImage({ userId, body: { ...options, count: 4, prompt: '花瓶' }, clientOperationId: crypto.randomUUID(), signal: controller.signal });
+  await started;
+  controller.abort();
+  const result = await resultPromise;
+  assert.equal(calls, 4);
+  assert.equal(result.data.results.length, 4);
+  assert.ok(result.data.results.every(item => !item.success && item.status === 499));
+  assert.equal(result.data.billing.status, 'review_required');
 });

@@ -24,7 +24,7 @@ import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import DoubaoAudioGenerationCard from "@/app/components/media/DoubaoAudioGenerationCard";
 import DoubaoVoiceLibraryPanel from "@/app/components/media/DoubaoVoiceLibraryPanel";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
-import MediaSelect from "@/app/components/media/MediaSelect";
+import Select from "@/app/components/common/Select";
 import VoicePicker, { mapDoubaoCustomVoice } from "@/app/components/media/VoicePicker";
 import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
 import { createDoubaoAudioVoicePageAdapter } from "@/lib/media/client/audioVoiceSelection.mjs";
@@ -387,11 +387,11 @@ export default function DoubaoAudioWorkspacePage() {
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
                             <label htmlFor="doubao-format" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">音频格式</label>
-                            <MediaSelect id="doubao-format" ariaLabel="音频格式" value={format} onChange={setFormat} disabled={generating} options={DOUBAO_AUDIO_FORMAT_OPTIONS} />
+                            <Select id="doubao-format" ariaLabel="音频格式" value={format} onChange={setFormat} disabled={generating} options={DOUBAO_AUDIO_FORMAT_OPTIONS} />
                           </div>
                           <div className="space-y-2">
                             <label htmlFor="doubao-sample-rate" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">采样率</label>
-                            <MediaSelect id="doubao-sample-rate" ariaLabel="采样率" value={sampleRate} onChange={setSampleRate} disabled={generating} options={DOUBAO_AUDIO_SAMPLE_RATE_OPTIONS} />
+                            <Select id="doubao-sample-rate" ariaLabel="采样率" value={sampleRate} onChange={setSampleRate} disabled={generating} options={DOUBAO_AUDIO_SAMPLE_RATE_OPTIONS} />
                           </div>
                         </div>
                         <div className="mt-4 grid gap-3 sm:grid-cols-3">

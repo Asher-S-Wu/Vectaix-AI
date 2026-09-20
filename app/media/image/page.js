@@ -1,13 +1,15 @@
 'use client';
 
+import Select from '@/app/components/common/Select';
 import UseInChatButton from '@/app/components/media/UseInChatButton';
 import { useEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ImagePlus, Loader2, RefreshCw, Sparkles, Upload, Wand2, X } from 'lucide-react';
-import ImageResultCard from '@/app/components/media/image-result-card';
+import ImageResults from '@/app/components/media/ImageResults';
 import { editImage, generateImage } from '@/lib/media/client/media';
 import {
+  IMAGE_COUNT_OPTIONS,
   IMAGE_MODEL,
   IMAGE_MODEL_OPTIONS,
   getImageModelConfig,
@@ -27,7 +29,9 @@ export default function ImageGenerationPage() {
   const requestControllerRef = useRef(null);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [results, setResults] = useState([]);
+  const [count, setCount] = useState(1);
+  const [submittedCount, setSubmittedCount] = useState(1);
   const [resultTitle, setResultTitle] = useState('生成的图片');
   const [sourceImages, setSourceImages] = useState([]);
   const sourceImagesRef = useRef([]);
@@ -35,7 +39,7 @@ export default function ImageGenerationPage() {
   const modelConfig = getImageModelConfig(model);
   const modelOption = getImageModelOption(model);
   const size = sizesByModel[modelOption.id];
-  const selectedOptions = { model, size, ...(modelConfig.fixedQuality ? { quality: modelConfig.fixedQuality } : {}) };
+  const selectedOptions = { model, size, count, ...(modelConfig.fixedQuality ? { quality: modelConfig.fixedQuality } : {}) };
   let optionsError = '';
   let referenceError = '';
   try {
@@ -64,7 +68,7 @@ export default function ImageGenerationPage() {
     setMode(nextMode);
     setError('');
     setNotice('');
-    setImageUrl('');
+    setResults([]);
     setResultTitle(nextMode === 'edit' ? '编辑后的图片' : '生成的图片');
   };
 
@@ -147,15 +151,18 @@ export default function ImageGenerationPage() {
     const controller = new AbortController();
     requestControllerRef.current = controller;
     setIsGenerating(true);
+    setResults([]);
+    setSubmittedCount(options.count);
     try {
-      const url = mode === 'edit'
+      const generated = mode === 'edit'
         ? await editImage({ prompt: prompt.trim(), ...options, images: sourceImages.map(({ file }) => file) }, { signal: controller.signal })
         : await generateImage({ prompt: prompt.trim(), ...options }, { signal: controller.signal });
       if (controller.signal.aborted || requestControllerRef.current !== controller) return;
-      setImageUrl(url);
+      setResults(generated);
       setResultTitle(mode === 'edit' ? '编辑后的图片' : '生成的图片');
     } catch (generateError) {
       if (controller.signal.aborted || requestControllerRef.current !== controller) return;
+      if (generateError.results) setResults(generateError.results);
       setError(generateError instanceof Error ? generateError.message : '图片处理失败，请稍后再试');
     } finally {
       if (requestControllerRef.current === controller) {
@@ -207,26 +214,21 @@ export default function ImageGenerationPage() {
 
           <div className="space-y-2">
             <label htmlFor="image-model" className="text-sm font-medium">图片模型</label>
-            <select id="image-model" value={modelOption.id} onChange={(event) => handleModelChange(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
-              {IMAGE_MODEL_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>{option.name}</option>
-              ))}
-            </select>
+            <Select disabled={isGenerating} id="image-model" value={modelOption.id} onChange={handleModelChange} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary" options={[...IMAGE_MODEL_OPTIONS.map(option => ({
+  id: option.id,
+  label: option.name
+}))]} />
           </div>
 
           {modelOption.modes.length > 0 ? (
             <div className="space-y-2">
               <label htmlFor="image-generation-mode" className="text-sm font-medium">生成模式</label>
-              <select id="image-generation-mode" value={model} onChange={(event) => handleModelChange(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
-                {modelOption.modes.map((option) => (
-                  <option key={option.id} value={option.id}>{option.label}</option>
-                ))}
-              </select>
+              <Select disabled={isGenerating} id="image-generation-mode" value={model} onChange={handleModelChange} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary" options={modelOption.modes} />
             </div>
           ) : null}
 
           <div className="relative grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/70 dark:bg-zinc-900/70 p-1">
-            <button type="button" onClick={() => handleModeChange('generate')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'generate' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
+            <button type="button" disabled={isGenerating} onClick={() => handleModeChange('generate')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'generate' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
               {mode === 'generate' && (
                 <motion.span
                   layoutId="image-mode-pill"
@@ -236,7 +238,7 @@ export default function ImageGenerationPage() {
               )}
               <span className="relative flex items-center gap-2"><Sparkles className="h-4 w-4" /> 生成图片</span>
             </button>
-            <button type="button" onClick={() => handleModeChange('edit')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'edit' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
+            <button type="button" disabled={isGenerating} onClick={() => handleModeChange('edit')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'edit' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
               {mode === 'edit' && (
                 <motion.span
                   layoutId="image-mode-pill"
@@ -305,13 +307,13 @@ export default function ImageGenerationPage() {
 
           <div className="space-y-2">
             <label htmlFor="image-size" className="text-sm font-medium">图片比例</label>
-            <select id="image-size" value={size} onChange={(event) => handleSizeChange(event.target.value)} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary">
-              {modelConfig.sizes.map((option) => (
-                <option key={option.id} value={option.id}>{option.label}</option>
-              ))}
-            </select>
+            <Select disabled={isGenerating} id="image-size" value={size} onChange={handleSizeChange} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary" options={modelConfig.sizes} />
           </div>
 
+          <div className="space-y-2">
+            <label htmlFor="image-count" className="text-sm font-medium">图片数量</label>
+            <Select id="image-count" ariaLabel="图片数量" value={count} onChange={setCount} options={IMAGE_COUNT_OPTIONS} disabled={isGenerating} size="lg" />
+          </div>
           <UseInChatButton section="image" value={selectedOptions} disabled={isGenerating || Boolean(optionsError)} />
           <button type="submit" disabled={isGenerating || Boolean(validationError)} className="btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">
             {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
@@ -327,28 +329,9 @@ export default function ImageGenerationPage() {
       </div>
 
       {isGenerating ? (
-        <motion.div
-          key="generating"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="glass-effect rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 p-5 space-y-4"
-          aria-live="polite"
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            {mode === 'edit' ? '正在编辑图片，请稍候…' : '正在生成图片，请稍候…'}
-          </div>
-          <div className="relative flex h-[320px] items-center justify-center overflow-hidden rounded-xl border border-primary/20 bg-primary/5">
-            <div aria-hidden className="absolute inset-0 animate-pulse bg-gradient-to-br from-primary/10 via-transparent to-primary/10" />
-            <div className="relative flex flex-col items-center gap-3 text-primary/70">
-              <ImagePlus className="h-10 w-10 animate-pulse" />
-              <span className="text-xs">正在处理图片，请保持页面打开</span>
-            </div>
-          </div>
-        </motion.div>
-      ) : imageUrl ? (
-        <ImageResultCard imageUrl={imageUrl} title={resultTitle} />
+        <ImageResults loading count={submittedCount} title={mode === 'edit' ? '正在编辑图片，请稍候…' : '正在生成图片，请稍候…'} />
+      ) : results.length ? (
+        <ImageResults results={results} title={resultTitle} />
       ) : (
         <div className="glass-effect rounded-2xl border border-dashed border-zinc-200/60 dark:border-zinc-800/60 p-8 flex flex-col items-center justify-center text-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">

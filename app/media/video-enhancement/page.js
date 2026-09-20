@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
-import MediaSelect from "@/app/components/media/MediaSelect";
+import Select from "@/app/components/common/Select";
 import VideoEnhancementTaskCard from "@/app/components/media/VideoEnhancementTaskCard";
 import {
   abandonVideoEnhancementUpload,
@@ -637,7 +637,7 @@ export default function VideoEnhancementPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="enhancement-resolution" className="mb-2 block text-sm font-medium">目标分辨率</label>
-                <MediaSelect
+                <Select
                   id="enhancement-resolution"
                   value={resolution}
                   onChange={setResolution}
@@ -722,7 +722,7 @@ export default function VideoEnhancementPage() {
               </div>
               <div className="mt-3">
                 {bitrateMode === "level" ? (
-                  <MediaSelect
+                  <Select
                     value={bitrateLevel}
                     onChange={setBitrateLevel}
                     options={BITRATE_OPTIONS}

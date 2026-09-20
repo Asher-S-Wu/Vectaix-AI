@@ -17,7 +17,7 @@ import AudioFilePicker from "@/app/components/media/AudioFilePicker";
 import AudioFormError from "@/app/components/media/AudioFormError";
 import AudioSourceClipField from "@/app/components/media/AudioSourceClipField";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
-import MediaSelect from "@/app/components/media/MediaSelect";
+import Select from "@/app/components/common/Select";
 import VoiceEditDialog from "@/app/components/media/VoiceEditDialog";
 import { AUDIO_UPLOAD_PURPOSES } from "@/lib/media/shared/audioUploads";
 import {
@@ -209,7 +209,7 @@ export default function MinimaxVoiceClonePanel({
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="minimax-voice-model" className="text-sm font-medium">试听模型</label>
-                  <MediaSelect
+                  <Select
                     id="minimax-voice-model"
                     ariaLabel="试听模型"
                     value={model}
@@ -278,7 +278,7 @@ export default function MinimaxVoiceClonePanel({
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <label htmlFor="minimax-voice-language" className="text-sm font-medium">语言增强</label>
-                  <MediaSelect
+                  <Select
                     id="minimax-voice-language"
                     ariaLabel="语言增强"
                     value={languageBoost}

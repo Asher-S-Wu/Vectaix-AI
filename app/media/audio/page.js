@@ -22,7 +22,7 @@ import AudioSliderField from "@/app/components/media/AudioSliderField";
 import AudioWorkspaceHero from "@/app/components/media/AudioWorkspaceHero";
 import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
-import MediaSelect from "@/app/components/media/MediaSelect";
+import Select from "@/app/components/common/Select";
 import VoiceClonePanel from "@/app/components/media/VoiceClonePanel";
 import VoicePicker, {
   mapQwenCustomVoice,
@@ -545,7 +545,7 @@ export default function AudioWorkspacePage() {
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
                             <label htmlFor="audio-format" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">音频格式</label>
-                            <MediaSelect
+                            <Select
                               id="audio-format"
                               ariaLabel="音频格式"
                               value={format}
@@ -558,7 +558,7 @@ export default function AudioWorkspacePage() {
                               <Languages className="h-3.5 w-3.5 text-primary" />
                               目标语言
                             </label>
-                            <MediaSelect
+                            <Select
                               id="audio-language"
                               ariaLabel="目标语言"
                               value={languageHint}

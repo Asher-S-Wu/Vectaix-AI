@@ -1,5 +1,6 @@
 'use client';
 
+import Select from '@/app/components/common/Select';
 import { useEffect, useState } from 'react';
 import { Download, File, Folder, MoreHorizontal, Plus, RefreshCw, Search, Upload } from 'lucide-react';
 import ChatSettingsDialog, { fieldClass, buttonClass } from '@/app/components/chat/ChatSettingsDialog';
@@ -147,7 +148,16 @@ export default function FilesPanel() {
     </div>
     <div className="flex flex-col gap-2 sm:flex-row">
       <label className="relative flex-1"><Search size={16} className="absolute left-3 top-3 text-zinc-400" /><input aria-label="搜索当前文件夹" placeholder="搜索此文件夹中的文件和文件夹" className={`${fieldClass} pl-9`} value={query} disabled={busy} onChange={e => { setQuery(e.target.value); setSelected([]); }} /></label>
-      <select aria-label="文件排序" className={`${fieldClass} sm:w-40`} value={sort} onChange={e => setSort(e.target.value)}><option value="name">名称排序</option><option value="updated">最近修改</option><option value="size">大小从大到小</option></select>
+      <Select ariaLabel="文件排序" className={`${fieldClass} sm:w-40`} value={sort} onChange={e => setSort(e)} options={[{
+  id: "name",
+  label: "名称排序"
+}, {
+  id: "updated",
+  label: "最近修改"
+}, {
+  id: "size",
+  label: "大小从大到小"
+}]} />
     </div>
     <div className="flex flex-wrap items-center gap-2">
       <button disabled={busy || loading || !files.length} className={buttonClass} onClick={toggleAll}>{allSelected ? '取消全选' : '全选'}</button>
@@ -184,7 +194,16 @@ export default function FilesPanel() {
       </fieldset> : <form className="space-y-4" onSubmit={e => { e.preventDefault(); saveDialog(); }}>
         {dialog.name !== undefined && <label className="block space-y-2 text-sm"><span>{dialog.type.endsWith('Folder') ? '文件夹名称' : '文件名称'}</span><input autoFocus required maxLength={200} className={fieldClass} value={dialog.name} disabled={busy} onChange={e => setDialog({ ...dialog, name: e.target.value })} /></label>}
         {dialog.type === 'edit' && <label className="block space-y-2 text-sm"><span>文本内容</span><textarea required rows={12} className={`${fieldClass} font-mono`} value={dialog.content} disabled={busy} onChange={e => setDialog({ ...dialog, content: e.target.value })} /></label>}
-        {['move', 'moveFolder', 'copy'].includes(dialog.type) && <label className="block space-y-2 text-sm"><span>{dialog.type === 'copy' ? '目标项目' : '目标文件夹'}</span><select className={fieldClass} value={dialog.target} disabled={busy} required={dialog.type === 'copy'} onChange={e => setDialog({ ...dialog, target: e.target.value })}><option value="">{dialog.type === 'copy' ? '请选择项目' : '根目录'}</option>{(dialog.type === 'copy' ? projects : moveFolders).map(item => <option key={item._id} value={item._id}>{dialog.type === 'copy' ? item.name : folderPath(item._id)}</option>)}</select></label>}
+        {['move', 'moveFolder', 'copy'].includes(dialog.type) && <label className="block space-y-2 text-sm"><span>{dialog.type === 'copy' ? '目标项目' : '目标文件夹'}</span><Select className={fieldClass} value={dialog.target} disabled={busy} required={dialog.type === 'copy'} onChange={e => setDialog({
+  ...dialog,
+  target: e
+})} options={[{
+  id: "",
+  label: dialog.type === 'copy' ? '请选择项目' : '根目录'
+}, ...(dialog.type === 'copy' ? projects : moveFolders).map(item => ({
+  id: item._id,
+  label: dialog.type === 'copy' ? item.name : folderPath(item._id)
+}))]} /></label>}
         {dialog.type === 'delete' && <div className="space-y-3">
           {dialog.blocked.length > 0 && <><p className="text-sm text-amber-700 dark:text-amber-400">以下 {dialog.blocked.length} 个文件不能在这里删除，将予以保留：</p><ul className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-amber-200 p-3">{dialog.blocked.map(file => <li key={file.fileId} className="text-sm"><p className="break-all font-medium">{file.name}</p><p className="text-xs text-zinc-500">{file.deletionBlockedReason}</p></li>)}</ul></>}
           <p className="text-sm leading-6">{dialog.ids.length ? `确定永久删除${dialog.blocked.length ? '其余' : '所选的'} ${dialog.ids.length} 个文件？删除后无法恢复。` : '所选文件均不可在这里删除。'}</p>

@@ -1,6 +1,7 @@
 "use client";
 
 
+import Select from '@/app/components/common/Select';
 import { useState, useRef, useEffect } from "react";
 import NextImage from "next/image";
 import { Folder, FolderInput, LogOut, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
@@ -159,9 +160,16 @@ export default function Sidebar({
 
         <div className="px-3 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50">
           <div className="flex items-center justify-between mb-2 px-1"><span className="text-xs font-medium text-zinc-500 flex items-center gap-1.5"><Folder size={13} />项目</span><button type="button" onClick={onManageProjects} className="text-xs text-primary hover:underline">管理项目</button></div>
-          <select aria-label="筛选项目对话" value={activeProjectId === null ? "" : activeProjectId} onChange={event => onSelectProject(event.target.value === "" ? null : event.target.value)} className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm px-3 py-2 text-zinc-700 dark:text-zinc-200">
-            <option value="all">全部对话</option><option value="">未归类</option>{projects.map(project => <option key={project._id} value={project._id}>{project.name}</option>)}
-          </select>
+          <Select ariaLabel="筛选项目对话" value={activeProjectId === null ? "" : activeProjectId} onChange={event => onSelectProject(event === "" ? null : event)} className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm px-3 py-2 text-zinc-700 dark:text-zinc-200" options={[{
+  id: "all",
+  label: "全部对话"
+}, {
+  id: "",
+  label: "未归类"
+}, ...projects.map(project => ({
+  id: project._id,
+  label: project.name
+}))]} />
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-1 fade-scrollbar">
           {!conversationsReady ? (
@@ -261,7 +269,16 @@ export default function Sidebar({
                       <Trash2 size={16} />
                     </button>
                   </div>
-                  {movingId === conv._id && <div className="w-full px-3 pb-3"><select aria-label="对话所属项目" className="w-full text-xs rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-2" value={conv.projectId || ""} onChange={async event => { await onMoveConversation(conv._id, event.target.value || null); setMovingId(null); }}><option value="">未归类</option>{projects.map(project => <option key={project._id} value={project._id}>{project.name}</option>)}</select></div>}
+                  {movingId === conv._id && <div className="w-full px-3 pb-3"><Select ariaLabel="对话所属项目" className="w-full text-xs rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-2" value={conv.projectId || ""} onChange={async event => {
+  await onMoveConversation(conv._id, event || null);
+  setMovingId(null);
+}} options={[{
+  id: "",
+  label: "未归类"
+}, ...projects.map(project => ({
+  id: project._id,
+  label: project.name
+}))]} /></div>}
                 </>
               )}
             </div>

@@ -19,7 +19,7 @@ const rejectsReferences = (model, images, options) => assert.throws(
 test('initial image options use Image 2.5 quality mode with fixed low API quality', () => {
   const config = imageModels.getImageModelConfig(imageModels.IMAGE_MODEL);
   assert.deepEqual(imageModels.validateImageOptions({ model: config.id, size: config.defaultSize }), {
-    model: SUNBURST, size: '1024x1024', quality: 'low',
+    model: SUNBURST, size: '1024x1024', quality: 'low', count: 1,
   });
 });
 
@@ -39,6 +39,7 @@ test('Qwen keeps automatic sizing and excludes quality from its validated option
   assert.deepEqual(imageModels.validateImageOptions({ model: QWEN, size: 'auto' }), {
     model: QWEN,
     size: 'auto',
+    count: 1,
   });
   rejectsOptions({ model: QWEN, size: 'auto', quality: 'high' });
   rejectsOptions({ model: QWEN, size: '2048x2048' });
@@ -48,7 +49,7 @@ test('Micu models accept every offered size with low quality without replacing s
   assert.equal(typeof imageModels.validateImageOptions, 'function');
   for (const model of [SUNBURST, FLARE]) {
     for (const size of ['auto', '1024x1024', '1280x720', '720x1280', '1024x1536', '1536x1024', '1152x864', '864x1152', '1344x576', '2048x2048', '2048x1152', '1152x2048', '3840x2160', '2160x3840']) {
-      assert.deepEqual(imageModels.validateImageOptions({ model, size, quality: 'low' }), { model, size, quality: 'low' });
+      assert.deepEqual(imageModels.validateImageOptions({ model, size, quality: 'low' }), { model, size, quality: 'low', count: 1 });
     }
   }
 });
@@ -57,7 +58,7 @@ test('Micu fixes quality to low regardless of missing or previously saved qualit
   for (const model of [SUNBURST, FLARE]) {
     for (const quality of [undefined, 'auto', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']) {
       const options = { model, size: '1024x1024', quality };
-      assert.deepEqual(imageModels.validateImageOptions(options), { model, size: '1024x1024', quality: 'low' });
+      assert.deepEqual(imageModels.validateImageOptions(options), { model, size: '1024x1024', quality: 'low', count: 1 });
       assert.equal(options.quality, quality);
     }
   }

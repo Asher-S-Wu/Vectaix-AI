@@ -1,4 +1,5 @@
 'use client';
+import Select from '@/app/components/common/Select';
 import {useEffect,useRef,useState} from 'react';
 const button='rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm disabled:opacity-50';
 export default function BrowserPanel(){
@@ -16,6 +17,18 @@ export default function BrowserPanel(){
 <img ref={image} src={view.screenshot} alt="可操作的浏览器页面" className={`w-full rounded-lg border ${busy?'opacity-60':'cursor-crosshair'}`} onClick={e=>{if(busy)return;const rect=image.current.getBoundingClientRect();action({action:'click',x:(e.clientX-rect.left)*1080/rect.width,y:(e.clientY-rect.top)*760/rect.height});}}/>
  <div className="flex gap-2"><input type="password" autoComplete="off" aria-label="输入到网页的文字或密码" placeholder="输入文字、密码或验证码" className="min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm" value={text} onChange={e=>setText(e.target.value)}/><button disabled={busy||!text} className={button} onClick={()=>{action({action:'type',text});setText('');}}>输入</button><button disabled={busy} className={button} onClick={()=>action({action:'key',key:'Enter'})}>回车</button></div>
  <div className="flex flex-wrap gap-2">{[['Tab','下一个输入框'],['Backspace','退格'],['Escape','退出弹层']].map(([key,label])=><button disabled={busy} key={key} className={button} onClick={()=>action({action:'key',key})}>{label}</button>)}<button disabled={busy} className={button} onClick={()=>action({action:'scroll',amount:-600})}>向上滚动</button><button disabled={busy} className={button} onClick={()=>action({action:'scroll',amount:600})}>向下滚动</button></div>
- <details onToggle={e=>{if(e.currentTarget.open)fetch('/api/library').then(r=>r.json()).then(data=>setLibrary(data.files||[])).catch(e=>setError(e.message));}}><summary className="cursor-pointer text-sm">网页文件上传与下载</summary><div className="space-y-2 mt-2"><select aria-label="网页元素" className="w-full rounded-lg border bg-transparent p-2 text-sm" value={selected} onChange={e=>setSelected(e.target.value)}><option value="">选择网页中的文件框或下载按钮</option>{view.elements?.map(el=><option value={el.element} key={el.element}>{el.element} · {el.label||el.text||el.placeholder||el.type||'未命名元素'}</option>)}</select><select aria-label="选择要上传的文件" className="w-full rounded-lg border bg-transparent p-2 text-sm" value={fileId} onChange={e=>setFileId(e.target.value)}><option value="">从文件库选择文件</option>{library.map(file=><option key={file.fileId} value={file.fileId}>{file.name}</option>)}</select><div className="flex gap-2"><button disabled={busy||selected===''||!fileId} className={button} onClick={()=>action({action:'upload',element:Number(selected),fileId})}>上传选定文件</button><button disabled={busy||selected===''} className={button} onClick={()=>action({action:'download',element:Number(selected)})}>下载文件</button></div></div></details></div>}
+ <details onToggle={e=>{if(e.currentTarget.open)fetch('/api/library').then(r=>r.json()).then(data=>setLibrary(data.files||[])).catch(e=>setError(e.message));}}><summary className="cursor-pointer text-sm">网页文件上传与下载</summary><div className="space-y-2 mt-2"><Select ariaLabel="网页元素" className="w-full rounded-lg border bg-transparent p-2 text-sm" value={selected} onChange={e => setSelected(e)} options={[{
+  id: "",
+  label: "选择网页中的文件框或下载按钮"
+}, ...view.elements?.map(el => ({
+  id: el.element,
+  label: "" + el.element + " \xB7 " + (el.label || el.text || el.placeholder || el.type || '未命名元素')
+}))]} /><Select ariaLabel="选择要上传的文件" className="w-full rounded-lg border bg-transparent p-2 text-sm" value={fileId} onChange={e => setFileId(e)} options={[{
+  id: "",
+  label: "从文件库选择文件"
+}, ...library.map(file => ({
+  id: file.fileId,
+  label: file.name
+}))]} /><div className="flex gap-2"><button disabled={busy||selected===''||!fileId} className={button} onClick={()=>action({action:'upload',element:Number(selected),fileId})}>上传选定文件</button><button disabled={busy||selected===''} className={button} onClick={()=>action({action:'download',element:Number(selected)})}>下载文件</button></div></div></details></div>}
  {downloadFile&&<a className="inline-block text-sm text-blue-600 underline" href={downloadFile.url} download={downloadFile.name}>下载：{downloadFile.name}</a>}<div className="flex gap-2 border-t pt-4"><button disabled={busy} className={button} onClick={()=>close(false)}>关闭浏览器并保留登录状态</button><button disabled={busy} className={`${button} text-red-500`} onClick={()=>close(true)}>退出并删除登录状态</button></div></div>;
 }

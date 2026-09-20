@@ -19,7 +19,7 @@ import AudioFilePicker from "@/app/components/media/AudioFilePicker";
 import AudioFormError from "@/app/components/media/AudioFormError";
 import AudioSourceClipField from "@/app/components/media/AudioSourceClipField";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
-import MediaSelect from "@/app/components/media/MediaSelect";
+import Select from "@/app/components/common/Select";
 import VoiceEditDialog from "@/app/components/media/VoiceEditDialog";
 import {
   AUDIO_LANGUAGE_HINTS,
@@ -357,7 +357,7 @@ export default function VoiceClonePanel({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label htmlFor="voice-language" className="text-sm font-medium">样本语言</label>
-                  <MediaSelect
+                  <Select
                     id="voice-language"
                     ariaLabel="样本语言"
                     value={languageHint}

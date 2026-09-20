@@ -1,5 +1,6 @@
 "use client";
 
+import Select from '@/app/components/common/Select';
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import NextImage from "next/image";
@@ -24,6 +25,7 @@ import {
 } from "@/lib/shared/models";
 import {
   IMAGE_MODEL_OPTIONS,
+  IMAGE_COUNT_OPTIONS,
   getImageModelConfig,
   getImageModelOption,
   validateImageOptions,
@@ -66,6 +68,7 @@ export default function Composer({
   const [input, setInput] = useState("");
   const [selectedAttachments, setSelectedAttachments] = useState([]);
   const [isMainInputFocused, setIsMainInputFocused] = useState(false);
+  const [imageCount, setImageCount] = useState(1);
   const [imageSizesByModel, setImageSizesByModel] = useState(() => Object.fromEntries(
     IMAGE_MODEL_OPTIONS.map(({ id }) => [id, getImageModelConfig(id).defaultSize]),
   ));
@@ -88,6 +91,7 @@ export default function Composer({
   const imageOptions = isImageModel ? {
     model,
     size: imageSizesByModel[imageModelOption.id],
+    count: imageCount,
     ...(imageConfig.fixedQuality ? { quality: imageConfig.fixedQuality } : {}),
   } : null;
   let imageValidationError = "";
@@ -559,30 +563,12 @@ export default function Composer({
           />
           {isMediaModel ? (
             <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5">
+              {isImageModel && <Select ariaLabel="图片数量" value={imageCount} onChange={setImageCount} options={IMAGE_COUNT_OPTIONS} disabled={loading} className="h-8 w-20 rounded-lg border border-zinc-200 bg-white px-2 text-xs dark:border-zinc-700 dark:bg-zinc-900" />}
               {isImageModel && imageModelOption.modes.length > 0 ? (
-                <select
-                  aria-label="生成模式"
-                  value={model}
-                  onChange={(event) => onModelChange(event.target.value)}
-                  disabled={loading}
-                  className="h-8 rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
-                >
-                  {imageModelOption.modes.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
-                </select>
+                <Select ariaLabel="生成模式" value={model} onChange={onModelChange} disabled={loading} className="h-8 rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300" options={imageModelOption.modes} />
               ) : null}
               {isImageModel ? (
-                <select
-                  aria-label="图片比例"
-                  value={imageOptions.size}
-                  onChange={(event) => handleImageSizeChange(event.target.value)}
-                  className="h-8 max-w-[170px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300"
-                >
-                  {imageConfig.sizes.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
-                </select>
+                <Select ariaLabel="图片比例" value={imageOptions.size} onChange={handleImageSizeChange} className="h-8 max-w-[170px] rounded-lg border border-zinc-200 bg-transparent px-2 text-xs text-zinc-600 outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary dark:border-zinc-700 dark:text-zinc-300" options={imageConfig.sizes} />
               ) : null}
             </div>
           ) : (

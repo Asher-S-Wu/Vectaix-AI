@@ -1,6 +1,7 @@
 "use client";
 
 
+import ImageResults from '@/app/components/media/ImageResults';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import NextImage from "next/image";
@@ -525,7 +526,9 @@ export default function MessageList({
                         } ${msg.isStreaming ? "ai-glow ai-glow-active" : ""}`}
                         onCopy={handleBubbleCopy}
                       >
-                        {hasParts ? (
+                        {hasParts && msg.role === "model" && msg.providerState?.media?.type === "image" ? (
+                          <ImageResults results={displayParts.map(part => part.inlineData ? { success: true, ...part.inlineData } : { success: false, message: part.text })} />
+                        ) : hasParts ? (
                           <div className="flex flex-col gap-2">
                             {(() => {
                               const entries = displayParts.map((part, idx) => ({ part, idx }));

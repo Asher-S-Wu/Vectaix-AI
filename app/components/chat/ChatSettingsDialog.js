@@ -1,5 +1,6 @@
 "use client";
 
+import Select from '@/app/components/common/Select';
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
@@ -15,7 +16,13 @@ export default function ChatSettingsDialog({ title, onClose, children }) {
 export function SettingsFields({ fields, onSubmit, busy, onCancel, submitText = "保存" }) {
   const [values, setValues] = useState(() => Object.fromEntries(fields.map(field => [field.name, field.value ?? ""])));
   return <form className="space-y-4" onSubmit={event => { event.preventDefault(); onSubmit(Object.fromEntries(new FormData(event.currentTarget))); }}>
-    {fields.filter(field => !field.when || field.when(values)).map(field => <label key={field.name} className="block space-y-1.5"><span className="text-sm font-medium">{field.label}</span>{field.type === "select" ? <select name={field.name} className={fieldClass} value={values[field.name]} onChange={event => setValues(current => ({ ...current, [field.name]: event.target.value }))}>{(typeof field.options === "function" ? field.options(values) : field.options).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : field.multiline ? <textarea className={fieldClass} name={field.name} defaultValue={field.value} rows={field.rows || 4} required={field.required} maxLength={field.maxLength} /> : <input className={fieldClass} name={field.name} type={field.type || "text"} defaultValue={field.value} required={field.required || field.type === "number"} min={field.min} max={field.max} step={field.step} maxLength={field.maxLength} />}{field.hint && <span className="block text-xs leading-relaxed text-zinc-500">{field.hint}</span>}</label>)}
+    {fields.filter(field => !field.when || field.when(values)).map(field => <label key={field.name} className="block space-y-1.5"><span className="text-sm font-medium">{field.label}</span>{field.type === "select" ? <Select name={field.name} className={fieldClass} value={values[field.name]} onChange={event => setValues(current => ({
+  ...current,
+  [field.name]: event
+}))} options={[...(typeof field.options === "function" ? field.options(values) : field.options).map(option => ({
+  id: option.value,
+  label: option.label
+}))]} /> : field.multiline ? <textarea className={fieldClass} name={field.name} defaultValue={field.value} rows={field.rows || 4} required={field.required} maxLength={field.maxLength} /> : <input className={fieldClass} name={field.name} type={field.type || "text"} defaultValue={field.value} required={field.required || field.type === "number"} min={field.min} max={field.max} step={field.step} maxLength={field.maxLength} />}{field.hint && <span className="block text-xs leading-relaxed text-zinc-500">{field.hint}</span>}</label>)}
     <div className="flex justify-end gap-2 pt-2"><button type="button" className={buttonClass} onClick={onCancel}>取消</button><button disabled={busy} className="rounded-xl bg-primary px-5 py-2 text-sm text-white disabled:opacity-50">{busy ? "处理中…" : submitText}</button></div>
   </form>;
 }

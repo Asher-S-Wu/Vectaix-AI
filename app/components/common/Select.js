@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, ChevronDown } from "lucide-react";
@@ -8,9 +8,13 @@ import { Check, ChevronDown } from "lucide-react";
 const PANEL_MAX_HEIGHT = 240;
 const VIEWPORT_GAP = 8;
 
-export default function MediaSelect({
+export default function Select({
   id,
-  value,
+  value: controlledValue,
+  defaultValue = "",
+  name,
+  required = false,
+  className,
   onChange,
   options,
   disabled = false,
@@ -20,11 +24,24 @@ export default function MediaSelect({
   const reduceMotion = useReducedMotion();
   const listboxId = useId();
   const triggerRef = useRef(null);
+  const inputRef = useRef(null);
+  const [localValue, setLocalValue] = useState(defaultValue);
+  const value = controlledValue === undefined ? localValue : controlledValue;
   const panelRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState(null);
 
   const selected = options.find((option) => option.id === value) || null;
+  useEffect(() => {
+    const input = inputRef.current;
+    input?.setCustomValidity(required && (!selected || value === "") ? "请选择一项" : "");
+  }, [required, selected, value]);
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    const reset = () => { setLocalValue(defaultValue); setOpen(false); };
+    form?.addEventListener("reset", reset);
+    return () => form?.removeEventListener("reset", reset);
+  }, [defaultValue]);
 
   const openPanel = () => {
     if (disabled) return;
@@ -36,9 +53,11 @@ export default function MediaSelect({
         ? "bottom"
         : "top";
       setPosition({
+        container: triggerRef.current.closest("dialog") || document.body,
         left: rect.left,
         width: rect.width,
         placement,
+        maxHeight: Math.min(PANEL_MAX_HEIGHT, (placement === "bottom" ? spaceBelow : spaceAbove) - 6),
         ...(placement === "bottom"
           ? { top: rect.bottom + 6 }
           : { bottom: window.innerHeight - rect.top + 6 }),
@@ -47,14 +66,12 @@ export default function MediaSelect({
     setOpen(true);
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return undefined;
 
-    const focusTimer = window.setTimeout(() => {
-      const target = panelRef.current?.querySelector('[aria-selected="true"]:not([disabled])')
+    const target = panelRef.current?.querySelector('[aria-selected="true"]:not([disabled])')
         || panelRef.current?.querySelector('[role="option"]:not([disabled])');
-      target?.focus();
-    }, 0);
+    target?.focus({ preventScroll: true });
 
     const handlePointerDown = (event) => {
       if (triggerRef.current?.contains(event.target) || panelRef.current?.contains(event.target)) return;
@@ -74,13 +91,12 @@ export default function MediaSelect({
     };
     const handleResize = () => setOpen(false);
 
-    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("keydown", handleKeyDown, true);
     window.addEventListener("scroll", handleScroll, true);
     window.addEventListener("resize", handleResize);
     return () => {
-      window.clearTimeout(focusTimer);
-      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown, true);
       window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("resize", handleResize);
@@ -97,6 +113,7 @@ export default function MediaSelect({
 
   const handlePanelKeyDown = (event) => {
     if (event.key === "Tab") {
+      triggerRef.current?.focus();
       setOpen(false);
       return;
     }
@@ -121,6 +138,12 @@ export default function MediaSelect({
 
   return (
     <>
+      {(name || required) && <input
+        ref={inputRef} name={name} value={value} readOnly={!required} onChange={() => {}}
+        required={required} disabled={disabled} tabIndex={-1} aria-hidden="true"
+        className="sr-only" type="text"
+        onInvalid={event => { event.preventDefault(); triggerRef.current?.focus(); openPanel(); }}
+      />}
       <button
         ref={triggerRef}
         id={id}
@@ -132,11 +155,7 @@ export default function MediaSelect({
         aria-expanded={open}
         aria-controls={open ? listboxId : undefined}
         aria-label={ariaLabel}
-        className={`focus-ring flex ${size === "lg" ? "h-11" : "h-10"} w-full items-center justify-between gap-2 rounded-xl border bg-white px-3 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-900 ${
-          open
-            ? "border-primary dark:border-primary"
-            : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"
-        }`}
+        className={`focus-ring flex items-center justify-between gap-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${className || `${size === "lg" ? "h-11" : "h-10"} w-full rounded-xl border bg-white px-3 text-sm dark:bg-zinc-900 ${open ? "border-primary dark:border-primary" : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"}`}`}
       >
         <span className="truncate">{selected?.label ?? "请选择"}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
@@ -157,7 +176,7 @@ export default function MediaSelect({
               position: "fixed",
               left: position.left,
               width: position.width,
-              maxHeight: PANEL_MAX_HEIGHT,
+              maxHeight: position.maxHeight,
               transformOrigin: position.placement === "bottom" ? "top" : "bottom",
               ...(position.placement === "bottom"
                 ? { top: position.top }
@@ -177,7 +196,8 @@ export default function MediaSelect({
                     disabled={Boolean(option.disabled)}
                     tabIndex={-1}
                     onClick={() => {
-                      onChange(option.id);
+                      setLocalValue(option.id);
+                      onChange?.(option.id);
                       setOpen(false);
                       triggerRef.current?.focus();
                     }}
@@ -195,7 +215,7 @@ export default function MediaSelect({
             })}
           </motion.ul>
         </AnimatePresence>,
-        document.body,
+        position.container,
       ) : null}
     </>
   );

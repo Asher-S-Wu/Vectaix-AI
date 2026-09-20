@@ -23,7 +23,7 @@ import AudioSliderField from "@/app/components/media/AudioSliderField";
 import AudioWorkspaceHero from "@/app/components/media/AudioWorkspaceHero";
 import AudioWorkspaceTabs from "@/app/components/media/AudioWorkspaceTabs";
 import MediaConfirmDialog from "@/app/components/media/MediaConfirmDialog";
-import MediaSelect from "@/app/components/media/MediaSelect";
+import Select from "@/app/components/common/Select";
 import MinimaxAudioGenerationCard from "@/app/components/media/MinimaxAudioGenerationCard";
 import MinimaxVoiceClonePanel from "@/app/components/media/MinimaxVoiceClonePanel";
 import VoicePicker, {
@@ -336,7 +336,7 @@ export default function MinimaxAudioWorkspacePage() {
 
   return (
     <div className="space-y-6">
-      {!modelAllowed && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700"><p className="mb-3">当前模型已不再开放，请选择可用模型继续。</p><MediaSelect ariaLabel="选择可用模型" value="" onChange={setModel} options={availableModels} /></div>}
+      {!modelAllowed && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700"><p className="mb-3">当前模型已不再开放，请选择可用模型继续。</p><Select ariaLabel="选择可用模型" value="" onChange={setModel} options={availableModels} /></div>}
       <AudioWorkspaceHero
         icon={AudioWaveform}
         title="MiniMax 语音工作台"
@@ -434,7 +434,7 @@ export default function MinimaxAudioWorkspacePage() {
 
                   <div className="space-y-2">
                     <label htmlFor="minimax-emotion" className="text-sm font-medium">情感</label>
-                    <MediaSelect
+                    <Select
                       id="minimax-emotion"
                       ariaLabel="情感"
                       value={emotion}
@@ -480,7 +480,7 @@ export default function MinimaxAudioWorkspacePage() {
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                           <div className="space-y-2">
                             <label htmlFor="minimax-model" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">生成模型</label>
-                            <MediaSelect
+                            <Select
                               id="minimax-model"
                               ariaLabel="生成模型"
                               value={model}
@@ -494,7 +494,7 @@ export default function MinimaxAudioWorkspacePage() {
                               <Languages className="h-3.5 w-3.5 text-primary" />
                               语言增强
                             </label>
-                            <MediaSelect
+                            <Select
                               id="minimax-language"
                               ariaLabel="语言增强"
                               value={languageBoost}
@@ -505,7 +505,7 @@ export default function MinimaxAudioWorkspacePage() {
                           </div>
                           <div className="space-y-2">
                             <label htmlFor="minimax-format" className="text-xs font-medium text-zinc-600 dark:text-zinc-300">音频格式</label>
-                            <MediaSelect
+                            <Select
                               id="minimax-format"
                               ariaLabel="音频格式"
                               value={format}

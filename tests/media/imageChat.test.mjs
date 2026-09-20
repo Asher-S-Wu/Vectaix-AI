@@ -1,5 +1,7 @@
 import test from 'node:test';
 import undici from 'undici';
+import timers from 'node:timers/promises';
+test.beforeEach(t => { t.mock.method(timers, 'setTimeout', async () => {}); });
 import assert from 'node:assert/strict';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -49,13 +51,13 @@ test.after(async () => {
 for (const model of models) {
   test(`${model} 聊天生成、单图及多图编辑将旧画质固定为 low 并保存图片和费用`, async t => {
     const options = { model, size: '1024x1024', quality: 'auto' };
-    const effectiveOptions = { ...options, quality: 'low' };
+    const effectiveOptions = { ...options, quality: 'low', count: 1 };
     let calls = 0;
     t.mock.method(undici, 'fetch', async (url, init) => {
       calls++;
       if (calls === 1) {
         assert.match(String(url), /\/generations$/);
-        assert.deepEqual(JSON.parse(init.body), { ...effectiveOptions, prompt: '蓝色花瓶', n: 1, response_format: 'b64_json' });
+        assert.deepEqual(JSON.parse(init.body), { model, size: '1024x1024', quality: 'low', prompt: '蓝色花瓶', n: 1, response_format: 'b64_json' });
       } else {
         assert.match(String(url), /\/edits$/);
         assert.equal(init.body.get('model'), model);
@@ -123,7 +125,7 @@ test('聊天图片传递 Micu 的实际拒绝原因并释放费用', async t => 
   const record = await Transaction.findOne({ userId, upstreamRequestIds: 'chat-rejection' }).lean();
   assert.equal(record.status, 'released');
   assert.equal(record.actualCostCny, 0);
-  assert.equal(upstream.mock.callCount(), 1);
+  assert.equal(upstream.mock.callCount(), 5);
 });
 
 test('聊天图片不接收不支持的尺寸和他人的参考图', async t => {
@@ -146,4 +148,24 @@ test('消息经过客户端和服务端保存仍保留图片名称、大小', as
   const sanitized = sanitizeStoredMessagesStrict(buildPersistedConversationMessages(messages));
   assert.deepEqual(sanitized[0].parts[0].inlineData, inlineData);
   assert.deepEqual(sanitizeMessages(sanitized)[0].parts[0].inlineData, inlineData);
+});
+
+test('聊天三张图片整组返回并保存部分失败，重新生成保留数量', async t => {
+  let requests = 0;
+  t.mock.method(undici, 'fetch', async () => {
+    if (++requests % 3 === 2) return Response.json({ error: { message: 'content policy rejected' } }, { status: 400 });
+    return Response.json({ data: [{ b64_json: png.toString('base64') }] });
+  });
+  const input = { model: models[0], prompt: '三张花瓶', history: [], config: { media: { size: '1024x1024', count: 3 } } };
+  const response = await call(input);
+  assert.match(await response.text(), /image_gen_complete/);
+  const conversationId = response.headers.get('x-conversation-id');
+  const conversation = await Conversation.findById(conversationId).lean();
+  assert.equal(requests, 3);
+  assert.equal(conversation.messages[1].parts.length, 3);
+  assert.match(conversation.messages[1].parts[1].text, /第 2 张.*content policy/);
+  assert.equal(conversation.messages[1].providerState.media.options.count, 3);
+  const regenerated = await call({ ...input, conversationId, mode: 'regenerate', messages: conversation.messages.slice(0, 1) });
+  assert.match(await regenerated.text(), /image_gen_complete/);
+  assert.equal(requests, 6);
 });

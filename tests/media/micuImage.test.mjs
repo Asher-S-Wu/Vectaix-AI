@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "node:http";
 import undici from "undici";
+import timers from "node:timers/promises";
+
+test.beforeEach(t => { t.mock.method(timers, "setTimeout", async () => {}); });
 import * as modelRoutes from "../../lib/modelRoutes.js";
 
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=", "base64");
@@ -115,7 +118,7 @@ test("文生图只发一次 JSON 请求并解码图片、保留用量和真实�
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     ...PARAMS, n: 1, response_format: "b64_json",
   });
-  assert.deepEqual(result, { input: PNG, mimeType: "image/png", requestId: "req-micu-1", usage });
+  assert.deepEqual(result, { input: PNG, mimeType: "image/png", requestId: "req-micu-1", usage, attempts: [{ success: true, requestId: "req-micu-1", usage }] });
 });
 
 test("两款模型的十四种尺寸选项均固定发送 low 给 Micu", async (t) => {
@@ -258,7 +261,7 @@ for (const [status, expectedMessage, rejected] of [
   [500, /服务.*失败/, false],
   [503, /服务.*失败/, false],
 ]) {
-  test(`上游 ${status} 返回中文错误、拒绝状态和请求 ID，且不重试`, async (t) => {
+  test(`上游 ${status} 返回中文错误、拒绝状态和请求 ID，按错误类型决定重试`, async (t) => {
     const { requestMicuImage } = await requestModule(t);
     const fetchMock = t.mock.method(undici, "fetch", async () => Response.json({
       error: { code: "upstream_code", message: "upstream details" }, request_id: "failed-request",
@@ -271,7 +274,7 @@ for (const [status, expectedMessage, rejected] of [
       assert.equal(error.upstreamRejected, rejected);
       return true;
     });
-    assert.equal(fetchMock.mock.callCount(), 1);
+    assert.equal(fetchMock.mock.callCount(), [429, 500, 503].includes(status) ? 5 : 1);
   });
 }
 
@@ -282,7 +285,7 @@ for (const [label, responseBody, expectedStatus, expectedMessage] of [
   ["内容拒绝", { error: { message: "Request rejected by safety system", code: "moderation_blocked" } }, 400, /Request rejected by safety system/],
   ["纯文本限流", "upstream: Too Many Requests", 429, /请求过于频繁/],
 ]) {
-  test(`Micu ${label}保留真实原因、请求编号和参数，且只请求一次`, async (t) => {
+  test(`Micu ${label}保留真实原因、请求编号和参数，按错误类型决定重试`, async (t) => {
     const { requestMicuImage } = await requestModule(t);
     const log = t.mock.method(console, "error", () => {});
     const fetchMock = t.mock.method(undici, "fetch", async () => new Response(
@@ -302,8 +305,8 @@ for (const [label, responseBody, expectedStatus, expectedMessage] of [
       }
       return true;
     });
-    assert.equal(fetchMock.mock.callCount(), 1);
-    assert.equal(log.mock.callCount(), 1);
+    assert.equal(fetchMock.mock.callCount(), expectedStatus === 429 ? 5 : 1);
+    assert.equal(log.mock.callCount(), expectedStatus === 429 ? 5 : 1);
     const [label, details] = log.mock.calls[0].arguments;
     assert.equal(label, "[Micu Image] request failed:");
     for (const key of ["model", "size", "quality"]) assert.equal(details[key], PARAMS[key]);
@@ -329,7 +332,7 @@ test("Micu 拒绝详情隐藏密钥并限制长度", async (t) => {
   assert.doesNotMatch(JSON.stringify(log.mock.calls[0].arguments), /server-secret|upstream-private-token|sk-provider-secret/);
 });
 
-test("断网不是明确拒绝，且不会重新请求", async (t) => {
+test("断网不是明确拒绝，五次失败后返回错误", async (t) => {
   const { requestMicuImage } = await requestModule(t);
   const fetchMock = t.mock.method(undici, "fetch", async () => { throw new TypeError("fetch failed"); });
   await assert.rejects(requestMicuImage(PARAMS), (error) => {
@@ -338,7 +341,7 @@ test("断网不是明确拒绝，且不会重新请求", async (t) => {
     assert.equal(error.upstreamRejected, false);
     return true;
   });
-  assert.equal(fetchMock.mock.callCount(), 1);
+  assert.equal(fetchMock.mock.callCount(), 5);
 });
 
 for (const [label, body] of [
@@ -358,7 +361,7 @@ for (const [label, body] of [
       assert.equal(error.upstreamRejected, false);
       return true;
     });
-    assert.equal(fetchMock.mock.callCount(), 1);
+    assert.equal(fetchMock.mock.callCount(), 5);
   });
 }
 
@@ -394,29 +397,31 @@ test("已取消请求不发送，进行中的请求会取消", async (t) => {
   assert.equal(fetchMock.mock.callCount(), 1);
 });
 
-test("600 秒总时限同时覆盖等待响应与读取响应体", async (t) => {
+test("每次尝试的 600 秒时限覆盖等待响应和读取响应体", async t => {
   const { requestMicuImage } = await requestModule(t);
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  let requestSignal;
-  let resolveHeaders;
+  t.mock.method(timers, "setTimeout", async () => {});
+  let requestSignal, resolveHeaders;
   t.mock.method(undici, "fetch", (_url, { signal }) => {
     requestSignal = signal;
-    return new Promise((resolve) => { resolveHeaders = resolve; });
+    return new Promise(resolve => { resolveHeaders = resolve; });
   });
-  const pending = requestMicuImage(PARAMS);
-  t.mock.timers.tick(400_000);
-  resolveHeaders({ ok: true, status: 200, headers: new Headers(), json: () => rejectOnAbort(requestSignal) });
-  await Promise.resolve();
-  t.mock.timers.tick(199_999);
-  assert.equal(requestSignal.aborted, false);
-  t.mock.timers.tick(1);
-  await assert.rejects(pending, (error) => {
+  const pending = assert.rejects(requestMicuImage(PARAMS), error => {
     assert.equal(error.status, 504);
     assert.equal(error.code, "UPSTREAM_TIMEOUT");
-    assert.equal(error.upstreamRejected, false);
-    assert.match(error.message, /超时/);
+    assert.equal(error.attempts.length, 5);
     return true;
   });
+  for (let attempt = 0; attempt < 5; attempt++) {
+    t.mock.timers.tick(400_000);
+    resolveHeaders({ ok: true, status: 200, headers: new Headers(), json: () => rejectOnAbort(requestSignal) });
+    await Promise.resolve();
+    t.mock.timers.tick(199_999);
+    assert.equal(requestSignal.aborted, false);
+    t.mock.timers.tick(1);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  await pending;
 });
 
 test("保存前等待完成回调，回调失败时不保存图片", async (t) => {
@@ -428,9 +433,73 @@ test("保存前等待完成回调，回调失败时不保存图片", async (t) =
     ...PARAMS,
     userId: "invalid-owner-would-fail-if-storage-runs-first",
     onUpstreamComplete: async (result) => {
-      assert.deepEqual(result, { requestId: "completed-id", usage });
+      assert.deepEqual(result, { requestId: "completed-id", usage, attempts: [{ success: true, requestId: "completed-id", usage }] });
       await Promise.resolve();
       throw callbackError;
     },
   }), (error) => error === callbackError);
+});
+
+test('临时错误按 1、2、4、8 秒重试，五次失败保留全部请求记录', async t => {
+  const { default: timers } = await import('node:timers/promises');
+  const waits = [];
+  t.mock.method(timers, 'setTimeout', async ms => { waits.push(ms); });
+  const { requestMicuImage } = await requestModule(t);
+  let calls = 0;
+  t.mock.method(undici, 'fetch', async () => Response.json({ error: { message: 'temporarily unavailable' }, request_id: `attempt-${++calls}` }, { status: 503 }));
+  t.mock.method(console, 'error', () => {});
+  await assert.rejects(requestMicuImage(PARAMS), error => {
+    assert.equal(calls, 5);
+    assert.equal(error.attempts.length, 5);
+    assert.deepEqual(error.attempts.map(item => item.requestId), ['attempt-1', 'attempt-2', 'attempt-3', 'attempt-4', 'attempt-5']);
+    return true;
+  });
+  assert.deepEqual(waits, [1000, 2000, 4000, 8000]);
+});
+
+test('网络失败后成功保留不确定尝试；余额不足即使 429 也不重试', async t => {
+  const { default: timers } = await import('node:timers/promises');
+  t.mock.method(timers, 'setTimeout', async () => {});
+  const { requestMicuImage } = await requestModule(t);
+  let calls = 0;
+  t.mock.method(undici, 'fetch', async () => {
+    if (++calls === 1) throw new TypeError('fetch failed');
+    return imageResponse({ request_id: 'success' });
+  });
+  const result = await requestMicuImage(PARAMS);
+  assert.deepEqual(result.input, PNG);
+  assert.equal(result.attempts.length, 2);
+  assert.equal(result.attempts[0].upstreamRejected, false);
+  assert.equal(result.attempts[1].success, true);
+  calls = 0;
+  t.mock.method(undici, 'fetch', async () => { calls++; return Response.json({ error: { code: 'insufficient_quota', message: 'insufficient balance' } }, { status: 429 }); });
+  await assert.rejects(requestMicuImage(PARAMS), /insufficient balance/);
+  assert.equal(calls, 1);
+});
+
+test('等待重试时取消，立即停止且不发下一次请求', async t => {
+  const { requestMicuImage } = await requestModule(t);
+  const controller = new AbortController();
+  let enteredWait;
+  const waiting = new Promise(resolve => { enteredWait = resolve; });
+  t.mock.method(timers, 'setTimeout', (_ms, _value, { signal }) => { enteredWait(); return rejectOnAbort(signal); });
+  const upstream = t.mock.method(undici, 'fetch', async () => { throw new TypeError('network failure'); });
+  const pending = assert.rejects(requestMicuImage({ ...PARAMS, signal: controller.signal }), error => {
+    assert.equal(error.name, 'AbortError');
+    assert.equal(error.attempts.length, 1);
+    assert.equal(error.attempts[0].upstreamRejected, false);
+    return true;
+  });
+  await waiting;
+  controller.abort();
+  await pending;
+  assert.equal(upstream.mock.callCount(), 1);
+});
+
+test('收到图片后取消时停止保存，不再发出图片请求', async t => {
+  const { generateAndStoreMicuImageFile } = await requestModule(t);
+  const controller = new AbortController();
+  const upstream = t.mock.method(undici, 'fetch', async () => imageResponse());
+  await assert.rejects(generateAndStoreMicuImageFile({ ...PARAMS, userId: 'not-a-valid-storage-owner', signal: controller.signal, onUpstreamComplete: () => controller.abort() }), { name: 'AbortError' });
+  assert.equal(upstream.mock.callCount(), 1);
 });
