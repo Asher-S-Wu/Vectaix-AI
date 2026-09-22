@@ -5,7 +5,7 @@ import { getPublicModels, getManagedModel, getModelConnection, getDefaultTranscr
 
 test('模型目录、默认模型和价格无需数据库，由代码决定',async()=>{
  const catalog=await getPublicModels();
- assert.equal(catalog.models.length,6);
+ assert.equal(catalog.models.length,5);
  assert.equal(catalog.defaultModelId,'gpt-6-astra');
  assert.equal((await getDefaultTranscriptionModel()).id,'google/gemini-3.8-flash');
  assert.ok((await getDefaultTranscriptionModel()).nativeInputs.includes('audio'));

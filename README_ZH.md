@@ -35,7 +35,6 @@
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>阿里云</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max%200902-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max 0902"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 </tr>
 </table>
 
@@ -61,7 +60,7 @@
 
 ### 🤖 多模型对话
 
-支持 6 个聊天模型，通过统一界面访问。切换模型时会新建对话，各自保留独立的聊天记录。
+支持 5 个聊天模型，通过统一界面访问。切换模型时会新建对话，各自保留独立的聊天记录。
 
 | 模型 | 供应商 | 上下文窗口 | 输入类型 | 深度思考 | 联网搜索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
@@ -70,7 +69,6 @@
 | **Gemini 3.8 Flash** | Google | 1,000,000 | 文本、图像、音频、视频 | ✅ | ✅ |
 | **Grok 4.6** | xAI | 256,000 | 文本、图像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 262,144 | 文本、图像 | ✅ | ✅ |
-| **Qwen 3.8 Max 0902** | 阿里云 | 262,144 | 文本、图像 | ✅ | ✅ |
 
 独立媒体模型：
 
@@ -276,7 +274,7 @@ vectaix-ai/
 | `MICU_XAI_API_KEY` | — | Grok 4.6 专用的 Micu 密钥 |
 | `MICU_MOONSHOT_API_KEY` | — | Kimi K3 专用的 Micu 密钥 |
 | `MICU_OPENAI_IMAGE_API_KEY` | — | Micu 图片服务密钥，与五个聊天模型的密钥分别配置 |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen 3.8 Max 0902、Qwen Image 3.0 Pro 和 Qwen Audio 3.0 TTS Plus 使用的新加坡区域阿里云百炼 API 密钥 |
+| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen Image 3.0 Pro 和 Qwen Audio 3.0 TTS Plus 使用的新加坡区域阿里云百炼 API 密钥 |
 | `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 使用的北京区域阿里云百炼 API 密钥 |
 | `AI_MEDIAKIT_API_KEY` | — | AI MediaKit 画质增强（大模型版）使用的 API Key，实际启用时配置 |
 | `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址；通行密钥登录、MiniMax 声音复刻读取素材时需要 |

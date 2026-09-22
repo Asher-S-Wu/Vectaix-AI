@@ -35,7 +35,6 @@
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%203.8%20Max%200902-615CED?style=for-the-badge&logoColor=white" alt="Qwen 3.8 Max 0902"/><br/><sub><b>Alibaba Cloud</b></sub></td>
 </tr>
 </table>
 
@@ -61,7 +60,7 @@
 
 ### 🤖 Multi-Model Chat
 
-Access 6 chat models through a unified interface. Switching models starts a new conversation with its own chat history.
+Access 5 chat models through a unified interface. Switching models starts a new conversation with its own chat history.
 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
@@ -70,7 +69,6 @@ Access 6 chat models through a unified interface. Switching models starts a new 
 | **Gemini 3.8 Flash** | Google | 1,000,000 | Text, Image, Audio, Video | ✅ | ✅ |
 | **Grok 4.6** | xAI | 256,000 | Text, Image | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 262,144 | Text, Image | ✅ | ✅ |
-| **Qwen 3.8 Max 0902** | Alibaba Cloud | 262,144 | Text, Image | ✅ | ✅ |
 
 Dedicated media models:
 
@@ -277,7 +275,7 @@ vectaix-ai/
 | `MICU_XAI_API_KEY` | — | Dedicated Micu key for Grok 4.6 |
 | `MICU_MOONSHOT_API_KEY` | — | Dedicated Micu key for Kimi K3 |
 | `MICU_OPENAI_IMAGE_API_KEY` | — | Micu image service key; independent of the five chat model keys |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen 3.8 Max 0902, Qwen Image 3.0 Pro, and Qwen Audio 3.0 TTS Plus |
+| `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen Image 3.0 Pro and Qwen Audio 3.0 TTS Plus |
 | `DASHSCOPE_BEIJING_API_KEY` | — | Beijing-region Alibaba Cloud Model Studio API key for MiniMax Speech 2.8 HD / Turbo |
 | `AI_MEDIAKIT_API_KEY` | — | API key for AI MediaKit video enhancement (large-model edition); configure when enabled |
 | `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app; required for passkey login and for MiniMax voice cloning to read input media |
