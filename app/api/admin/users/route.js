@@ -42,7 +42,6 @@ export async function GET(req) {
     User.countDocuments(filter),
   ]);
 
-  // 批量查询每个用户的对话数
   const userIds = users.map(u => u._id);
   const [convCounts, spendTotals] = await Promise.all([
     Conversation.aggregate([

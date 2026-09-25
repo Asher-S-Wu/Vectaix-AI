@@ -37,7 +37,8 @@ export async function GET(req) {
             errorType: error?.name || 'Error',
             code: error?.code || '',
         });
-        return Response.json({ error: error.status ? error.message : 'Internal Server Error' }, { status: error.status || 500 });
+        const status = Number.isInteger(error?.status) && error.status >= 400 && error.status < 500 ? error.status : 500;
+        return Response.json({ error: status < 500 ? error.message : 'Internal Server Error' }, { status });
     }
 }
 

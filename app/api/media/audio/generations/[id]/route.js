@@ -20,7 +20,8 @@ function jsonMessage(message, status = 400) {
 
 function publicMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
-  return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+  const status = Number(error?.status ?? error?.statusCode);
+  return message && Number.isInteger(status) && status >= 400 && status < 500 ? message : fallback;
 }
 
 async function getGenerationId(context) {

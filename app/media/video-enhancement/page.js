@@ -43,25 +43,25 @@ const ACTIVE_STATUSES = new Set(["submitting", "running", "finalizing"]);
 const DELETABLE_STATUSES = new Set(["completed", "failed", "canceled"]);
 const ACCEPTED_FILES = VIDEO_ENHANCEMENT_INPUT_EXTENSIONS.map((item) => `.${item}`).join(",");
 
-const RESOLUTION_OPTIONS = Object.freeze([
-  Object.freeze({ id: "720p", label: "720p · 轻量清晰" }),
-  Object.freeze({ id: "1080p", label: "1080p · 推荐" }),
-  Object.freeze({ id: "2k", label: "2K · 精细输出" }),
-]);
+const RESOLUTION_OPTIONS = [
+  { id: "720p", label: "720p · 轻量清晰" },
+  { id: "1080p", label: "1080p · 推荐" },
+  { id: "2k", label: "2K · 精细输出" },
+];
 
-const BITRATE_OPTIONS = Object.freeze([
-  Object.freeze({ id: "low", label: "低 · 更小文件" }),
-  Object.freeze({ id: "medium", label: "中 · 均衡推荐" }),
-  Object.freeze({ id: "high", label: "高 · 更多细节" }),
-]);
+const BITRATE_OPTIONS = [
+  { id: "low", label: "低 · 更小文件" },
+  { id: "medium", label: "中 · 均衡推荐" },
+  { id: "high", label: "高 · 更多细节" },
+];
 
-const PHASE_LABELS = Object.freeze({
+const PHASE_LABELS = {
   ticket: "正在准备安全上传",
   upload: "原片上传中",
   confirming: "正在确认上传",
   submitting: "正在创建增强任务",
   canceling: "正在取消上传",
-});
+};
 
 function getErrorMessage(error, fallback) {
   return error instanceof Error && error.message ? error.message : fallback;

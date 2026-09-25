@@ -46,7 +46,9 @@ function getPublicErrorMessage(error, fallback) {
   if (message.includes("DASHSCOPE_SINGAPORE_API_KEY")) {
     return "语音服务密钥尚未配置";
   }
-  return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+  const status = Number(error?.status ?? error?.statusCode);
+  return message && (error?.name === "QwenAudioError" || (Number.isInteger(status) && status >= 400 && status < 500))
+    ? message : fallback;
 }
 
 async function resolvePreviewVoice({ userId, voiceId }) {

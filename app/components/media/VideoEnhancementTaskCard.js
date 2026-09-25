@@ -17,23 +17,23 @@ import {
 
 const DELETABLE_STATUSES = new Set(["completed", "failed", "canceled"]);
 
-const STATUS_META = Object.freeze({
-  submitting: Object.freeze({ label: "正在提交", tone: "amber", icon: Clock3 }),
-  running: Object.freeze({ label: "增强处理中", tone: "sky", icon: WandSparkles }),
-  finalizing: Object.freeze({ label: "正在保存", tone: "violet", icon: Loader2 }),
-  completed: Object.freeze({ label: "已完成", tone: "emerald", icon: CheckCircle2 }),
-  failed: Object.freeze({ label: "处理失败", tone: "red", icon: AlertCircle }),
-  canceled: Object.freeze({ label: "已取消", tone: "zinc", icon: X }),
-});
+const STATUS_META = {
+  submitting: { label: "正在提交", tone: "amber", icon: Clock3 },
+  running: { label: "增强处理中", tone: "sky", icon: WandSparkles },
+  finalizing: { label: "正在保存", tone: "violet", icon: Loader2 },
+  completed: { label: "已完成", tone: "emerald", icon: CheckCircle2 },
+  failed: { label: "处理失败", tone: "red", icon: AlertCircle },
+  canceled: { label: "已取消", tone: "zinc", icon: X },
+};
 
-const STATUS_CLASSES = Object.freeze({
+const STATUS_CLASSES = {
   amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-300",
   sky: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/70 dark:bg-sky-950/30 dark:text-sky-300",
   violet: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/70 dark:bg-violet-950/30 dark:text-violet-300",
   emerald: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-300",
   red: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-300",
   zinc: "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-});
+};
 
 function formatBytes(value) {
   const bytes = Number(value);

@@ -28,7 +28,9 @@ function errorStatus(error, fallback = 500) {
 function publicMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("DASHSCOPE_BEIJING_API_KEY")) return "MiniMax 北京区域密钥尚未配置";
-  return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+  const status = Number(error?.status ?? error?.statusCode);
+  return message && ((error?.name === "MinimaxAudioError" && error.code !== "UPSTREAM_ERROR") || (Number.isInteger(status) && status >= 400 && status < 500))
+    ? message : fallback;
 }
 
 export async function GET(request) {
@@ -61,7 +63,7 @@ export async function POST(request) {
     const body = parsed.body;
     const result = await generateMinimaxSpeech({ userId: String(user.userId), body, clientOperationId: request.headers.get("x-credit-operation-id"), signal: request.signal });
     return Response.json(result.data, { status: result.status });
-  } catch (error) {
-    return Response.json({ success: false, message: error.message }, { status: error.status || error.statusCode || 500 });
+  } catch {
+    return jsonMessage("MiniMax 语音生成失败", 500);
   }
 }

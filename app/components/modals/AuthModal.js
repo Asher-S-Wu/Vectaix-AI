@@ -30,7 +30,6 @@ export default function AuthModal({
         transition={{ type: "spring", damping: 24, stiffness: 320 }}
         className="auth-modal w-full max-w-sm rounded-3xl bg-white shadow-pop p-8 relative overflow-hidden"
       >
-        {/* 顶部品牌光晕 */}
         <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-48 bg-primary/15 blur-3xl rounded-full" />
 
         <div className="flex flex-col items-center mb-8 relative">

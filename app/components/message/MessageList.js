@@ -311,7 +311,6 @@ export default function MessageList({
           </div>
         ) : (
           <div className="h-full flex flex-col items-center justify-center space-y-10 text-center px-4 max-w-4xl mx-auto w-full relative">
-            {/* 背景品牌光晕 */}
             <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
               <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-primary/10 blur-3xl" />
             </div>
@@ -402,7 +401,7 @@ export default function MessageList({
             >
               {msg.role === "model" && (msg.taskId || msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasToolRuns) && (
                 <div className="flex items-center gap-2 pl-1">
-                  {assistant?.avatarFileId ? <NextImage src={`/api/files/${assistant.avatarFileId}`} alt={assistant.name} width={24} height={24} unoptimized className="h-6 w-6 rounded-lg object-cover"/> : <AIAvatar model={msg.model || model} size={24} animate={msg.isStreaming} />}
+                  {assistant?.avatarFileId ? <NextImage src={`/api/files/${assistant.avatarFileId}`} alt={assistant.name} width={24} height={24} unoptimized className="h-6 w-6 rounded-lg object-cover"/> : <AIAvatar model={msg.model || model} size={24} />}
                   <span className="text-[11px] text-zinc-400 font-bold tracking-wider">
                     {assistant?.name} · {CHAT_MODELS.find((m) => m.id === (msg.model || model))?.name}
                   </span>
@@ -648,7 +647,7 @@ export default function MessageList({
           transition={{ duration: 0.25 }}
           className="flex gap-3 items-start max-w-4xl mx-auto w-full"
         >
-          <ResponsiveAIAvatar model={model} desktopSize={24} animate />
+          <ResponsiveAIAvatar model={model} desktopSize={24} />
           <div className="msg-bubble-ai px-5 py-3.5">
             <LoadingSweepText text="..." className="loading-sweep-dots text-xl" />
           </div>

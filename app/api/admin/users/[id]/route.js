@@ -12,7 +12,6 @@ import { CreditError } from '@/lib/server/credits/errors';
 
 export const dynamic = 'force-dynamic';
 
-// 重置用户密码
 export async function PATCH(req, context) {
     const admin = await requireAdmin(req);
     if (!admin) {
@@ -41,7 +40,6 @@ export async function PATCH(req, context) {
         return Response.json({ error: '不能重置其他超级管理员的密码' }, { status: 403 });
     }
 
-    // 生成随机密码（12 位，包含大小写字母和数字）
     const newPassword = crypto.randomBytes(9).toString('base64url').slice(0, 12);
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
@@ -50,7 +48,6 @@ export async function PATCH(req, context) {
     return Response.json({ success: true, newPassword });
 }
 
-// 删除用户及其所有数据
 export async function DELETE(req, context) {
     const admin = await requireAdmin(req);
     if (!admin) {
@@ -62,7 +59,6 @@ export async function DELETE(req, context) {
         return Response.json({ error: '无效的用户 ID' }, { status: 400 });
     }
 
-    // 不能删除自己
     if (admin.userId === id) {
         return Response.json({ error: '不能删除自己的账号' }, { status: 400 });
     }

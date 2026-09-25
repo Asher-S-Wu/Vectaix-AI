@@ -31,7 +31,9 @@ function getPublicErrorMessage(error, fallback) {
   if (message.includes("DASHSCOPE_SINGAPORE_API_KEY")) {
     return "语音服务密钥尚未配置";
   }
-  return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+  const status = Number(error?.status ?? error?.statusCode);
+  return message && (error?.name === "QwenAudioError" || (Number.isInteger(status) && status >= 400 && status < 500))
+    ? message : fallback;
 }
 
 export async function GET(request) {
@@ -69,7 +71,7 @@ export async function POST(request) {
     const body = parsed.body;
     const result = await generateQwenSpeech({ userId: String(user.userId), body, clientOperationId: request.headers.get("x-credit-operation-id"), signal: request.signal });
     return Response.json(result.data, { status: result.status });
-  } catch (error) {
-    return Response.json({ success: false, message: error.message }, { status: error.status || error.statusCode || 500 });
+  } catch {
+    return jsonMessage("语音生成失败", 500);
   }
 }

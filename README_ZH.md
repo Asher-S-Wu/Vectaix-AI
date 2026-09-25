@@ -17,7 +17,6 @@
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Zeabur](https://img.shields.io/badge/Zeabur-6300FF?style=flat-square)](https://zeabur.com/)
-[![License: MIT](https://img.shields.io/badge/许可证-MIT-22c55e?style=flat-square)](LICENSE)
 
 <br/>
 
@@ -39,16 +38,6 @@
 </table>
 
 </div>
-
-<br/>
-
----
-
-<br/>
-
-## 项目概述
-
-**Vectaix AI** 支持多模型对话、联网搜索，以及图片创作、语音合成和视频画质增强。
 
 <br/>
 
@@ -231,11 +220,11 @@ vectaix-ai/
 
 | 层级 | 技术 |
 |:---|:---|
-| **前端** | Next.js 16 · React 19 · Tailwind CSS · Framer Motion · Ant Design · Lucide Icons |
+| **前端** | Next.js 16 · React 19 · Tailwind CSS · Framer Motion · Lucide Icons |
 | **后端** | Next.js API Routes · Node.js · SSE（Server-Sent Events）流式传输 |
 | **数据库** | MongoDB + Mongoose ODM |
 | **存储** | Zeabur 挂载硬盘（私有媒体文件） |
-| **AI 供应商** | Micu · 阿里云百炼 |
+| **AI 供应商** | Micu · 阿里云百炼 · 火山引擎 |
 | **认证** | MongoDB 服务端会话 · bcryptjs |
 | **渲染** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **部署** | Zeabur 原生 Next.js 服务（单实例） |
@@ -289,14 +278,6 @@ vectaix-ai/
 ---
 
 <br/>
-
-## 许可证
-
-本项目基于 [MIT 许可证](LICENSE) 开源。
-
-<br/>
-
----
 
 <div align="center">
 

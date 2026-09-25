@@ -29,7 +29,6 @@ const FONT_SIZE_CLASSES = { small: "text-size-small", medium: "text-size-medium"
 export default function ChatApp() {
   const toast = useToast();
   const savedConversationRef = useRef(typeof window !== "undefined" ? window.localStorage.getItem("vectaix-current-conversation") : null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -65,18 +64,13 @@ export default function ChatApp() {
     updateSystemPrompt,
     deleteSystemPrompt,
     themeMode,
-    setThemeMode,
     fontSize,
-    setFontSize,
     completionSoundVolume,
-    setCompletionSoundVolume,
     settingsError,
     setSettingsError,
     fetchSettings,
     avatar,
-    setAvatar,
     nickname,
-    setNickname,
   } = useUserSettings();
   useThemeMode(themeMode);
   const [editingMsgIndex, setEditingMsgIndex] = useState(null);
@@ -143,12 +137,10 @@ export default function ChatApp() {
     setCurrentConversationId(null);
     setMessages([]);
     setSettingsError(null);
-    setShowProfileModal(false);
   };
 
   const {
     user,
-    setUser,
     showAuthModal,
     authMode,
     setAuthMode,
@@ -194,13 +186,6 @@ export default function ChatApp() {
       pendingConversationIdRef.current = null;
     };
   }, []);
-
-  const applyConversationSettings = (rawSettings) => {
-    const settings = rawSettings && typeof rawSettings === "object"
-      ? rawSettings
-      : {};
-    setWebSearch(normalizeWebSearchSettings(settings.webSearch, { defaultEnabled: true }));
-  };
 
   const sortConversations = (list) => {
     if (!Array.isArray(list)) return [];
@@ -396,7 +381,7 @@ export default function ChatApp() {
           await persistConversationModel(id, targetModel);
         }
 
-        applyConversationSettings(conversation.settings);
+        setWebSearch(normalizeWebSearchSettings(conversation.settings?.webSearch, { defaultEnabled: true }));
       }
     } catch (e) {
       if (!silent) {
@@ -502,12 +487,6 @@ export default function ChatApp() {
     }
   };
 
-  const updateThemeMode = (mode) => {
-    setThemeMode(mode);
-  };
-  const updateFontSize = (size) => {
-    setFontSize(size);
-  };
   return (
     <>
       {showAuthModal ? (
@@ -517,19 +496,8 @@ export default function ChatApp() {
           resourcesPanel={<ChatResourcesPanel open={showResources} onClose={() => animateChange(() => setShowResources(false), "resources")} conversationId={currentConversationId} projectId={projectId} tasks={taskActions.tasks} />}
           user={user}
           assistant={assistant}
-          isAdmin={!!user?.isAdmin}
           isSettingsReady={isSettingsReady}
-          showProfileModal={showProfileModal}
-          onCloseProfile={() => setShowProfileModal(false)}
-          themeMode={themeMode}
-          fontSize={fontSize}
-          onThemeModeChange={updateThemeMode}
-          onFontSizeChange={updateFontSize}
-          completionSoundVolume={completionSoundVolume}
-          onCompletionSoundVolumeChange={setCompletionSoundVolume}
           nickname={nickname}
-          onNicknameChange={setNickname}
-          onEmailChange={(updatedUser) => setUser((prev) => ({ ...prev, email: updatedUser.email }))}
           sidebarOpen={sidebarOpen}
           conversations={conversations.filter(item => activeProjectId === "all" || (item.projectId || null) === activeProjectId)}
           projects={projects}
@@ -579,7 +547,6 @@ export default function ChatApp() {
           onRegenerateModelMessage={regenerateMessage}
           onStartEdit={actions.startEdit}
           userAvatar={avatar}
-          onAvatarChange={setAvatar}
           composerProps={{
             loading: busy,
             isStreaming,

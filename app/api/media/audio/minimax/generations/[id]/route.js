@@ -45,7 +45,7 @@ export async function DELETE(request, context) {
     return Response.json({ success: true, deleted: true });
   } catch (error) {
     console.error("[MiniMax Audio] delete generation:", error);
-    const message = error instanceof Error && /[\u3400-\u9fff]/u.test(error.message)
+    const message = error instanceof Error && Number.isInteger(error.status) && error.status >= 400 && error.status < 500
       ? error.message
       : "删除 MiniMax 语音记录失败";
     return jsonMessage(message, Number.isInteger(error?.status) ? error.status : 500);

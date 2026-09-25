@@ -410,11 +410,25 @@ test('Qwen 出错只请求一次，GPT 保存文件失败不重新生成且保�
   assert.equal(qwen.mock.callCount(), 2);
   assert.equal(failed.data.results.every(item => !item.success), true);
   const upstream = t.mock.method(undici, 'fetch', async () => Response.json({ data: [{ b64_json: png.toString('base64') }], usage: { input_tokens: 100, input_tokens_details: { text_tokens: 100, image_tokens: 0 }, output_tokens: 200, total_tokens: 300 } }));
-  t.mock.method(StoredFile, 'create', async () => { throw new Error('disk write failed'); });
+  t.mock.method(StoredFile, 'create', async () => {
+    throw Object.assign(new Error('INTERNAL_STORAGE_MARKER'), { status: 500 });
+  });
   const stored = await generateImage({ userId, body: { ...options, prompt: '花瓶' }, clientOperationId: crypto.randomUUID() });
   assert.equal(stored.data.success, false);
+  assert.equal(stored.data.message, '图片处理失败');
+  assert.equal(stored.data.results[0].message, '图片处理失败');
   assert.equal(upstream.mock.callCount(), 1);
   assert.equal(stored.data.billing.status, 'settled');
+});
+
+test('图片操作内部异常只返回通用提示', async () => {
+  const body = { prompt: '花瓶' };
+  Object.defineProperty(body, 'model', {
+    get() { throw Object.assign(new Error('INTERNAL_CONFIG_MARKER'), { status: 500 }); },
+  });
+  const result = await generateImage({ userId, body, clientOperationId: crypto.randomUUID() });
+  assert.equal(result.status, 500);
+  assert.equal(result.data.message, '图片处理失败');
 });
 
 test('取消整组会停止四个未完成请求且不再重试', async t => {

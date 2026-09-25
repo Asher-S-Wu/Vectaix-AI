@@ -215,10 +215,10 @@ export default function ImageGenerationPage() {
 
           <div className="space-y-2">
             <label htmlFor="image-model" className="text-sm font-medium">图片模型</label>
-            <Select disabled={isGenerating} id="image-model" value={modelOption.id} onChange={handleModelChange} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary" options={[...IMAGE_MODEL_OPTIONS.map(option => ({
+            <Select disabled={isGenerating} id="image-model" value={modelOption.id} onChange={handleModelChange} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary" options={IMAGE_MODEL_OPTIONS.map(option => ({
   id: option.id,
   label: option.name
-}))]} />
+}))} />
           </div>
 
           {modelOption.modes.length > 0 ? (

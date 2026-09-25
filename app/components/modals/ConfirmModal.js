@@ -36,7 +36,6 @@ export default function ConfirmModal({
         return () => clearTimeout(timer);
     }, [open]);
 
-    // 键盘事件处理：Enter 确认，Escape 取消
     useEffect(() => {
         if (!open) return;
 

@@ -55,7 +55,7 @@ export async function register() {
       { removeLegacyGuestData },
       { ensureUserIndexes },
       { ensureSessionIndexes },
-      { initializeCostRecording },
+      { ensureCreditTransactionIndexes },
       { reconcileCreditTransactions },
       { reconcileMinimaxUnlockClaims },
       { reconcileMinimaxVoiceCleanup },
@@ -72,7 +72,7 @@ export async function register() {
       import("@/lib/server/users/legacyIdentityCleanup"),
       import("@/models/User"),
       import("@/models/Session"),
-      import("@/lib/server/credits/migration"),
+      import("@/models/CreditTransaction"),
       import("@/lib/server/credits/service"),
       import("@/lib/media/server/minimaxUnlockClaims"),
       import("@/lib/media/server/minimaxVoiceCleanup"),
@@ -83,7 +83,7 @@ export async function register() {
     reportLegacyCleanupState(legacyCleanup);
     if (legacyCleanup.complete) await ensureUserIndexes();
     await ensureSessionIndexes();
-    await initializeCostRecording();
+    await ensureCreditTransactionIndexes();
     await reconcileCreditTransactions();
     await reconcileMinimaxUnlockClaims();
     await Promise.all([

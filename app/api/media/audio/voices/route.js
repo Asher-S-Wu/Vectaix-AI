@@ -77,7 +77,9 @@ function getPublicErrorMessage(error, fallback) {
   if (message.includes("PUBLIC_APP_URL")) {
     return "声音复刻服务尚未配置公开访问地址";
   }
-  return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+  const status = Number(error?.status ?? error?.statusCode);
+  return message && (error?.name === "QwenAudioError" || (Number.isInteger(status) && status >= 400 && status < 500))
+    ? message : fallback;
 }
 
 function isAmbiguousVoiceCreationError(error) {

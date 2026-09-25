@@ -56,7 +56,8 @@ export async function DELETE(req, context) {
     await deleteConversationForUser(id, user.userId);
     return Response.json({ success: true });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: error.status || 500 });
+    const status = Number.isInteger(error?.status) && error.status >= 400 && error.status < 500 ? error.status : 500;
+    return Response.json({ error: status < 500 ? error.message : "删除对话失败" }, { status });
   }
 }
 

@@ -36,19 +36,18 @@ function WebFavicon({ url, size = 12, className = "" }) {
   );
 }
 
-export function AIAvatar({ model, size = 24, animate = false, className = "" }) {
+export function AIAvatar({ model, size = 24, className = "" }) {
   return (
     <span
       className={`inline-flex items-center justify-center overflow-hidden rounded-md ${className}`.trim()}
       style={{ width: size, height: size }}
     >
-      <ModelAvatar model={model} size={size} animate={animate} />
+      <ModelAvatar model={model} size={size} />
     </span>
   );
 }
 
 export function LoadingSweepText({ text = "加载中", className = "", ariaText }) {
-  // 如果是三个点，使用跳跃动画
   if (text === "...") {
     return (
       <span className={`loading-sweep ${className}`.trim()} data-text={text} aria-label={ariaText || text}>
@@ -65,11 +64,11 @@ export function LoadingSweepText({ text = "加载中", className = "", ariaText 
   );
 }
 
-export function ResponsiveAIAvatar({ model, mobileSize = 22, desktopSize = 26, animate = false }) {
+export function ResponsiveAIAvatar({ model, mobileSize = 22, desktopSize = 26 }) {
   return (
     <>
-      <span className="sm:hidden"><AIAvatar model={model} size={mobileSize} animate={animate} /></span>
-      <span className="hidden sm:inline"><AIAvatar model={model} size={desktopSize} animate={animate} /></span>
+      <span className="sm:hidden"><AIAvatar model={model} size={mobileSize} /></span>
+      <span className="hidden sm:inline"><AIAvatar model={model} size={desktopSize} /></span>
     </>
   );
 }

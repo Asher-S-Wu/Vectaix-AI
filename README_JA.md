@@ -17,7 +17,6 @@
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Zeabur](https://img.shields.io/badge/Zeabur-6300FF?style=flat-square)](https://zeabur.com/)
-[![License: MIT](https://img.shields.io/badge/ライセンス-MIT-22c55e?style=flat-square)](LICENSE)
 
 <br/>
 
@@ -39,16 +38,6 @@
 </table>
 
 </div>
-
-<br/>
-
----
-
-<br/>
-
-## 概要
-
-**Vectaix AI** は、複数のAIモデルとのチャット、ウェブ検索、画像・音声の制作と動画の画質向上に対応しています。
 
 <br/>
 
@@ -231,11 +220,11 @@ vectaix-ai/
 
 | レイヤー | 技術 |
 |:---|:---|
-| **フロントエンド** | Next.js 16 · React 19 · Tailwind CSS · Framer Motion · Ant Design · Lucide Icons |
+| **フロントエンド** | Next.js 16 · React 19 · Tailwind CSS · Framer Motion · Lucide Icons |
 | **バックエンド** | Next.js API Routes · Node.js · SSE（Server-Sent Events）ストリーミング |
 | **データベース** | MongoDB + Mongoose ODM |
 | **ストレージ** | Zeabur マウントディスク（プライベートメディア） |
-| **AIプロバイダー** | Micu · Alibaba Cloud Model Studio |
+| **AIプロバイダー** | Micu · Alibaba Cloud Model Studio · Volcengine |
 | **認証** | MongoDBサーバーセッション · bcryptjs |
 | **レンダリング** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **デプロイ** | Zeabur ネイティブ Next.js サービス（単一インスタンス） |
@@ -289,14 +278,6 @@ vectaix-ai/
 ---
 
 <br/>
-
-## ライセンス
-
-本プロジェクトは [MITライセンス](LICENSE) の下で公開されています。
-
-<br/>
-
----
 
 <div align="center">
 

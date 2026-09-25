@@ -39,7 +39,6 @@ export default function ThinkingBlock({
       .map((tool) => [`timeline_${tool.id}`, tool])
   );
 
-  // 滚动到容器底部（仅简单模式的思考内容）
   useEffect(() => {
     if (!collapsed) {
       const el = containerRef.current;
@@ -101,12 +100,7 @@ export default function ThinkingBlock({
     }
   }, [safeBodyText]);
 
-  // ── 外层标题文本（始终固定） ──
-  const headerText = "执行过程";
   const isThinkingActive = Boolean(isStreaming || isSearching) || timelineItems.some((step) => step.status === "running" || step.status === "streaming");
-
-  // ── 外层图标（始终固定） ──
-  const headerIcon = <Zap className="thinking-icon-header" />;
 
   const activeThoughtLabel = "思考中";
   const completedThoughtLabel = "已思考";
@@ -117,7 +111,6 @@ export default function ThinkingBlock({
     setExpandedTimelineId(nextId);
   };
 
-  // ── 渲染时间线内的单个步骤（第二层折叠项）──
   const renderTimelineStep = (step, idx) => {
     const isExpanded = expandedTimelineId === step.id;
     const isRunning = step.status === "running";
@@ -457,22 +450,16 @@ export default function ThinkingBlock({
     return null;
   };
 
-  // ══════════════════════════════════════════
-  //  统一渲染：外层执行过程容器 + 内层步骤
-  // ══════════════════════════════════════════
   return (
     <div className="thinking-block mb-2 w-full max-w-full">
       <>
-          {/* 第一层：外层折叠按钮 */}
           <button
-            onClick={() => {
-              setCollapsed(!collapsed);
-            }}
+            onClick={() => setCollapsed(!collapsed)}
             className="thinking-btn flex items-center font-medium mb-1.5 transition-colors text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200"
           >
-            {isThinkingActive ? <Loader2 className="thinking-icon-header animate-spin text-primary" /> : headerIcon}
+            {isThinkingActive ? <Loader2 className="thinking-icon-header animate-spin text-primary" /> : <Zap className="thinking-icon-header" />}
             <span className="thinking-btn-label flex items-center">
-              <span className="truncate max-w-[240px]">{headerText}</span>
+              <span className="truncate max-w-[240px]">执行过程</span>
             </span>
             {collapsed ? (
               <ChevronDown className="thinking-icon-chevron" />
@@ -481,14 +468,12 @@ export default function ThinkingBlock({
             )}
           </button>
 
-          {/* 搜索错误提示（非时间线模式） */}
           {!hasTimeline && !isSearching && safeSearchError ? (
             <div className="thinking-error-tip text-red-600 bg-red-50 border border-red-200">
               联网搜索失败：{safeSearchError}
             </div>
           ) : null}
 
-          {/* 内层内容（第二层折叠区域） */}
           <AnimatePresence>
             {!collapsed && (
               <motion.div
@@ -499,12 +484,10 @@ export default function ThinkingBlock({
                 className="overflow-hidden"
               >
                 {hasTimeline ? (
-                  /* 时间线模式：内层各步骤气泡（每个可独立折叠 = 第二层） */
                   <div className="thinking-timeline flex flex-col border-l-2 border-zinc-200/80 dark:border-zinc-700/80">
                     {timelineItems.map((step, idx) => renderTimelineStep(step, idx))}
                   </div>
                 ) : (
-                  /* 简单模式：内嵌一个"思考过程"气泡（第二层） */
                   safeThought ? (
                     <div className="thinking-timeline flex flex-col border-l-2 border-zinc-200/80 dark:border-zinc-700/80">
                       <div className="w-full max-w-full md:max-w-[760px]">

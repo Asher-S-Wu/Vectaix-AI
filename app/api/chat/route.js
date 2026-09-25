@@ -556,7 +556,7 @@ export async function POST(req) {
     const encoder = new TextEncoder();
     let clientAborted = req.signal.aborted;
     const onAbort = () => { clientAborted = true; };
-    try { req?.signal?.addEventListener?.("abort", onAbort, { once: true }); } catch { /* ignore */ }
+    req.signal.addEventListener("abort", onAbort, { once: true });
 
     let paddingSent = false;
     let heartbeatTimer = null;
@@ -680,7 +680,9 @@ export async function POST(req) {
               files: estimatedInputFiles,
             });
             const outputBudget = Math.min(modelConfig.maxOutputTokens, modelConfig.contextWindow - estimatedInputTokens);
-            if (outputBudget < MIN_CHAT_OUTPUT_TOKENS) throw new Error("对话内容超过该模型的上下文长度，请减少附件或开始新对话");
+            if (outputBudget < MIN_CHAT_OUTPUT_TOKENS) {
+              throw Object.assign(new Error("对话内容超过该模型的上下文长度，请减少附件或开始新对话"), { publicMessage: true });
+            }
             return outputBudget;
           };
 
@@ -716,7 +718,7 @@ export async function POST(req) {
             cacheKey: `vectaix-${currentConversationId}`,
             tools,
             getTools: () => getWebToolDefinitions(roundController?.getAvailableToolApiNames() || []),
-            signal: req?.signal,
+            signal: req.signal,
             resolveMaxOutputTokens: resolvePassMaxOutputTokens,
             onUpstreamRequest() {
               upstreamRequestCount += 1;
@@ -750,7 +752,7 @@ export async function POST(req) {
                 sendEvent,
                 pushCitations,
                 round: reservation.round,
-                signal: req?.signal,
+                signal: req.signal,
               });
               toolRecords.push(toolExecution.toolRecord);
               if (toolExecution.result?.success === false) {
@@ -855,7 +857,7 @@ export async function POST(req) {
             try {
               const settlement = await finalizeBilling({ reason: error?.message || "聊天执行失败" });
               if (settlement?.reviewRequired) {
-                billingError = new Error("本次模型用量无法自动核对，费用已标记待核对");
+                billingError = Object.assign(new Error("本次模型用量无法自动核对，费用已标记待核对"), { publicMessage: true });
               }
             } catch (settlementError) {
               billingError = settlementError;
@@ -876,9 +878,15 @@ export async function POST(req) {
           }
           try { await rollbackCurrentTurn(); } catch { /* ignore */ }
           try {
+            const streamError = billingError || error;
+            const message = streamError instanceof CreditError
+              || streamError?.publicMessage === true
+              || (Number.isInteger(streamError?.status) && streamError.status >= 400 && streamError.status < 500)
+              ? streamError.message
+              : "发送消息失败";
             const errorPayload = JSON.stringify({
               type: "stream_error",
-              message: billingError?.message || error?.message || "Unknown error",
+              message,
               messagePersisted: finalMessagePersisted,
             });
             const padding = !paddingSent ? SSE_PADDING : "";
@@ -891,7 +899,7 @@ export async function POST(req) {
           }
         } finally {
           if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
-          try { req?.signal?.removeEventListener?.("abort", onAbort); } catch { /* ignore */ }
+          req.signal.removeEventListener("abort", onAbort);
         }
       },
     });
@@ -908,15 +916,14 @@ export async function POST(req) {
     return new Response(responseStream, { headers });
   } catch (error) {
     console.error("[Chat] handle chat request:", error);
-    const rawStatus = typeof error?.status === "number" ? error.status : 500;
-    const isUpstreamAuthError = rawStatus === 401;
-    const status = isUpstreamAuthError ? 500 : rawStatus;
-    let errorMessage = error?.message;
-    if (isUpstreamAuthError) {
-      errorMessage = "模型服务认证失败，请检查接口配置";
-    } else if (error?.message?.includes("API_KEY")) {
-      errorMessage = error.message;
+    if (error instanceof CreditError) return creditErrorResponse(error, "聊天费用记录失败");
+    const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599
+      ? error.status
+      : 500;
+    if (status === 401) {
+      return Response.json({ error: "模型服务认证失败，请检查接口配置" }, { status: 500 });
     }
-    return Response.json({ error: errorMessage }, { status });
+    const message = status < 500 || error?.publicMessage ? error.message : "发送消息失败";
+    return Response.json({ error: message }, { status });
   }
 }

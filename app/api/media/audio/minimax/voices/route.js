@@ -79,7 +79,9 @@ function errorStatus(error, fallback = 500) {
 function publicMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("DASHSCOPE_BEIJING_API_KEY")) return "MiniMax 北京区域密钥尚未配置";
-  return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+  const status = Number(error?.status ?? error?.statusCode);
+  return message && ((error?.name === "MinimaxAudioError" && error.code !== "UPSTREAM_ERROR") || (Number.isInteger(status) && status >= 400 && status < 500))
+    ? message : fallback;
 }
 
 function billingQuality(model) {

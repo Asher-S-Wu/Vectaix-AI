@@ -35,7 +35,7 @@ export const viewport = {
     initialScale: 1,
     maximumScale: 1,
     viewportFit: 'cover',
-    userScalable: false, // Prevent zooming on inputs in iOS
+    userScalable: false,
 };
 
 export default async function RootLayout({ children }) {

@@ -13,7 +13,6 @@
   --border-color: #e4e4e7;
   --border-light: #f4f4f5;
 
-  /* Brand: sky blue */
   --primary: #38bdf8;
   --primary-strong: #0ea5e9;
   --primary-soft: rgba(56, 189, 248, 0.1);
@@ -25,7 +24,6 @@
   --radius-sm: 8px;
   --font-sans: var(--font-inter), system-ui, sans-serif;
 
-  /* Glassmorphism */
   --glass-bg: rgba(255, 255, 255, 0.72);
   --glass-border: rgba(228, 228, 231, 0.6);
   --glass-blur: 12px;
@@ -36,13 +34,11 @@
   --shadow-soft: 0 1px 2px rgba(24, 24, 27, 0.05);
   --shadow-lift: 0 12px 32px -12px rgba(56, 189, 248, 0.28);
 
-  /* Message bubbles */
   --user-bubble-bg: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
   --user-bubble-text: #ffffff;
   --user-bubble-shadow: 0 4px 16px -4px rgba(56, 189, 248, 0.4);
 }
 
-/* Floating layer shadow utility */
 .shadow-pop {
   box-shadow: var(--shadow-pop);
 }
@@ -59,7 +55,6 @@
   box-shadow: var(--shadow-lift);
 }
 
-/* Primary action button: subtle brand lift */
 .btn-primary {
   background: var(--primary);
   color: #fff;
@@ -76,7 +71,6 @@
   transform: scale(0.97);
 }
 
-/* Shared focus ring for interactive controls */
 .focus-ring:focus-visible {
   outline: none;
   border-color: var(--primary);
@@ -136,14 +130,12 @@ a {
   text-decoration: none;
 }
 
-/* App root container */
 .app-root {
   height: 100vh;
   height: 100dvh;
   height: var(--app-height, 100dvh);
 }
 
-/* Glass Effect Utility */
 .glass-effect {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
@@ -449,7 +441,6 @@ h1, h2, h3, h4, h5, h6 {
   color: #e0f2fe;
 }
 
-/* Input area wrapper */
 .composer-wrapper {
   background: linear-gradient(to top, var(--bg-primary) 60%, transparent);
 }
@@ -464,7 +455,6 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Composer: brand-tinted focus glow */
 .composer-shell {
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
@@ -479,7 +469,6 @@ h1, h2, h3, h4, h5, h6 {
   outline: none;
 }
 
-/* AI Glow Effect */
 .ai-glow { position: relative; }
 
 .ai-glow::after {

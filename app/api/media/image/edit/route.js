@@ -12,7 +12,7 @@ export async function POST(request) {
     const body = { count: form.has("count") ? Number(form.get("count")) : 1, model: form.get("model"), prompt: form.get("prompt"), size: form.get("size"), ...(form.has("quality") ? { quality: form.get("quality") } : {}), images: form.getAll("images") };
     const result = await editImage({ userId: String(user.userId), body, clientOperationId: request.headers.get("x-credit-operation-id"), signal: request.signal });
     return Response.json(result.data, { status: result.status });
-  } catch (error) {
-    return Response.json({ success: false, message: error.message }, { status: error.status || error.statusCode || 500 });
+  } catch {
+    return Response.json({ success: false, message: "图片编辑失败" }, { status: 500 });
   }
 }

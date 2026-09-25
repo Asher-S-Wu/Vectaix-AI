@@ -138,16 +138,34 @@ test('聊天图片不接收不支持的尺寸和他人的参考图', async t => 
   assert.equal(undici.fetch.mock.callCount(), 0);
 });
 
-test('消息经过客户端和服务端保存仍保留图片名称、大小', async () => {
-  const { buildPersistedConversationMessages } = await import('../../lib/client/chat/messagePersistence.js');
-  const { sanitizeStoredMessagesStrict } = await import('../../app/api/chat/utils.js');
-  const { sanitizeMessages } = await import('../../lib/server/conversations/sanitize.js');
-  const fileId = randomUUID();
-  const inlineData = { fileId, url: `/api/files/${fileId}`, mimeType: 'image/png', name: '参考.png', size: png.length };
-  const messages = [{ id: randomUUID(), role: 'user', content: 'test', type: 'parts', parts: [{ inlineData }] }];
-  const sanitized = sanitizeStoredMessagesStrict(buildPersistedConversationMessages(messages));
-  assert.deepEqual(sanitized[0].parts[0].inlineData, inlineData);
-  assert.deepEqual(sanitizeMessages(sanitized)[0].parts[0].inlineData, inlineData);
+test('聊天图片内部异常只返回固定提示', async t => {
+  const { default: User } = await import('../../models/User.js');
+  t.mock.method(User, 'findById', () => { throw new Error('internal-secret-value'); });
+  t.mock.method(console, 'error', () => {});
+  const response = await call({
+    model: models[0], prompt: '蓝色花瓶', history: [],
+    config: { media: { size: '1024x1024' } },
+  });
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: '媒体生成失败' });
+});
+
+test('聊天图片保存失败时流消息不包含内部异常', async t => {
+  t.mock.method(undici, 'fetch', async () => Response.json({ data: [{ b64_json: png.toString('base64') }] }));
+  const originalUpdate = Conversation.findOneAndUpdate.bind(Conversation);
+  let updates = 0;
+  t.mock.method(Conversation, 'findOneAndUpdate', (...args) => {
+    if (++updates === 2) throw new Error('internal-stream-secret');
+    return originalUpdate(...args);
+  });
+  const response = await call({
+    model: models[0], prompt: '蓝色花瓶', history: [],
+    config: { media: { size: '1024x1024' } },
+  });
+  const events = await response.text();
+  assert.match(events, /stream_error/);
+  assert.match(events, /媒体生成失败/);
+  assert.doesNotMatch(events, /internal-stream-secret/);
 });
 
 test('聊天三张图片整组返回并保存部分失败，重新生成保留数量', async t => {

@@ -50,3 +50,26 @@ test('模型目录需要登录，并且不公开服务器密钥和请求配置',
  assert.equal(payload.models[0].requestOptions,undefined);
  assert.equal(payload.models[0].headers,undefined);
 });
+
+test('语音记录删除失败时不返回内部异常', async t => {
+ const member = await login('audio-delete@example.com');
+ const { default: AudioGeneration } = await import('../../models/AudioGeneration.js');
+ const { DELETE } = await import('../../app/api/media/audio/generations/[id]/route.js');
+ t.mock.method(AudioGeneration, 'findOne', () => { throw new Error('内部数据库异常：private-value'); });
+ t.mock.method(console, 'error', () => {});
+ const response = await call(member, request => DELETE(request, { params: Promise.resolve({ id: 'sample' }) }),
+  new Request('http://test/api/media/audio/generations/sample', { method: 'DELETE' }));
+ assert.equal(response.status, 500);
+ assert.deepEqual(await response.json(), { success: false, message: '删除语音记录失败' });
+});
+
+test('上传文件的内部异常不返回给用户', async t => {
+ const member = await login('upload-error@example.com');
+ const { POST } = await import('../../app/api/upload/route.js');
+ const request = new Request('http://test/api/upload', { method: 'POST' });
+ request.formData = async () => { throw new Error('internal-upload-secret'); };
+ t.mock.method(console, 'error', () => {});
+ const response = await call(member, POST, request);
+ assert.equal(response.status, 500);
+ assert.deepEqual(await response.json(), { error: '文件上传失败' });
+});

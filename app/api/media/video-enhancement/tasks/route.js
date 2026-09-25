@@ -92,7 +92,7 @@ export async function POST(request) {
     const body = parsed.body;
     const result = await enhanceVideo({ userId: String(user.userId), body, clientOperationId: request.headers.get("x-credit-operation-id"), signal: request.signal });
     return Response.json(result.data, { status: result.status });
-  } catch (error) {
-    return Response.json({ success: false, message: error.message }, { status: error.status || error.statusCode || 500 });
+  } catch {
+    return jsonMessage("创建视频画质增强任务失败", 500);
   }
 }

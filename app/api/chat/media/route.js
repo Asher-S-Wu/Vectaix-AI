@@ -68,6 +68,13 @@ function createHttpError(message, status = 400) {
   return error;
 }
 
+function publicImageErrorMessage(error) {
+  const status = error?.status;
+  if (Number.isInteger(status) && status >= 400 && status < 500) return error.message;
+  if (error?.code === "SERVICE_NOT_CONFIGURED") return error.message;
+  return "媒体生成失败";
+}
+
 function normalizeImageOptions(model, value) {
   const input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   return validateImageOptions({ model, size: input.size, quality: input.quality, count: input.count });
@@ -364,9 +371,9 @@ export async function POST(req) {
     validateImagePrompt(model, effectivePrompt);
 
     const encoder = new TextEncoder();
-    let clientAborted = false;
+    let clientAborted = req.signal.aborted;
     const onAbort = () => { clientAborted = true; };
-    req.signal?.addEventListener?.("abort", onAbort, { once: true });
+    req.signal.addEventListener("abort", onAbort, { once: true });
 
     let paddingSent = false;
     let heartbeatTimer = null;
@@ -511,7 +518,7 @@ export async function POST(req) {
             return;
           }
           try {
-            sendEvent({ type: "stream_error", message: error?.message || "媒体生成失败" });
+            sendEvent({ type: "stream_error", message: publicImageErrorMessage(error) });
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
             controller.close();
           } catch {
@@ -519,7 +526,7 @@ export async function POST(req) {
           }
         } finally {
           if (heartbeatTimer) clearInterval(heartbeatTimer);
-          req.signal?.removeEventListener?.("abort", onAbort);
+          req.signal.removeEventListener("abort", onAbort);
           await releaseMediaWriteLease();
         }
       },
@@ -556,10 +563,10 @@ export async function POST(req) {
     if (error instanceof CreditError) {
       return creditErrorResponse(error, "聊天图片费用记录失败");
     }
-    const status = Number.isInteger(error?.status) ? error.status : 500;
+    const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
     return Response.json(
       {
-        error: error?.message || "媒体生成失败",
+        error: publicImageErrorMessage(error),
         ...(preUpstreamBilling ? { billing: preUpstreamBilling } : {}),
       },
       { status },

@@ -37,7 +37,7 @@ export async function DELETE(request, context) {
     console.error("[Media Audio] delete upload:", error);
     const status = Number.isInteger(error?.status) ? error.status : 500;
     return jsonMessage(
-      /[\u3400-\u9fff]/u.test(error?.message || "") ? error.message : "清理临时音频失败",
+      status >= 400 && status < 500 ? error.message : "清理临时音频失败",
       status,
     );
   } finally {

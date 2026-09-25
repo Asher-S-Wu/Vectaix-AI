@@ -17,10 +17,8 @@ export default function UserManagementModal({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
-  // 重置密码结果
   const [resetResult, setResetResult] = useState(null);
 
-  // 确认弹窗
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
@@ -85,7 +83,6 @@ export default function UserManagementModal({ open, onClose }) {
     fetchUsers(p, search.trim());
   };
 
-  // 重置密码
   const requestResetPassword = (user) => {
     confirmActionRef.current = async () => {
       setActionLoading(user.id);
@@ -109,7 +106,6 @@ export default function UserManagementModal({ open, onClose }) {
     setConfirmOpen(true);
   };
 
-  // 删除用户
   const requestDeleteUser = (user) => {
     confirmActionRef.current = async () => {
       setActionLoading(user.id);
@@ -169,7 +165,6 @@ export default function UserManagementModal({ open, onClose }) {
               className="bg-white rounded-2xl w-full max-w-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 relative max-h-[85vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* 头部 */}
               <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
                 <div className="flex items-center gap-2">
                   <Users size={18} className="text-zinc-600 dark:text-zinc-400" />
@@ -184,7 +179,6 @@ export default function UserManagementModal({ open, onClose }) {
                 </button>
               </div>
 
-              {/* 搜索栏 */}
               <div className="px-6 pt-4 pb-2">
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
@@ -198,7 +192,6 @@ export default function UserManagementModal({ open, onClose }) {
                 </div>
               </div>
 
-              {/* 重置密码结果 */}
               <AnimatePresence>
                 {resetResult && (
                   <motion.div
@@ -235,7 +228,6 @@ export default function UserManagementModal({ open, onClose }) {
                 )}
               </AnimatePresence>
 
-              {/* 用户列表 */}
               <div className="flex-1 overflow-y-auto fade-scrollbar px-6 py-3">
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
@@ -291,7 +283,6 @@ export default function UserManagementModal({ open, onClose }) {
                 )}
               </div>
 
-              {/* 分页 */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-zinc-100 dark:border-zinc-800">
                   <button

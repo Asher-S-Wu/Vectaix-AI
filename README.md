@@ -17,7 +17,6 @@
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Zeabur](https://img.shields.io/badge/Zeabur-6300FF?style=flat-square)](https://zeabur.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
 
 <br/>
 
@@ -39,16 +38,6 @@
 </table>
 
 </div>
-
-<br/>
-
----
-
-<br/>
-
-## Overview
-
-**Vectaix AI** supports multi-model chat, web search, and image and speech creation, and video enhancement.
 
 <br/>
 
@@ -232,11 +221,11 @@ vectaix-ai/
 
 | Layer | Technologies |
 |:---|:---|
-| **Frontend** | Next.js 16 · React 19 · Tailwind CSS · Framer Motion · Ant Design · Lucide Icons |
+| **Frontend** | Next.js 16 · React 19 · Tailwind CSS · Framer Motion · Lucide Icons |
 | **Backend** | Next.js API Routes · Node.js · SSE (Server-Sent Events) Streaming |
 | **Database** | MongoDB with Mongoose ODM |
 | **Storage** | Zeabur mounted disk (private media files) |
-| **AI Providers** | Micu · Alibaba Cloud Model Studio |
+| **AI Providers** | Micu · Alibaba Cloud Model Studio · Volcengine |
 | **Auth** | MongoDB server sessions · bcryptjs |
 | **Rendering** | react-markdown · rehype-highlight · rehype-katex · remark-gfm · remark-math |
 | **Deployment** | Zeabur native Next.js service (single instance) |
@@ -290,14 +279,6 @@ vectaix-ai/
 ---
 
 <br/>
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
-<br/>
-
----
 
 <div align="center">
 

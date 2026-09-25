@@ -5,14 +5,14 @@ import { useState } from "react";
 import { ImagePlus } from "lucide-react";
 import { getModelProvider } from "@/lib/shared/models";
 
-const PROVIDER_LOGOS = Object.freeze({
+const PROVIDER_LOGOS = {
   openai: "https://openrouter.ai/images/icons/OpenAI.svg",
   anthropic: "https://openrouter.ai/images/icons/Anthropic.svg",
   google: "https://openrouter.ai/images/icons/GoogleGemini.svg",
   xai: "https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://x.ai/&size=256",
   moonshot: "https://openrouter.ai/images/icons/MoonshotAI.png",
   qwen: "https://openrouter.ai/images/icons/Qwen.png",
-});
+};
 
 // Logos that are solid black and invisible on dark backgrounds
 const DARK_INVERT_PROVIDERS = new Set(["openai", "xai"]);

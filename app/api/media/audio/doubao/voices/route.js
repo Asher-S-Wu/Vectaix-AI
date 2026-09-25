@@ -50,7 +50,9 @@ function errorStatus(error, fallback = 500) {
 function publicMessage(error, fallback) {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("DOUBAO_AUDIO_API_KEY")) return "豆包音频服务密钥尚未配置";
-  return /[\u3400-\u9fff]/u.test(message) ? message : fallback;
+  const status = Number(error?.status ?? error?.statusCode);
+  return message && ((error?.name === "DoubaoAudioError" && error.code !== "UPSTREAM_ERROR") || (Number.isInteger(status) && status >= 400 && status < 500))
+    ? message : fallback;
 }
 
 function readNumber(value) {

@@ -23,7 +23,6 @@ export default function SystemPromptModal({
   const [saving, setSaving] = useState(false);
   const mounted = useClientReady();
   
-  // Inline edit state for preset
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -139,7 +138,6 @@ export default function SystemPromptModal({
             onClick={(e) => e.stopPropagation()}
             className="bg-white dark:bg-zinc-900 rounded-3xl shadow-pop w-full max-w-5xl flex flex-col md:flex-row overflow-hidden border border-zinc-200/50 dark:border-zinc-800/50 h-[85dvh] md:h-[80vh] min-h-[400px] md:min-h-[500px] max-h-[800px]"
           >
-            {/* Left Panel: Presets */}
             <div className="w-full md:w-72 lg:w-80 bg-zinc-50/80 dark:bg-zinc-900/50 border-r border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0 h-1/3 md:h-auto border-b md:border-b-0">
               <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center shrink-0">
                 <h3 className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
@@ -177,9 +175,7 @@ export default function SystemPromptModal({
               </div>
             </div>
 
-            {/* Right Panel: Editor */}
             <div className="flex-1 flex flex-col relative bg-white dark:bg-zinc-900 min-w-0">
-              {/* Header */}
               <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center shrink-0">
                 <div>
                   <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-100">对话指令与模板</h2>
@@ -190,7 +186,6 @@ export default function SystemPromptModal({
                 </button>
               </div>
               
-              {/* Body */}
               <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto fade-scrollbar">
                 {editingId ? (
                   <div className="flex flex-col h-full">
@@ -242,7 +237,6 @@ export default function SystemPromptModal({
                 )}
               </div>
               
-              {/* Footer */}
               {!editingId && (
                 <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex justify-between items-center shrink-0">
                   <div className="text-xs text-zinc-500">

@@ -133,12 +133,14 @@ export async function POST(request) {
     return Response.json(serializeStoredFile(stored), { status: 201 });
   } catch (error) {
     console.error("[Upload] save file:", error);
-    const status = Number.isInteger(error?.status)
-      ? error.status
-      : Number.isInteger(error?.statusCode)
-        ? error.statusCode
-        : 500;
-    return jsonError(error instanceof Error ? error.message : "文件上传失败", status);
+    const errorStatus = error?.status ?? error?.statusCode;
+    const status = Number.isInteger(errorStatus) && errorStatus >= 400 && errorStatus <= 599
+      ? errorStatus
+      : 500;
+    const message = status < 500 || error?.publicMessage === true
+      ? error.message
+      : "文件上传失败";
+    return jsonError(message, status);
   } finally {
     if (mediaWriteLease) {
       await endMediaWriteLease(mediaWriteLease).catch((error) => {

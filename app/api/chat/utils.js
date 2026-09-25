@@ -1,27 +1,16 @@
 import { normalizeFileId } from '@/lib/shared/fileIds';
 
-/**
- * 共用工具函数 - Gemini 和 Claude API 都会使用
- */
-
-// ── 节假日 & 节气缓存（每天只请求一次外部 API） ──
 let _holidayCache = { date: '', holiday: null, festival: null };
 
 function getTodayDateString() {
-    try {
-        const formatter = new Intl.DateTimeFormat('zh-CN', {
-            timeZone: 'Asia/Shanghai',
-            year: 'numeric', month: '2-digit', day: '2-digit',
-        });
-        const parts = formatter.formatToParts(new Date());
-        const map = {};
-        for (const p of parts) map[p.type] = p.value;
-        return `${map.year}-${map.month}-${map.day}`;
-    } catch {
-        const d = new Date();
-        const pad = (n) => String(n).padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    }
+    const formatter = new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+    });
+    const parts = formatter.formatToParts(new Date());
+    const map = {};
+    for (const p of parts) map[p.type] = p.value;
+    return `${map.year}-${map.month}-${map.day}`;
 }
 
 async function fetchHolidayInfo(dateStr) {
@@ -50,23 +39,21 @@ async function fetchFestivalInfo(dateStr) {
     }
 }
 
-async function getHolidayAndFestival() {
-    const today = getTodayDateString();
-    if (_holidayCache.date === today) {
+async function getHolidayAndFestival(date) {
+    if (_holidayCache.date === date) {
         return { holiday: _holidayCache.holiday, festival: _holidayCache.festival };
     }
     const [holiday, festival] = await Promise.all([
-        fetchHolidayInfo(today),
-        fetchFestivalInfo(today),
+        fetchHolidayInfo(date),
+        fetchFestivalInfo(date),
     ]);
-    _holidayCache = { date: today, holiday, festival };
+    _holidayCache = { date, holiday, festival };
     return { holiday, festival };
 }
 
 function buildHolidayText(holiday, festival) {
     const lines = [];
 
-    // 来自 timor.tech：日期类型 & 节假日信息
     if (holiday) {
         const typeMap = { 0: '工作日', 1: '周末', 2: '节日', 3: '调休' };
         const t = holiday.type;
@@ -84,7 +71,6 @@ function buildHolidayText(holiday, festival) {
         }
     }
 
-    // 来自 festival.wifilu.com：农历 & 节气/传统节日
     if (festival) {
         if (festival.lunar_year && festival.lunar_month && festival.lunar_day) {
             lines.push(`农历：${festival.lunar_year}年${festival.lunar_month}${festival.lunar_day}`);
@@ -191,7 +177,7 @@ function sanitizeStoredMessage(msg) {
         content: typeof msg.content === 'string' ? msg.content : '',
         type: typeof msg.type === 'string' ? msg.type : 'parts',
     };
-    if (isNonEmptyString(msg.id) && msg.id.length <= 128) out.id = msg.id;
+    if (isNonEmptyString(msg.id) && msg.id.length <= MAX_STORED_MESSAGE_ID_CHARS) out.id = msg.id;
     if (isNonEmptyString(msg.thought)) out.thought = msg.thought;
     if (Array.isArray(msg.citations) && msg.citations.length > 0) out.citations = msg.citations;
     if (Array.isArray(msg.tools) && msg.tools.length > 0) out.tools = msg.tools;
@@ -219,10 +205,6 @@ export function sanitizeStoredMessagesStrict(messages) {
             throw createValidationError(`messages[${i}] invalid`);
         }
 
-        if (normalized.id && normalized.id.length > MAX_STORED_MESSAGE_ID_CHARS) {
-            throw createValidationError(`messages[${i}].id too long`);
-        }
-
         if (normalized.content.length > MAX_STORED_MESSAGE_CHARS) {
             throw createValidationError(`messages[${i}].content too long`);
         }
@@ -231,15 +213,11 @@ export function sanitizeStoredMessagesStrict(messages) {
             throw createValidationError(`messages[${i}].thought too long`);
         }
 
-        if (!Array.isArray(normalized.parts) || normalized.parts.length === 0) {
-            throw createValidationError(`messages[${i}].parts required`);
-        }
-
-        if (Array.isArray(normalized.parts) && normalized.parts.length > MAX_STORED_PARTS_PER_MESSAGE) {
+        if (normalized.parts.length > MAX_STORED_PARTS_PER_MESSAGE) {
             throw createValidationError(`messages[${i}].parts too many`);
         }
 
-        for (let pi = 0; pi < (normalized.parts?.length || 0); pi++) {
+        for (let pi = 0; pi < normalized.parts.length; pi++) {
             const part = normalized.parts[pi];
             if (typeof part?.text === "string") {
                 if (part.text.length > MAX_STORED_PART_TEXT_CHARS) {
@@ -291,30 +269,9 @@ export async function injectCurrentTimeSystemReminder(systemText) {
     if (typeof systemText !== 'string') return systemText;
     if (systemText.includes("<system-reminder>")) return systemText;
 
-    let timeText = "";
-    try {
-        const formatter = new Intl.DateTimeFormat('zh-CN', {
-            timeZone: 'Asia/Shanghai',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
-        const parts = formatter.formatToParts(new Date());
-        const map = {};
-        for (const p of parts) map[p.type] = p.value;
-        timeText = `${map.year}-${map.month}-${map.day}`;
-    } catch {
-        const d = new Date();
-        const pad = (n) => String(n).padStart(2, '0');
-        timeText = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    }
-
-    // 获取节假日 & 节气信息（带缓存，每天只请求一次外部 API）
-    let holidayLine = '';
-    try {
-        const { holiday, festival } = await getHolidayAndFestival();
-        holidayLine = buildHolidayText(holiday, festival);
-    } catch { /* 获取失败不影响主流程 */ }
+    const timeText = getTodayDateString();
+    const { holiday, festival } = await getHolidayAndFestival(timeText);
+    const holidayLine = buildHolidayText(holiday, festival);
 
     let reminderContent = `当前日期：${timeText}（时区：Asia/Shanghai）。你必须以此为准进行判断与回答。`;
     if (holidayLine) {

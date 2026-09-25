@@ -45,7 +45,6 @@ export default function Markdown({
   enableHighlight = true,
   enableMath = false,
 }) {
-  // 使用 ref 记住上一次的 enableHighlight 值，避免重复触发
   const prevEnableRef = useRef(enableHighlight);
   const [actualHighlight, setActualHighlight] = useState(enableHighlight);
 
@@ -56,7 +55,6 @@ export default function Markdown({
       prevEnableRef.current = enableHighlight;
       return () => clearTimeout(timer);
     }
-    // 其他情况直接同步
     setActualHighlight(enableHighlight);
     prevEnableRef.current = enableHighlight;
   }, [enableHighlight]);

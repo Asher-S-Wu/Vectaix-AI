@@ -2,13 +2,13 @@ import mongoose from 'mongoose';
 
 const MessageSchema = new mongoose.Schema({
   id: { type: String },
-  role: { type: String, required: true }, // 'user' or 'model'
+  role: { type: String, required: true },
   content: { type: String, default: '' },
   taskId: { type: mongoose.Schema.Types.ObjectId, ref: "WorkbenchTask" },
   taskStatus: String,
   artifacts: { type: [mongoose.Schema.Types.Mixed] },
-  thought: { type: String }, // For model thinking blocks
-  thinkingTimeline: { type: [mongoose.Schema.Types.Mixed] }, // 联网搜索流程时间线
+  thought: { type: String },
+  thinkingTimeline: { type: [mongoose.Schema.Types.Mixed] },
   citations: { type: [mongoose.Schema.Types.Mixed] },
   tools: { type: [mongoose.Schema.Types.Mixed] },
   providerState: { type: mongoose.Schema.Types.Mixed },
@@ -35,7 +35,6 @@ const ConversationSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
-  // 对话专属设置
   settings: {
     webSearch: { type: mongoose.Schema.Types.Mixed, default: null },
     memoryEnabled: { type: Boolean, default: true },

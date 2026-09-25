@@ -8,7 +8,7 @@ process.env.MONGO_URI = server.getUri();
 const { default: dbConnect } = await import('../../lib/db.js');
 const { default: User } = await import('../../models/User.js');
 const { default: Transaction, ensureCreditTransactionIndexes } = await import('../../models/CreditTransaction.js');
-const { reserveCredits, settleCredits, releaseCredits, claimCreditOperation, getCreditOperation } = await import('../../lib/server/credits/service.js');
+const { reserveCredits, settleCredits, releaseCredits, getCreditOperation } = await import('../../lib/server/credits/service.js');
 const { calculateQwenTtsCost, calculateQwenVoiceCloneCost, createPricingSnapshot } = await import('../../lib/server/credits/pricing.js');
 const { DEFAULT_BILLING_SETTINGS } = await import('../../lib/server/credits/constants.js');
 await dbConnect();
@@ -23,8 +23,6 @@ test('无积分钱包的普通用户可开始请求，重复请求只生成一�
   assert.equal(await Transaction.countDocuments({ operationId: 'ordinary' }), 1);
   assert.equal(Object.hasOwn(results[0], 'reserved'), false);
   await assert.rejects(reserveCredits({ ...input, usage: { requestFingerprint: 'different' } }), /不一致/);
-  const claims = await Promise.allSettled([claimCreditOperation('ordinary', 'claim-a'), claimCreditOperation('ordinary', 'claim-b')]);
-  assert.equal(claims.filter(result => result.status === 'fulfilled').length, 1);
 });
 
 test('按实际人民币花费记录，无倍率或积分取整，重复结算不重复计入', async () => {

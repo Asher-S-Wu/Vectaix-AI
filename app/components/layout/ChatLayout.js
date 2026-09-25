@@ -13,17 +13,7 @@ export default function ChatLayout({
   user,
   assistant,
   isSettingsReady,
-  showProfileModal,
-  onCloseProfile,
-  themeMode,
-  fontSize,
-  onThemeModeChange,
-  onFontSizeChange,
-  completionSoundVolume,
-  onCompletionSoundVolumeChange,
   nickname,
-  onNicknameChange,
-  onEmailChange,
   sidebarOpen,
   conversations,
   conversationsReady = true,
@@ -63,8 +53,6 @@ export default function ChatLayout({
   onStartEdit,
   composerProps,
   userAvatar,
-  onAvatarChange,
-  isAdmin,
 }) {
   return (
     <div className="app-root flex overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
