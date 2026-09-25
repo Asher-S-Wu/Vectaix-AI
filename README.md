@@ -28,7 +28,7 @@
 <table>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--6%20Astra-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-6 Astra"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205.5-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.8%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.6-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.6"/><br/><sub><b>xAI</b></sub></td>
 </tr>
@@ -65,7 +65,7 @@ Access 5 chat models through a unified interface. Switching models starts a new 
 | Model | Provider | Context Window | Inputs | Thinking | Web Search |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-6 Astra** | OpenAI | 1,000,000 | Text, Image | ✅ | ✅ |
-| **Claude Opus 5** | Anthropic | 1,000,000 | Text, Image | ✅ | ✅ |
+| **Claude Opus 5.5** | Anthropic | 1,000,000 | Text, Image | ✅ | ✅ |
 | **Gemini 3.8 Flash** | Google | 1,000,000 | Text, Image, Audio, Video | ✅ | ✅ |
 | **Grok 4.6** | xAI | 256,000 | Text, Image | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 262,144 | Text, Image | ✅ | ✅ |
@@ -270,7 +270,7 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
 | `MICU_OPENAI_API_KEY` | — | Dedicated Micu key for GPT-6 Astra |
-| `MICU_ANTHROPIC_API_KEY` | — | Dedicated Micu key for Claude Opus 5 |
+| `MICU_ANTHROPIC_API_KEY` | — | Dedicated Micu key for Claude Opus 5.5 |
 | `MICU_GOOGLE_API_KEY` | — | Dedicated Micu key for Gemini 3.8 Flash, including recording transcription |
 | `MICU_XAI_API_KEY` | — | Dedicated Micu key for Grok 4.6 |
 | `MICU_MOONSHOT_API_KEY` | — | Dedicated Micu key for Kimi K3 |

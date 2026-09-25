@@ -10,7 +10,7 @@ const { runConfiguredChat, normalizeProviderError }=await import('../../lib/serv
 
 const models=[
   ['gpt-6-astra','MICU_OPENAI_API_KEY','responses','gpt-6-astra','/v1/responses'],
-  ['claude-opus-5','MICU_ANTHROPIC_API_KEY','anthropic','claude-opus-5','/v1/messages'],
+  ['claude-opus-5-5','MICU_ANTHROPIC_API_KEY','anthropic','claude-opus-5-5','/v1/messages'],
   ['google/gemini-3.8-flash','MICU_GOOGLE_API_KEY','gemini','gemini-3.8-flash','/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse'],
   ['grok-4.6','MICU_XAI_API_KEY','responses','grok-4.6','/v1/responses'],
   ['kimi-k3','MICU_MOONSHOT_API_KEY','chat-completions','kimi-k3','/v1/chat/completions'],
@@ -91,7 +91,7 @@ for(const [id,key,protocol,upstream,path] of models) {
     } else if(protocol==='anthropic') {
       assert.match(request.headers.get('user-agent'),/^claude-cli\//);
       assert.equal(request.headers.get('anthropic-version'),'2023-06-01');
-      assert.deepEqual(request.body.thinking,{type:'adaptive'});
+      assert.deepEqual(request.body.thinking,{type:'adaptive',display:'summarized'});
       assert.equal(request.body.output_config.effort,'max');
       assert.deepEqual(request.body.cache_control,{type:'ephemeral'});
       assert.equal(request.body.reasoning,undefined);

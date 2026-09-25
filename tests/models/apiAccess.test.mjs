@@ -44,7 +44,7 @@ test('模型目录需要登录，并且不公开服务器密钥和请求配置',
  const response=await call(member,publicModels.GET,new Request('http://test/api/models'));
  assert.equal(response.status,200);
  const payload=await response.json();
- assert.equal(payload.models.length,6);
+ assert.equal(payload.models.length,5);
  assert.ok(!JSON.stringify(payload).includes('never-show-this-secret'));
  assert.equal(payload.models[0].baseUrl,undefined);
  assert.equal(payload.models[0].requestOptions,undefined);

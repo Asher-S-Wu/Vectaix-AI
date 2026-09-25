@@ -6,14 +6,30 @@ function stream(events) { return new Response(events.map(event=>`data: ${JSON.st
 const base={model:'local-id',modelConfig:{upstreamModel:'upstream',maxOutputTokens:4096,requestOptions:{}},messages:[{role:'user',content:'你好'}],system:'中文回答',onText(){},onThought(){}};
 test('Anthropic 累积文本、完整缓存用量和签名，并在工具后继续',async()=>{
   const requests=[];
+  const thoughts=[];
   const fetchImpl=async(url,init)=>{requests.push({url,body:JSON.parse(init.body),headers:init.headers});return requests.length===1?stream([
     {type:'message_start',message:{id:'a',usage:{input_tokens:10,output_tokens:1,cache_read_input_tokens:3,cache_creation_input_tokens:2}}},
-    {type:'content_block_start',index:0,content_block:{type:'tool_use',id:'call1',name:'lookup',input:{}}},
-    {type:'content_block_delta',index:0,delta:{type:'input_json_delta',partial_json:'{"q":"test"}'}},
+    {type:'content_block_start',index:0,content_block:{type:'thinking',thinking:'',signature:''}},
+    {type:'content_block_delta',index:0,delta:{type:'thinking_delta',thinking:'先查询'}},
+    {type:'content_block_delta',index:0,delta:{type:'signature_delta',signature:'signed-'}},
+    {type:'content_block_delta',index:0,delta:{type:'signature_delta',signature:'summary'}},
+    {type:'content_block_start',index:1,content_block:{type:'thinking',thinking:'',signature:''}},
+    {type:'content_block_delta',index:1,delta:{type:'signature_delta',signature:'signed-empty'}},
+    {type:'content_block_start',index:2,content_block:{type:'tool_use',id:'call1',name:'lookup',input:{}}},
+    {type:'content_block_delta',index:2,delta:{type:'input_json_delta',partial_json:'{"q":"test"}'}},
     {type:'message_delta',delta:{stop_reason:'tool_use'},usage:{output_tokens:5}}, {type:'message_stop'},
   ]):stream([{type:'message_start',message:{id:'b',usage:{input_tokens:20}}},{type:'content_block_start',index:0,content_block:{type:'text',text:''}},{type:'content_block_delta',index:0,delta:{type:'text_delta',text:'完成'}},{type:'message_delta',delta:{stop_reason:'end_turn'},usage:{output_tokens:2}},{type:'message_stop'}]);};
-  const result=await runNativeChat({...base,provider:{protocol:'anthropic',baseUrl:'https://api.example.com/v1',apiKey:'private'},tools:[{name:'lookup',description:'查找',parameters:{type:'object',properties:{q:{type:'string'}}}}],executeTool:async(call)=>{assert.deepEqual(call,{id:'call1',name:'lookup',arguments:'{"q":"test"}'});return '结果';},fetchImpl});
+  const result=await runNativeChat({...base,onThought:thought=>thoughts.push(thought),provider:{protocol:'anthropic',baseUrl:'https://api.example.com/v1',apiKey:'private'},tools:[{name:'lookup',description:'查找',parameters:{type:'object',properties:{q:{type:'string'}}}}],executeTool:async(call)=>{assert.deepEqual(call,{id:'call1',name:'lookup',arguments:'{"q":"test"}'});return '结果';},fetchImpl});
   assert.equal(result.text,'完成');
+  assert.equal(result.thought,'先查询');
+  assert.deepEqual(thoughts,['先查询']);
+  const assistantContent=[
+    {type:'thinking',thinking:'先查询',signature:'signed-summary'},
+    {type:'thinking',thinking:'',signature:'signed-empty'},
+    {type:'tool_use',id:'call1',name:'lookup',input:{q:'test'}},
+  ];
+  assert.deepEqual(requests[1].body.messages[1].content,assistantContent);
+  assert.deepEqual(result.providerState.anthropic.messages[0].content,assistantContent);
   assert.equal(result.usageRecords[0].usage.input_tokens,15);
   assert.equal(result.usageRecords[0].usage.output_tokens,5);
   assert.equal(result.usageRecords[0].usage.input_tokens_details.cached_tokens,3);

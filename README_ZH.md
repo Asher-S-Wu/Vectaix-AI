@@ -28,7 +28,7 @@
 <table>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--6%20Astra-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-6 Astra"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205.5-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.8%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.6-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.6"/><br/><sub><b>xAI</b></sub></td>
 </tr>
@@ -65,7 +65,7 @@
 | 模型 | 供应商 | 上下文窗口 | 输入类型 | 深度思考 | 联网搜索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-6 Astra** | OpenAI | 1,000,000 | 文本、图像 | ✅ | ✅ |
-| **Claude Opus 5** | Anthropic | 1,000,000 | 文本、图像 | ✅ | ✅ |
+| **Claude Opus 5.5** | Anthropic | 1,000,000 | 文本、图像 | ✅ | ✅ |
 | **Gemini 3.8 Flash** | Google | 1,000,000 | 文本、图像、音频、视频 | ✅ | ✅ |
 | **Grok 4.6** | xAI | 256,000 | 文本、图像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 262,144 | 文本、图像 | ✅ | ✅ |
@@ -269,7 +269,7 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | 挂载硬盘目录，Zeabur 使用 `/data/vectaix` |
 | `ADMIN_EMAILS` | — | 管理员邮箱，多个邮箱使用英文逗号分隔 |
 | `MICU_OPENAI_API_KEY` | — | GPT-6 Astra 专用的 Micu 密钥 |
-| `MICU_ANTHROPIC_API_KEY` | — | Claude Opus 5 专用的 Micu 密钥 |
+| `MICU_ANTHROPIC_API_KEY` | — | Claude Opus 5.5 专用的 Micu 密钥 |
 | `MICU_GOOGLE_API_KEY` | — | Gemini 3.8 Flash 专用的 Micu 密钥，录音转文字也使用此模型 |
 | `MICU_XAI_API_KEY` | — | Grok 4.6 专用的 Micu 密钥 |
 | `MICU_MOONSHOT_API_KEY` | — | Kimi K3 专用的 Micu 密钥 |

@@ -28,7 +28,7 @@
 <table>
 <tr>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--6%20Astra-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-6 Astra"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
+<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205.5-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.8%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
 <td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.6-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.6"/><br/><sub><b>xAI</b></sub></td>
 </tr>
@@ -65,7 +65,7 @@
 | モデル | プロバイダー | コンテキスト | 入力タイプ | 思考 | ウェブ検索 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **GPT-6 Astra** | OpenAI | 1,000,000 | テキスト、画像 | ✅ | ✅ |
-| **Claude Opus 5** | Anthropic | 1,000,000 | テキスト、画像 | ✅ | ✅ |
+| **Claude Opus 5.5** | Anthropic | 1,000,000 | テキスト、画像 | ✅ | ✅ |
 | **Gemini 3.8 Flash** | Google | 1,000,000 | テキスト、画像、音声、動画 | ✅ | ✅ |
 | **Grok 4.6** | xAI | 256,000 | テキスト、画像 | ✅ | ✅ |
 | **Kimi K3** | Moonshot AI | 262,144 | テキスト、画像 | ✅ | ✅ |
@@ -269,7 +269,7 @@ vectaix-ai/
 | `STORAGE_ROOT` | ✅ | マウントディスクのパス。Zeabur では `/data/vectaix` |
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
 | `MICU_OPENAI_API_KEY` | — | GPT-6 Astra 専用の Micu API キー |
-| `MICU_ANTHROPIC_API_KEY` | — | Claude Opus 5 専用の Micu API キー |
+| `MICU_ANTHROPIC_API_KEY` | — | Claude Opus 5.5 専用の Micu API キー |
 | `MICU_GOOGLE_API_KEY` | — | Gemini 3.8 Flash 専用の Micu API キー。録音の文字起こしにも使用 |
 | `MICU_XAI_API_KEY` | — | Grok 4.6 専用の Micu API キー |
 | `MICU_MOONSHOT_API_KEY` | — | Kimi K3 専用の Micu API キー |

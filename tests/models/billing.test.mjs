@@ -59,12 +59,12 @@ test('长上下文倍率覆盖缓存和输出，并按每轮输入量决定',()=
   ],settings:DEFAULT_BILLING_SETTINGS});
   assert.equal(rounds.actualCostUsd,0.52);
 });
-test('版本 3 的五个模型按官方标准费率计费',()=>{
-  assert.equal(DEFAULT_BILLING_SETTINGS.version,3);
-  assert.equal(DEFAULT_BILLING_SETTINGS.pricingDate,'2026-09-18');
+test('版本 4 的五个模型按官方标准费率计费',()=>{
+  assert.equal(DEFAULT_BILLING_SETTINGS.version,4);
+  assert.equal(DEFAULT_BILLING_SETTINGS.pricingDate,'2026-09-25');
   assert.equal(DEFAULT_BILLING_SETTINGS.usdToCny,6.72);
   assert.equal(calculateChatCost({model:'gpt-6-astra',inputTokens:100000,cachedInputTokens:10000,cacheWriteTokens:10000,outputTokens:10000},DEFAULT_BILLING_SETTINGS).costUsd,1.435);
-  assert.equal(calculateChatCost({model:'claude-opus-5',inputTokens:100000,cachedInputTokens:10000,cacheWriteTokens:10000,outputTokens:10000},DEFAULT_BILLING_SETTINGS).costUsd,0.7175);
+  assert.equal(calculateChatCost({model:'claude-opus-5-5',inputTokens:100000,cachedInputTokens:10000,cacheWriteTokens:10000,outputTokens:10000},DEFAULT_BILLING_SETTINGS).costUsd,0.572);
   assert.equal(calculateChatCost({model:'google/gemini-3.8-flash',inputTokens:100000,cachedInputTokens:20000,outputTokens:10000},DEFAULT_BILLING_SETTINGS).costUsd,0.099);
   assert.equal(calculateChatCost({model:'grok-4.6',inputTokens:199999,cachedInputTokens:99999,outputTokens:100000},DEFAULT_BILLING_SETTINGS).costUsd,0.8499995);
   assert.equal(calculateChatCost({model:'kimi-k3',inputTokens:100000,cachedInputTokens:20000,outputTokens:10000},DEFAULT_BILLING_SETTINGS).costUsd,0.396);
