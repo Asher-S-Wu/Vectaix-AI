@@ -285,8 +285,6 @@ vectaix-ai/
 > [!TIP]
 > Configure the key for every model or feature you enable. Missing keys return a clear configuration error.
 
-When updating web browsing, configure `TINYFISH_API_KEY` in Zeabur and remove the previous web service key before replacing the old instance. Startup removes the old web rates from the database while preserving historical bills. Do not keep the old version serving traffic after this migration.
-
 <br/>
 
 ---

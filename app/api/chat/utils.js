@@ -316,7 +316,7 @@ export async function injectCurrentTimeSystemReminder(systemText) {
         holidayLine = buildHolidayText(holiday, festival);
     } catch { /* 获取失败不影响主流程 */ }
 
-    let reminderContent = `当前日期：${timeText}（时区：Asia/Shanghai）。你必须以此为准进行判断与回答，不要把现在当成 2024 年。`;
+    let reminderContent = `当前日期：${timeText}（时区：Asia/Shanghai）。你必须以此为准进行判断与回答。`;
     if (holidayLine) {
         reminderContent += `\n${holidayLine}`;
     }

@@ -1,6 +1,5 @@
 /**
- * Vectaix 原创品牌标识：四芒星 + 轨道光点。
- * 纯 SVG，无任何第三方品牌元素。
+ * Vectaix 品牌标识：四芒星与轨道光点组成的 SVG 图形。
  */
 export default function BrandMark({
   size = 24,
