@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@ffprobe-installer/ffprobe": "^2.1.2",
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@simplewebauthn/browser": "^14.0.0",
     "@simplewebauthn/server": "^14.0.1",
     "ajv": "^8.20.0",
@@ -28,7 +28,7 @@
     "lucide-react": "^0.577.0",
     "mammoth": "^1.12.2",
     "mongoose": "^8.0.0",
-    "next": "^16.2.12",
+    "next": "^16.4.1",
     "openai": "^6.42.0",
     "pdfjs-dist": "^6.3.289",
     "playwright-chromium": "^1.63.0",
@@ -48,7 +48,7 @@
   "devDependencies": {
     "autoprefixer": "^10.4.16",
     "eslint": "^9.39.0",
-    "eslint-config-next": "^16.2.12",
+    "eslint-config-next": "^16.4.1",
     "mongodb-memory-server": "^11.2.0",
     "postcss": "8.5.23",
     "tailwindcss": "^3.4.0",
@@ -58,6 +58,9 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "postcss": "8.5.23",
+    "katex": "0.18.2",
+    "postcss-selector-parser": "7.1.6",
+    "brace-expansion@1": "1.1.21",
     "exceljs": {
       "fast-csv": "^5.0.7",
       "glob": "^13.0.6",
@@ -72,7 +75,7 @@
     "mongodb-memory-server@11.2.0": false,
     "playwright-chromium@1.63.0": false,
     "protobufjs@7.6.5": true,
-    "sharp@0.34.5": true,
+    "sharp@0.35.5": true,
     "unrs-resolver@1.12.2": true
   },
   "engines": {

@@ -5,7 +5,6 @@ import {
   unauthorizedResponse,
 } from "@/lib/server/api/routeHelpers";
 import {
-  VIDEO_ENHANCEMENT_MODEL,
   createVideoEnhancementUploadExpiry,
   normalizeVideoEnhancementUploadInput,
 } from "@/lib/media/shared/videoEnhancement";

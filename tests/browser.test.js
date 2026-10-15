@@ -16,6 +16,19 @@ test('browser proxy blocks both HTTP requests and HTTPS tunnels to the local net
   const tunnel=await new Promise((resolve,reject)=>{const req=http.request(proxy.url,{method:'CONNECT',path:'127.0.0.1:443'});req.on('connect',(r,socket)=>{socket.destroy();resolve(r.statusCode);});req.on('error',reject);req.end();});assert.equal(tunnel,403);
  }finally{await proxy.close();}
 });
+test('concurrent calls for one browser wait for its first page to finish opening',async()=>{
+ const [first,second]=await Promise.all([acquireBrowser(userId,'parallel-task'),acquireBrowser(userId,'parallel-task')]);
+ assert.equal(first,second);assert.equal(second.pages.size,1);assert.ok(second.context);
+ await closeBrowser(userId,{revoke:true});
+});
+test('a browser remains available after saving its session state fails',async()=>{
+ const session=await acquireBrowser(userId,'save-failure');const browser=session.context.browser();
+ session.context.storageState=async()=>{throw new Error('session write failed');};
+ await assert.rejects(closeBrowser(userId),/session write failed/);
+ assert.equal(browserStatus(userId).active,false);assert.equal(browser.isConnected(),false);
+ const next=await acquireBrowser(other,'next-task');assert.equal(next.pages.size,1);
+ await closeBrowser(other,{revoke:true});
+});
 test('one isolated browser session limits tabs, queues other users, and supports revocation',async()=>{
  const view=await browserAction({userId,action:{action:'observe'},manual:true});assert.match(view.screenshot,/^data:image\/jpeg;base64,/);
  assert.equal(browserStatus(userId).tabs.length,1);assert.equal(browserStatus(other).tabs.length,0);assert.equal(browserStatus(other).busy,true);

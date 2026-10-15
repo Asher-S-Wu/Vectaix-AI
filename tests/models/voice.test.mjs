@@ -18,3 +18,33 @@ test('朗读严格使用已选的付费服务，失败时不切换供应商',asy
   await assert.rejects(dispatchSpeech({text:'你好',audio:{provider:'unknown'}},{}),/选择/);
   await assert.rejects(dispatchSpeech({text:'你好',audio:{provider:'qwen',voiceId:'selected'}},{qwen:async()=>{throw new Error('upstream unavailable');}}),/upstream unavailable/);
 });
+
+test('语音服务的成功响应缺少有效结果状态时保留费用核对，明确拒绝则按失败处理', async t => {
+  const { synthesizeMinimaxSpeech } = await import('../../lib/media/server/minimaxAudio.js');
+  const { synthesizeDoubaoSpeech } = await import('../../lib/media/server/doubaoAudio.js');
+  const keys = ['DASHSCOPE_BEIJING_API_KEY', 'DOUBAO_AUDIO_API_KEY'];
+  const saved = keys.map(key => process.env[key]);
+  keys.forEach(key => { process.env[key] = 'test-key'; });
+  t.after(() => keys.forEach((key, index) => {
+    if (saved[index] === undefined) delete process.env[key];
+    else process.env[key] = saved[index];
+  }));
+  const fetch = t.mock.method(globalThis, 'fetch');
+
+  for (const code of [undefined, null, false, 'invalid']) {
+    fetch.mock.mockImplementation(async () => Response.json({
+      request_id: 'request-1', output: { base_resp: { status_code: code }, trace_id: 'trace-1' },
+    }));
+    await assert.rejects(synthesizeMinimaxSpeech({}), {
+      code: 'INVALID_RESPONSE', requestId: 'request-1', traceId: 'trace-1',
+    });
+
+    fetch.mock.mockImplementation(async () => Response.json({ code }, { headers: { 'x-tt-logid': 'log-1' } }));
+    await assert.rejects(synthesizeDoubaoSpeech({}), { code: 'INVALID_RESPONSE', upstreamLogId: 'log-1' });
+  }
+
+  fetch.mock.mockImplementation(async () => Response.json({ output: { base_resp: { status_code: 1042 } } }));
+  await assert.rejects(synthesizeMinimaxSpeech({}), { code: 'UPSTREAM_ERROR', status: 400 });
+  fetch.mock.mockImplementation(async () => Response.json({ code: 123 }));
+  await assert.rejects(synthesizeDoubaoSpeech({}), { code: 'UPSTREAM_ERROR' });
+});

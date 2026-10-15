@@ -21,6 +21,7 @@ export default function TaskNotifications({userId}) {
           const previous = states.get(task._id);
           if (previous && active.has(previous) && !active.has(task.status)) {
             const notification = new Notification('Vectaix 任务更新',{body:task.status==='completed'?'任务已完成，打开对话查看结果。':'任务已结束，打开对话查看详情。',tag:task._id});
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 重新挂载首页以加载通知指定的对话。
             notification.onclick = () => { window.focus(); window.localStorage.setItem('vectaix-current-conversation',task.conversationId); window.location.assign('/'); notification.close(); };
           }
           states.set(task._id,task.status);

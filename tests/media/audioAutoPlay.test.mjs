@@ -1,6 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+test("取消音色试听保留取消状态，网络故障显示请求失败", async (t) => {
+  const { previewAudioVoice } = await import("../../lib/media/client/media.js");
+  const controller = new AbortController();
+  controller.abort();
+  const fetch = t.mock.method(globalThis, "fetch", async (_url, { signal }) => {
+    signal.throwIfAborted();
+  });
+
+  await assert.rejects(
+    previewAudioVoice("qwen", "Cherry", { signal: controller.signal }),
+    { name: "AbortError" },
+  );
+
+  fetch.mock.mockImplementation(async () => { throw new TypeError("Failed to fetch"); });
+  await assert.rejects(previewAudioVoice("qwen", "Cherry"), /网络连接失败，暂时无法试听/);
+});
+
 function createMemorySettings() {
   const values = new Map();
   return {

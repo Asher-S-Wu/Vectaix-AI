@@ -51,6 +51,52 @@ test('library reports reference restrictions and rechecks them when deleting a b
   assert.equal(await StoredFile.countDocuments({ userId: owner }), 2);
 });
 
+test('renaming a binary file cannot make it editable as text', async () => {
+  const owner = String(new mongoose.Types.ObjectId());
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lCEAAAAASUVORK5CYII=', 'base64');
+  const [image] = await files.uploadLibrary(owner, [new File([png], 'image.png', { type: 'image/png' })], null);
+  const renamed = await files.updateFile(owner, image.fileId, { name: 'image.txt' });
+  assert.equal(renamed.editable, false);
+  await assert.rejects(() => files.readText(owner, image.fileId), /文本文件/);
+  await assert.rejects(() => files.updateFile(owner, image.fileId, { content: 'replacement' }), /文本文件/);
+  const { readStoredFileBuffer } = await import('../../lib/server/storage/service.js');
+  assert.deepEqual(await readStoredFileBuffer(await files.requireFile(owner, image.fileId)), png);
+  assert.equal(files.textFile({ category: 'document', mimeType: 'application/pdf', extension: 'pdf', originalName: 'renamed.txt' }), false);
+});
+
+test('concurrent first settings saves and prompt additions preserve every update', async () => {
+  const settings = await import('../../lib/server/settings/service.js');
+  await UserSettings.init();
+  const owner = String(new mongoose.Types.ObjectId());
+  await Promise.all([
+    settings.updateUserProfileSettings(owner, { nickname: '并发保存' }),
+    settings.updateUserProfileSettings(owner, { chatSystemPrompt: '请注明来源' }),
+  ]);
+  const prompts = Array.from({ length: 6 }, (_, i) => ({ name: `提示 ${i}`, content: `内容 ${i}` }));
+  await Promise.all(prompts.map(prompt => settings.addUserPrompt(owner, prompt)));
+  const saved = await UserSettings.findOne({ userId: owner });
+  assert.equal(await UserSettings.countDocuments({ userId: owner }), 1);
+  assert.equal(saved.nickname, '并发保存');
+  assert.equal(saved.chatSystemPrompt, '请注明来源');
+  assert.deepEqual(saved.systemPrompts.map(({ name, content }) => ({ name, content })).sort((a, b) => a.name.localeCompare(b.name)), prompts);
+});
+
+test('a stale prompt deletion cannot overwrite a concurrent addition', async t => {
+  const settings = await import('../../lib/server/settings/service.js');
+  const owner = String(new mongoose.Types.ObjectId());
+  const first = await settings.addUserPrompt(owner, { name: '原有提示', content: '原有内容' });
+  const stale = await UserSettings.findOne({ userId: owner });
+  await settings.addUserPrompt(owner, { name: '同时新增', content: '保留新内容' });
+  const find = t.mock.method(UserSettings, 'findOne', async () => stale);
+  try {
+    await assert.rejects(settings.deleteUserPrompt(owner, String(first.systemPrompts[0]._id)), mongoose.Error.VersionError);
+  } finally {
+    find.mock.restore();
+  }
+  const saved = await UserSettings.findOne({ userId: owner });
+  assert.deepEqual(saved.systemPrompts.map(prompt => prompt.name), ['原有提示', '同时新增']);
+});
+
 test('skill ZIP import retains metadata and assets, owner scope, edit and export', async () => {
   const chunks = []; for await (const chunk of zipStream([{ name: 'demo/SKILL.md', buffer: Buffer.from('---\nname: 文档整理\ndescription: 整理资料\nlicense: MIT\n---\n工作步骤') }, { name: 'demo/scripts/run.py', buffer: Buffer.from('print("stored only")') }])) chunks.push(chunk);
   const skill = await skills.importSkill(userId, { name: 'demo.skill', buffer: Buffer.concat(chunks) });

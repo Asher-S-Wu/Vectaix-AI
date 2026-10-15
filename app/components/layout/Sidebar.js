@@ -119,6 +119,7 @@ export default function Sidebar({
   };
 
   const handleKeyDown = (e) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter") {
       e.preventDefault();
       handleSaveEdit();

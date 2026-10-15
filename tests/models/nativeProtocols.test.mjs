@@ -46,6 +46,15 @@ test('Gemini 保留思考签名及函数调用编号，统计思考输出费用'
   assert.equal(requests[1].body.contents[2].parts[0].functionResponse.id,'c1');
   assert.ok(!requests[0].url.includes('private'));
 });
+test('Gemini 未提供调用编号时，每轮工具步骤获得独立编号',async()=>{
+  const calls=[];let requests=0;
+  const result=await runNativeChat({...base,provider:{protocol:'gemini',baseUrl:'https://fixture.invalid/v1beta',apiKey:'private'},tools:[{name:'generate_image',parameters:{type:'object'}}],executeTool:async call=>{calls.push(call);return '完成';},fetchImpl:async()=>stream([{
+    candidates:[{content:{parts:++requests<3?[{functionCall:{name:'generate_image',args:{prompt:'生成图片'}}}]:[{text:'两张图片已生成'}]},finishReason:'STOP'}],usageMetadata:{promptTokenCount:10,candidatesTokenCount:2},
+  }])});
+  assert.equal(result.text,'两张图片已生成');
+  assert.equal(calls.length,2);
+  assert.notEqual(calls[0].id,calls[1].id);
+});
 test('接口报错不重试，且不暴露上游密钥或错误原文',async()=>{
   let count=0;
   await assert.rejects(runNativeChat({...base,provider:{protocol:'gemini',baseUrl:'https://api.example.com/v1beta',apiKey:'private'},fetchImpl:async()=>{count++;return new Response('leaked private',{status:401});}}),error=>error.status===401&&!error.message.includes('private'));

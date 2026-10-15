@@ -12,6 +12,8 @@ import {readProjectDocument} from '../lib/server/workbench/documents';
 import TaskApproval from '../models/TaskApproval';
 import WorkbenchTask from '../models/WorkbenchTask';
 import UserConnection from '../models/UserConnection';
+import UserSettings from '../models/UserSettings';
+import {registerIntegrationTools} from '../lib/server/integrations/tools';
 import {decideApproval,withApproval,recoverApprovals,readApprovalSnapshot} from '../lib/server/workbench/approvals';
 import {credentials,ownedConnection,createConnection,serializeConnection} from '../lib/server/integrations/connections';
 let mongo;
@@ -47,6 +49,19 @@ test('per-user connection credentials remain encrypted and cannot be read across
  const owned=await ownedConnection(String(userId),String(c._id),{secrets:true});assert.equal(credentials(owned).apiKey,'private-key');
  await assert.rejects(()=>ownedConnection(String(id()),String(c._id),{secrets:true}));
  assert.throws(()=>credentials({...owned,userId:id()}));
+});
+test('disabled MCP connections and removed resources cannot execute registered readers',async()=>{
+ const task=await makeTask();await UserSettings.create({userId:task.userId,permissions:{externalTools:true}});
+ const connection=await UserConnection.create({userId:task.userId,name:'readers',kind:'mcp',config:{url:'https://fixture.invalid/mcp',authType:'none'},resources:[{uri:'fixture://report'}],prompts:[{name:'report'}]});
+ const entries=[];await registerIntegrationTools({registry:{add:entry=>entries.push(entry)},task,assertActive:async()=>{}});
+ const resource=entries.find(entry=>entry.definition.name.endsWith('_resource'));
+ const prompt=entries.find(entry=>entry.definition.name.endsWith('_prompt'));
+ await UserConnection.updateOne({_id:connection._id},{$set:{enabled:false}});
+ await assert.rejects(resource.execute({uri:'fixture://report'}),/已停用/);
+ await assert.rejects(prompt.execute({name:'report'}),/已停用/);
+ await UserConnection.updateOne({_id:connection._id},{$set:{enabled:true,resources:[],prompts:[]}});
+ await assert.rejects(resource.execute({uri:'fixture://report'}),/已停用/);
+ await assert.rejects(prompt.execute({name:'report'}),/已停用/);
 });
 
 test('approval files preserve the reviewed bytes and cannot be read by another account',async()=>{

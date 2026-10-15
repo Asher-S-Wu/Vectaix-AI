@@ -5,10 +5,7 @@ import ChatResourcesPanel from "./components/chat/ChatResourcesPanel";
 import ProjectManager from "./components/chat/ProjectManager";
 import { useConversationTasks } from "@/lib/client/hooks/useConversationTasks";
 import { useChatAppActions } from "@/lib/client/chat/chatAppActions";
-import {
-  decorateConversationMessages,
-  mergeConversationMessages,
-} from "@/lib/client/chat/conversationMessages";
+import { decorateConversationMessages } from "@/lib/client/chat/conversationMessages";
 import { useAuthSession } from "@/lib/client/hooks/useAuthSession";
 import { useChatModeController } from "@/lib/client/hooks/useChatModeController";
 import { useThemeMode } from "@/lib/client/hooks/useThemeMode";
@@ -55,7 +52,6 @@ export default function ChatApp() {
     webSearch,
     setWebSearch,
     chatMediaSettings: mediaSettings,
-    setChatMediaSettings: setMediaSettings,
     resetChatMediaSettings,
     chatSystemPrompt,
     setChatSystemPrompt,
@@ -78,12 +74,10 @@ export default function ChatApp() {
   const [editingImages, setEditingImages] = useState([]);
   const [serverSettingsReady, setServerSettingsReady] = useState(false);
 
-  const chatAbortRef = useRef(null);
-  const chatRequestLockRef = useRef(false);
+  const conversationLoadRef = useRef(null);
   const syncSettingsTimeoutRef = useRef(null);
   const pendingSettingsRef = useRef({});
   const pendingConversationIdRef = useRef(null);
-  const lastTextModelRef = useRef(DEFAULT_MODEL);
   const hasRestoredConversationRef = useRef(false);
   const currentConversationIdRef = useRef(null);
   const isStreaming = messages.some((message) => message?.isStreaming === true);
@@ -91,7 +85,6 @@ export default function ChatApp() {
     chatEndRef,
     messageListRef,
     userInterruptedRef,
-    isStreamingRef,
     showScrollButton,
     handleMessageListScroll,
     scrollToBottom,
@@ -106,9 +99,10 @@ export default function ChatApp() {
   }, [settingsError, toast]);
 
   const stopOngoingChatWork = () => {
-    chatAbortRef.current?.abort();
-    chatAbortRef.current = null;
-    chatRequestLockRef.current = false;
+    conversationLoadRef.current?.abort();
+    conversationLoadRef.current = null;
+    taskActions.invalidateView();
+    actions.cancelEdit({ preserveUploaded: taskActions.submitting });
     userInterruptedRef.current = false;
     if (syncSettingsTimeoutRef.current) {
       clearTimeout(syncSettingsTimeoutRef.current);
@@ -176,8 +170,7 @@ export default function ChatApp() {
 
   useEffect(() => {
     return () => {
-      chatAbortRef.current?.abort();
-      chatAbortRef.current = null;
+      conversationLoadRef.current?.abort();
       if (syncSettingsTimeoutRef.current) {
         clearTimeout(syncSettingsTimeoutRef.current);
         syncSettingsTimeoutRef.current = null;
@@ -245,6 +238,7 @@ export default function ChatApp() {
 
   const taskActions = useConversationTasks({
     user, conversationId: currentConversationId, projectId, model, webSearch, chatSystemPrompt, mediaSettings,
+    paused: loading,
     setMessages, setCurrentConversationId, onActivity: fetchConversations,
     onAuthExpired: handleAuthExpired, toast, completionSoundVolume, permissions,
   });
@@ -312,7 +306,7 @@ export default function ChatApp() {
     startNewChat,
     requestModelChange,
   } = useChatModeController({
-    loading,
+    loading: busy,
     messages,
     model,
     setModel,
@@ -325,34 +319,31 @@ export default function ChatApp() {
     stopOngoingChatWork,
     persistConversationModel,
     userInterruptedRef,
-    lastTextModelRef,
   });
 
   const loadConversation = async (id, options = {}) => {
     const silent = options?.silent === true;
-    if (currentConversationIdRef.current && currentConversationIdRef.current !== id && isStreamingRef.current) {
-      stopOngoingChatWork();
-    }
+    conversationLoadRef.current?.abort();
+    taskActions.invalidateView();
+    actions.cancelEdit({ preserveUploaded: taskActions.submitting });
+    const controller = new AbortController();
+    conversationLoadRef.current = controller;
+    setLoading(true);
     if (!silent) {
-      setLoading(true);
       setMessages([]);
       if (window.innerWidth < 768) setSidebarOpen(false);
     }
     try {
-      const res = await fetch(`/api/conversations/${id}`, { cache: "no-store" });
+      const res = await fetch(`/api/conversations/${id}`, { cache: "no-store", signal: controller.signal });
       if (res.status === 401) {
         handleAuthExpired();
         throw new Error("登录已过期，请重新登录");
       }
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
+      const data = await res.json();
+      if (controller.signal.aborted) return;
       if (res.status === 404) {
         setConversations((prev) => prev.filter((conv) => conv._id !== id));
-        if (currentConversationId === id) {
+        if (currentConversationIdRef.current === id) {
           setCurrentConversationId(null);
           setMessages([]);
         }
@@ -360,35 +351,27 @@ export default function ChatApp() {
       if (!res.ok) throw new Error(data?.error || "加载对话失败");
       if (data.conversation) {
         const conversation = data.conversation;
-        if (silent && currentConversationIdRef.current && currentConversationIdRef.current !== id) {
-          return;
-        }
         userInterruptedRef.current = false;
-        setMessages((prev) => {
-          const serverMessages = Array.isArray(conversation.messages) ? conversation.messages : [];
-          return silent
-            ? mergeConversationMessages(serverMessages, prev)
-            : decorateConversationMessages(serverMessages);
-        });
+        setMessages(decorateConversationMessages(conversation.messages));
         setCurrentConversationId(id);
 
         const targetModel = resolveUsableModelId(conversation.model, DEFAULT_MODEL);
         if (targetModel !== model) {
           setModel(targetModel);
-          lastTextModelRef.current = targetModel;
         }
         if (conversation.model !== targetModel) {
-          await persistConversationModel(id, targetModel);
+          void persistConversationModel(id, targetModel);
         }
 
         setWebSearch(normalizeWebSearchSettings(conversation.settings?.webSearch, { defaultEnabled: true }));
       }
     } catch (e) {
-      if (!silent) {
+      if (!controller.signal.aborted && !silent) {
         toast.error(`加载对话失败：${e?.message}`);
       }
     } finally {
-      if (!silent) {
+      if (conversationLoadRef.current === controller) {
+        conversationLoadRef.current = null;
         setLoading(false);
       }
     }
@@ -443,7 +426,8 @@ export default function ChatApp() {
       const res = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("delete failed");
       setConversations((prev) => prev.filter((c) => c._id !== id));
-      if (currentConversationId === id) {
+      if (currentConversationIdRef.current === id) {
+        stopOngoingChatWork();
         setCurrentConversationId(null);
         setMessages([]);
       }

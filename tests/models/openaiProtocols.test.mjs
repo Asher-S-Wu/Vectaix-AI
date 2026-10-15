@@ -32,3 +32,12 @@ test('Responses 使用动态配置并保留可继续对话的原生条目',async
   assert.equal(result.text,'完成');
   assert.equal(result.providerState.responses.items[0].id,'m1');
 });
+test('Chat Completions 轮次耗尽时不再执行外部工具',async()=>{
+  let calls=0;
+  const client=new OpenAI({apiKey:'fixture',baseURL:'https://fixture.invalid/v1',maxRetries:0,fetch:async()=>new Response([
+    {id:'last',choices:[{index:0,delta:{tool_calls:[{index:0,id:'write',type:'function',function:{name:'write_file',arguments:'{}'}}]},finish_reason:null}]},
+    {id:'last',choices:[{index:0,delta:{},finish_reason:'tool_calls'}],usage:{prompt_tokens:10,completion_tokens:2}},
+  ].map(chunk=>`data: ${JSON.stringify(chunk)}\n\n`).join('')+'data: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}})});
+  await assert.rejects(runOpenAICompatibleChat({...base,client,requestModel:'upstream',tools:[{name:'write_file',parameters:{type:'object'}}],maxToolPasses:1,executeTool:async()=>{calls++;return '已写入';}}),/轮次已用完/);
+  assert.equal(calls,0);
+});
