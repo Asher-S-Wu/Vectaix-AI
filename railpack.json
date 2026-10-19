@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "steps": {
+    "install": {
+      "variables": {
+        "NPM_CONFIG_PRODUCTION": "",
+        "NPM_CONFIG_INCLUDE": "dev"
+      }
+    },
+    "build": {
+      "variables": {
+        "NPM_CONFIG_PRODUCTION": ""
+      }
+    }
+  },
+  "deploy": {
+    "startCommand": "node node_modules/next/dist/bin/next start --hostname 0.0.0.0",
+    "variables": {
+      "NPM_CONFIG_PRODUCTION": ""
+    }
+  }
+}

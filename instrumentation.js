@@ -85,7 +85,6 @@ export async function register() {
     await ensureSessionIndexes();
     await ensureCreditTransactionIndexes();
     await reconcileCreditTransactions();
-    await reconcileMinimaxUnlockClaims();
     await Promise.all([
       ensureVideoEnhancementTaskIndexes(),
       ensureMediaKitUploadTicketIndexes(),
