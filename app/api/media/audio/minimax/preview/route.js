@@ -16,6 +16,7 @@ import {
 import { MINIMAX_AUDIO_DEFAULT_MODEL } from "@/lib/media/shared/minimaxAudio";
 import { VOICE_PREVIEW_TEXT_ZH } from "@/lib/media/shared/voicePreview";
 import {
+  isAmbiguousMinimaxAudioError,
   listMinimaxSystemVoices,
   synthesizeMinimaxSpeech,
 } from "@/lib/media/server/minimaxAudio";
@@ -56,11 +57,6 @@ function publicMessage(error, fallback) {
 
 function billingQuality(model) {
   return model.endsWith("-turbo") ? "turbo" : "hd";
-}
-
-function isAmbiguousSynthesisError(error) {
-  return error?.name === "AbortError"
-    || ["NETWORK_ERROR", "INVALID_RESPONSE", "INVALID_USAGE", "MISSING_AUDIO"].includes(String(error?.code || ""));
 }
 
 async function findCustomPreviewVoice({ userId, voiceId }) {
@@ -134,6 +130,7 @@ export async function POST(request) {
         userId: user.userId,
         profileId: unlockProfileId,
         operationId,
+        signal: request.signal,
       });
       unlockClaimed = unlock.claimed;
       chargeFirstVoiceClone = unlock.firstVoiceClone;
@@ -226,13 +223,15 @@ export async function POST(request) {
   } catch (error) {
     if (reservation && !billingFinalized) {
       try {
-        const result = upstreamCompleted || (requestDispatched && isAmbiguousSynthesisError(error))
+        const result = upstreamCompleted || (requestDispatched && isAmbiguousMinimaxAudioError(error))
           ? await reviewMediaCredits({
               reservation,
               operationId,
               userId,
               reason: "MiniMax 试听结果不明确",
               usage: {
+                ...reservation.transaction.usage,
+                upstreamCompleted,
                 characters: VOICE_PREVIEW_TEXT_ZH.length,
                 firstVoiceClone: chargeFirstVoiceClone,
               },
@@ -245,6 +244,8 @@ export async function POST(request) {
               operationId,
               userId,
               usage: {
+                ...reservation.transaction.usage,
+                failedBeforeCompletion: true,
                 characters: VOICE_PREVIEW_TEXT_ZH.length,
                 firstVoiceClone: chargeFirstVoiceClone,
               },
@@ -259,7 +260,7 @@ export async function POST(request) {
     if (
       unlockClaimed
       && !upstreamCompleted
-      && (!requestDispatched || !isAmbiguousSynthesisError(error))
+      && (!requestDispatched || !isAmbiguousMinimaxAudioError(error))
     ) {
       await releaseMinimaxVoiceUnlockClaim({
         userId,
@@ -277,6 +278,7 @@ export async function POST(request) {
       {
         success: false,
         message: error?.name === "AbortError" ? "试听已取消" : publicMessage(error, "试听失败"),
+        ...(error?.code ? { code: error.code } : {}),
         ...(billing ? { billing } : {}),
       },
       { status: error?.name === "AbortError" ? 499 : errorStatus(error) },

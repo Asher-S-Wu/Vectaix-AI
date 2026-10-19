@@ -186,7 +186,7 @@ export default function MinimaxAudioWorkspace({ onBusyChange }) {
       const unlockedVoiceId = event?.detail?.voiceId;
       if (typeof unlockedVoiceId !== "string" || !unlockedVoiceId) return;
       const unlockedVoices = customVoicesRef.current.map((voice) => (
-        voice.voiceId === unlockedVoiceId ? { ...voice, isUnlocked: true } : voice
+        voice.voiceId === unlockedVoiceId ? { ...voice, isUnlocked: true, unlockPending: false } : voice
       ));
       customVoicesRef.current = unlockedVoices;
       setCustomVoices(unlockedVoices);
@@ -246,10 +246,6 @@ export default function MinimaxAudioWorkspace({ onBusyChange }) {
       setGenerationError("请选择一个音色");
       return;
     }
-    if (selectedCustomVoice?.unlockPending) {
-      setGenerationError("该音色的首次解锁费用正在核对，请等待管理员处理后再试");
-      return;
-    }
     setGenerating(true);
     try {
       const generation = await createMinimaxAudioGeneration({
@@ -269,7 +265,7 @@ export default function MinimaxAudioWorkspace({ onBusyChange }) {
       setGenerationsError("");
       if (selectedCustomVoice && !selectedCustomVoice.isUnlocked) {
         const unlockedVoices = customVoicesRef.current.map((voice) => (
-          voice.id === selectedCustomVoice.id ? { ...voice, isUnlocked: true } : voice
+          voice.id === selectedCustomVoice.id ? { ...voice, isUnlocked: true, unlockPending: false } : voice
         ));
         customVoicesRef.current = unlockedVoices;
         setCustomVoices(unlockedVoices);
@@ -572,7 +568,7 @@ export default function MinimaxAudioWorkspace({ onBusyChange }) {
 
               <button
                 type="submit"
-                disabled={!modelAllowed || generating || voicesLoading || !voiceId || selectedCustomVoice?.unlockPending}
+                disabled={!modelAllowed || generating || voicesLoading || !voiceId}
                 className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60"
               >
                 {generating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <WandSparkles className="h-5 w-5" />}

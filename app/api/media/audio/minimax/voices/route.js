@@ -34,6 +34,7 @@ import { transcodeAudioClip } from "@/lib/media/server/audioTranscoding";
 import {
   createMinimaxVoice,
   deleteMinimaxVoice,
+  isAmbiguousMinimaxAudioError,
   isMissingMinimaxVoiceError,
   listMinimaxSystemVoices,
 } from "@/lib/media/server/minimaxAudio";
@@ -86,11 +87,6 @@ function publicMessage(error, fallback) {
 
 function billingQuality(model) {
   return model.endsWith("-turbo") ? "turbo" : "hd";
-}
-
-function isAmbiguousVoiceCloneError(error) {
-  return error?.name === "AbortError"
-    || ["NETWORK_ERROR", "INVALID_RESPONSE", "INVALID_USAGE", "MISSING_DEMO_AUDIO"].includes(String(error?.code || ""));
 }
 
 function readNumber(value) {
@@ -372,7 +368,7 @@ export async function POST(request) {
   } catch (error) {
     if (reservation && !billingFinalized) {
       try {
-        const result = upstreamCompleted || (requestDispatched && isAmbiguousVoiceCloneError(error))
+        const result = upstreamCompleted || (requestDispatched && isAmbiguousMinimaxAudioError(error))
           ? await reviewMediaCredits({
               reservation,
               operationId: billingOperationId,
