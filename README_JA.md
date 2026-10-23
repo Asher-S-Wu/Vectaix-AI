@@ -40,14 +40,14 @@
 
 ### 🎨 メディアワークスペース
 
-画像の生成・編集と、Fish Audio S2.1 Pro Free による音声合成を利用できます。
+画像の生成・編集と、Fish Audio S2.1 Pro による音声合成を利用できます。
 
 専用メディアモデル：
 
 | モデル | プロバイダー | 機能 |
 |:---:|:---:|:---|
 | **GPT Image 2.5** | Micu | 画像生成と参照画像を使った画像編集 |
-| **Fish Audio S2.1 Pro Free** (`s2.1-pro-free`) | Fish Audio | 多言語音声合成と音声の選択。入力テキストの UTF-8 バイト数に基づき、100万バイトあたり0米ドルで課金 |
+| **Fish Audio S2.1 Pro** (`s2.1-pro-free`) | Fish Audio | ログイン中のユーザーが複製した音声による多言語音声合成。入力テキストの UTF-8 バイト数に基づき、100万バイトあたり0米ドルで課金 |
 
 <br/>
 
@@ -234,7 +234,7 @@ vectaix-ai/
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
 | `DEEPSEEK_API_KEY` | ✅ | アシスタント用の DeepSeek 公式 API キー（`deepseek-flash`） |
 | `MICU_OPENAI_IMAGE_API_KEY` | — | Micu 画像サービスの API キー |
-| `FISH_API_KEY` | — | Fish Audio 公式 API キー。S2.1 Pro Free 音声合成を有効にする場合に設定 |
+| `FISH_API_KEY` | — | Fish Audio 公式 API キー。S2.1 Pro 音声合成を有効にする場合に設定 |
 | `PUBLIC_APP_URL` | — | デプロイ済みアプリの公開HTTPSアドレス。パスキーでのログインに必要 |
 | `APP_SECRETS_KEY` | — | 外部接続の認証情報、ブラウザーのログイン状態、定期バックアップのパスワードを暗号化する鍵。これらの機能を使う場合に必要。32バイトのランダムな鍵をBase64形式で指定し、安全に保管してください |
 | `TINYFISH_API_KEY` | — | 無料の TinyFish Search と Fetch 共通の API キー。ウェブブラウジングを有効にする場合は必須 |

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseFishSpeechInput } from "../../lib/media/shared/fishAudio.js";
-import { buildFishSpeechPayload, createFishVoice, listFishVoices, synthesizeFishSpeech } from "../../lib/media/server/fishAudio.js";
+import { buildFishSpeechPayload, createFishVoice, synthesizeFishSpeech } from "../../lib/media/server/fishAudio.js";
 
 const voiceId = "933563129e564b19a115bedd57b7406a";
 const input = { text: "[轻声]你好，Fish。", voiceId };
@@ -44,21 +44,6 @@ test("合成显式指定免费模型，保留音频并按 UTF-8 字节记录用�
   assert.equal(result.requestId, "fish-test");
   assert.equal(dispatched, 1);
   assert.equal(complete, 1);
-});
-
-test("声音库只返回授权、公开且就绪的 TTS 音色", async (t) => {
-  const base = { _id: voiceId, type: "tts", title: "示例", visibility: "public", licensed: true, state: "trained", languages: ["zh"], tags: [] };
-  t.mock.method(globalThis, "fetch", async (url) => {
-    const parsed = new URL(url);
-    assert.equal(parsed.searchParams.get("licensed"), "true");
-    assert.equal(parsed.searchParams.get("title"), "中文");
-    assert.equal(parsed.searchParams.get("page_number"), "2");
-    return Response.json({ items: [base, { ...base, licensed: false }, { ...base, visibility: "private" }, { ...base, state: "training" }, { ...base, dmca_taken_down: true }, { ...base, type: "svc" }], has_more: true });
-  });
-  const result = await listFishVoices({ query: "中文", page: 2 });
-  assert.equal(result.voices.length, 1);
-  assert.equal(result.voices[0].voiceId, voiceId);
-  assert.equal(result.hasMore, true);
 });
 
 test("复刻上传真实 multipart 文件，保持音色私有且关闭附加试听生成", async (t) => {

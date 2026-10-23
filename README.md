@@ -40,14 +40,14 @@ Ask questions through a simple message field and send button. Vectaix keeps conv
 
 ### 🎨 Media Workspace
 
-Generate and edit images, and create speech with Fish Audio S2.1 Pro Free in the media workspace.
+Generate and edit images, and create speech with Fish Audio S2.1 Pro in the media workspace.
 
 Dedicated media models:
 
 | Model | Provider | Capability |
 |:---:|:---:|:---|
 | **GPT Image 2.5** | Micu | Image generation and editing with reference images |
-| **Fish Audio S2.1 Pro Free** (`s2.1-pro-free`) | Fish Audio | Multilingual speech with voice selection; billed at $0 per million UTF-8 input bytes |
+| **Fish Audio S2.1 Pro** (`s2.1-pro-free`) | Fish Audio | Multilingual speech using voices cloned by the current user; billed at $0 per million UTF-8 input bytes |
 
 <br/>
 
@@ -235,7 +235,7 @@ vectaix-ai/
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
 | `DEEPSEEK_API_KEY` | ✅ | Official DeepSeek API key for the assistant (`deepseek-flash`) |
 | `MICU_OPENAI_IMAGE_API_KEY` | — | Micu image service API key |
-| `FISH_API_KEY` | — | Official Fish Audio API key; configure to enable S2.1 Pro Free speech generation |
+| `FISH_API_KEY` | — | Official Fish Audio API key; configure to enable S2.1 Pro speech generation |
 | `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app; required for passkey login |
 | `APP_SECRETS_KEY` | — | Encrypts external connection credentials, browser login state, and scheduled backup passwords; required when using these features. Use a Base64-encoded 32-byte random key and keep it safe |
 | `TINYFISH_API_KEY` | — | Shared API key for free TinyFish Search and Fetch; required when web browsing is enabled |

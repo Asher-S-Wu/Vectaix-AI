@@ -91,7 +91,7 @@ function voiceRequest(id, method = "GET") {
   return new Request(`https://app.test/api/media/audio/fish/voices/${id}`, { method });
 }
 
-async function seedVoice(userId, status = "created") {
+async function seedVoice(userId, status = "created", createdAt = new Date()) {
   return Voice.create({
     userId,
     voiceId: randomBytes(16).toString("hex"),
@@ -101,6 +101,7 @@ async function seedVoice(userId, status = "created") {
     consentConfirmedAt: new Date(),
     sampleFileName: "recording.wav",
     lastStatusCheckedAt: new Date(0),
+    createdAt,
   });
 }
 
@@ -161,21 +162,25 @@ test("损坏样本、过短音频和未确认授权返回 400，未产生远程�
 test("音色列表、刷新和删除均按登录用户隔离，知晓他人 profileId 也无法操作", async (t) => {
   const owner = await login("voice-owner");
   const outsider = await login("voice-outsider");
-  const voice = await seedVoice(owner.userId);
-  const fetch = t.mock.method(globalThis, "fetch", async (url) => {
-    assert.equal(new URL(url).pathname, "/model");
-    return Response.json({ items: [], has_more: false });
-  });
+  const voice = await seedVoice(owner.userId, "created", new Date(0));
+  const recentVoice = await seedVoice(owner.userId, "trained");
+  const fetch = t.mock.method(globalThis, "fetch", () => { throw new Error("unexpected Fish request"); });
   const ownList = await call(owner.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/fish/voices"));
-  assert.equal((await ownList.json()).customVoices[0].profileId, voice.profileId);
+  assert.equal(ownList.status, 200);
+  const ownData = await ownList.json();
+  assert.deepEqual(Object.keys(ownData).sort(), ["success", "voices"]);
+  assert.equal(ownData.success, true);
+  assert.deepEqual(ownData.voices.map((item) => [item.profileId, item.status]), [[recentVoice.profileId, "trained"], [voice.profileId, "created"]]);
+  const queriedList = await call(owner.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/fish/voices?query=other&page=-1&language=invalid!"));
+  assert.equal(queriedList.status, 200);
+  assert.deepEqual(await queriedList.json(), ownData);
   const otherList = await call(outsider.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/fish/voices"));
-  assert.deepEqual((await otherList.json()).customVoices, []);
-  const previousCalls = fetch.mock.callCount();
+  assert.deepEqual(await otherList.json(), { success: true, voices: [] });
   for (const method of ["GET", "DELETE"]) {
     const response = await call(outsider.token, voiceRoute[method], voiceRequest(voice.profileId, method), voice.profileId);
     assert.equal(response.status, 404);
   }
-  assert.equal(fetch.mock.callCount(), previousCalls);
+  assert.equal(fetch.mock.callCount(), 0);
   assert.ok(await Voice.exists({ _id: voice._id }));
 });
 

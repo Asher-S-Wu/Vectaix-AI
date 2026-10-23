@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AudioLines, Gauge, Loader2, Mic2, Play, Search, Volume2 } from "lucide-react";
+import { AudioLines, Gauge, Loader2, Mic2, Play, Volume2 } from "lucide-react";
 import AudioFormError from "./AudioFormError";
 import AudioGeneratingBanner from "./AudioGeneratingBanner";
 import AudioHistorySection from "./AudioHistorySection";
@@ -25,11 +25,8 @@ export default function FishAudioWorkspace() {
   const [text, setText] = useState("");
   const [voiceId, setVoiceId] = useState("");
   const [selectedName, setSelectedName] = useState("");
-  const [systemVoices, setSystemVoices] = useState([]);
-  const [customVoices, setCustomVoices] = useState([]);
+  const [voices, setVoices] = useState([]);
   const [query, setQuery] = useState("");
-  const [search, setSearch] = useState({ query: "", page: 1 });
-  const [hasMore, setHasMore] = useState(false);
   const [voicesLoading, setVoicesLoading] = useState(true);
   const [voiceError, setVoiceError] = useState("");
   const [format, setFormat] = useState("mp3");
@@ -51,6 +48,7 @@ export default function FishAudioWorkspace() {
   const historyRequest = useRef(0);
   const operationLock = useRef(false);
   const busy = Boolean(operation) || chatBusy;
+  const filteredVoices = voices.filter(voice => voice.displayName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const parameters = { provider: "fish", model: FISH_AUDIO_MODEL, voiceId, format, sampleRate, speed, volume, temperature: 0.7, topP: 0.7 };
 
   const loadHistory = useCallback(async () => {
@@ -77,24 +75,20 @@ export default function FishAudioWorkspace() {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    listFishVoices({ ...search, signal: controller.signal }).then(data => {
+    listFishVoices({ signal: controller.signal }).then(data => {
       if (controller.signal.aborted) return;
-      setSystemVoices(data.systemVoices); setCustomVoices(data.customVoices); setHasMore(data.hasMore);
+      setVoices(data.voices);
       const saved = readLocalSetting(VOICE_KEY);
-      const restored = [...data.systemVoices, ...data.customVoices].find(voice => voice.voiceId === saved && (!voice.status || voice.status === "trained"));
+      const restored = data.voices.find(voice => voice.voiceId === saved && voice.status === "trained");
       if (restored) {
-        setVoiceId(current => current || restored.voiceId);
-        setSelectedName(current => current || restored.name || restored.displayName);
-      }
+        setVoiceId(restored.voiceId);
+        setSelectedName(restored.displayName);
+      } else if (saved) writeLocalSetting(VOICE_KEY, null);
     }).catch(error => { if (error.name !== "AbortError") setVoiceError(error.message); })
       .finally(() => { if (!controller.signal.aborted) setVoicesLoading(false); });
     return () => controller.abort();
-  }, [search]);
+  }, []);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
-
-  function updateSearch(next) {
-    setVoicesLoading(true); setVoiceError(""); setSearch(next);
-  }
 
   async function run(name, action) {
     if (operationLock.current || chatBusy) return;
@@ -103,7 +97,7 @@ export default function FishAudioWorkspace() {
     finally { operationLock.current = false; setOperation(""); }
   }
   function selectVoice(voice) {
-    setVoiceId(voice.voiceId); setSelectedName(voice.name || voice.displayName);
+    setVoiceId(voice.voiceId); setSelectedName(voice.displayName);
     writeLocalSetting(VOICE_KEY, voice.voiceId);
   }
   function generate(event) {
@@ -122,7 +116,7 @@ export default function FishAudioWorkspace() {
     void run("clone", async () => {
       const data = new FormData(); data.set("displayName", displayName.trim()); data.set("sample", sample); data.set("consentConfirmed", String(consent));
       const result = await createFishVoice(data);
-      setCustomVoices(current => [result.voice, ...current]);
+      setVoices(current => [result.voice, ...current]);
       setDisplayName(""); setSample(null); setConsent(false); form.reset();
     });
   }
@@ -131,7 +125,7 @@ export default function FishAudioWorkspace() {
     void run("delete", async () => {
       if (target.type === "voice") {
         await deleteFishVoice(target.item.profileId);
-        setCustomVoices(current => current.filter(item => item.profileId !== target.item.profileId));
+        setVoices(current => current.filter(item => item.profileId !== target.item.profileId));
         if (voiceId === target.item.voiceId) { setVoiceId(""); setSelectedName(""); writeLocalSetting(VOICE_KEY, null); }
       } else {
         await deleteFishGeneration(target.item.id);
@@ -144,20 +138,22 @@ export default function FishAudioWorkspace() {
     if (element) playNewGenerationOnce({ generationId: element.dataset.generationId, pendingGenerationIdRef: pendingAutoPlay, audioElement: element });
   }, []);
 
-  function voiceCard(voice, custom = false) {
-    const name = voice.name || voice.displayName;
-    const ready = !custom || voice.status === "trained";
-    return <div key={voice.voiceId || voice.profileId} className={`rounded-xl border p-3 ${voiceId === voice.voiceId ? "border-primary bg-primary/5" : "border-zinc-200 dark:border-zinc-800"}`}>
+  function voiceCard(voice) {
+    const name = voice.displayName;
+    const ready = voice.status === "trained";
+    return <div key={voice.profileId} className={`rounded-xl border p-3 ${voiceId === voice.voiceId ? "border-primary bg-primary/5" : "border-zinc-200 dark:border-zinc-800"}`}>
       <button type="button" disabled={busy || !ready} aria-pressed={voiceId === voice.voiceId} onClick={() => selectVoice(voice)} className="w-full text-left disabled:opacity-50">
         <span className="block truncate text-sm font-medium">{name}</span>
-        <span className="mt-1 block line-clamp-2 text-xs text-zinc-500">{custom ? statusLabels[voice.status] : voice.description || "Fish Audio 声音库"}</span>
+        <span className="mt-1 block line-clamp-2 text-xs text-zinc-500">{statusLabels[voice.status]}</span>
       </button>
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" className={buttonClass} disabled={busy || !ready} aria-label={`试听 ${name}`} onClick={() => void run("preview", async () => setPreviewUrl(await previewFishVoice(voice.voiceId)))}><Play className="mr-1 inline h-3 w-3" />试听</button>
-        {custom && <>
-          <button type="button" disabled={busy} className={buttonClass} onClick={() => void run("refresh", async () => { const result = await refreshFishVoice(voice.profileId); setCustomVoices(current => current.map(item => item.profileId === voice.profileId ? result.voice : item)); })}>刷新状态</button>
-          <button type="button" disabled={busy} className={buttonClass} onClick={() => setDeleteTarget({ type: "voice", item: voice })}>删除音色</button>
-        </>}
+        <button type="button" disabled={busy} className={buttonClass} onClick={() => void run("refresh", async () => {
+          const result = await refreshFishVoice(voice.profileId);
+          setVoices(current => current.map(item => item.profileId === voice.profileId ? result.voice : item));
+          if (voiceId === voice.voiceId && result.voice.status !== "trained") { setVoiceId(""); setSelectedName(""); writeLocalSetting(VOICE_KEY, null); }
+        })}>刷新状态</button>
+        <button type="button" disabled={busy} className={buttonClass} onClick={() => setDeleteTarget({ type: "voice", item: voice })}>删除音色</button>
       </div>
     </div>;
   }
@@ -185,11 +181,10 @@ export default function FishAudioWorkspace() {
         </form>
         <section aria-label="声音库" className="glass-effect space-y-4 rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60">
           <h2 className="font-semibold">声音库</h2>
-          <form className="flex gap-2" onSubmit={event => { event.preventDefault(); updateSearch({ query: query.trim(), page: 1 }); }}><label htmlFor="fish-voice-search" className="sr-only">搜索音色</label><input id="fish-voice-search" value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索音色名称" className={inputClass} disabled={busy} /><button type="submit" aria-label="搜索音色" className={buttonClass} disabled={busy || voicesLoading}><Search className="h-4 w-4" /></button></form>
+          <div><label htmlFor="fish-voice-search" className="sr-only">搜索音色</label><input id="fish-voice-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索我的声音" className={inputClass} disabled={busy || voicesLoading} /></div>
           <AudioFormError message={voiceError} />
           {voicesLoading ? <p role="status" className="text-sm text-zinc-500">正在读取音色…</p> : <>
-            <div className="max-h-[540px] space-y-3 overflow-y-auto">{customVoices.filter(voice => voice.status === "trained").map(voice => voiceCard(voice, true))}{systemVoices.map(voice => voiceCard(voice))}{systemVoices.length === 0 && customVoices.length === 0 && <p className="text-sm text-zinc-500">没有找到音色，换个关键词或复刻自己的声音。</p>}</div>
-            <div className="flex justify-between gap-2"><button className={buttonClass} disabled={busy || search.page === 1} onClick={() => updateSearch(current => ({ ...current, page: current.page - 1 }))}>上一页</button><span className="self-center text-xs text-zinc-500">第 {search.page} 页</span><button className={buttonClass} disabled={busy || !hasMore} onClick={() => updateSearch(current => ({ ...current, page: current.page + 1 }))}>下一页</button></div>
+            <div className="max-h-[540px] space-y-3 overflow-y-auto">{filteredVoices.map(voiceCard)}{!voiceError && (voices.length === 0 ? <div className="space-y-3 text-sm text-zinc-500"><p>先复刻一个声音，即可在这里选择并生成配音。</p><button type="button" className={buttonClass} disabled={busy} onClick={() => setTab("voices")}>复刻声音</button></div> : filteredVoices.length === 0 && <p className="text-sm text-zinc-500">没有找到匹配的声音。</p>)}</div>
           </>}
         </section>
       </div> : <div className="space-y-5">
@@ -201,7 +196,7 @@ export default function FishAudioWorkspace() {
           <button type="submit" disabled={busy || !sample || !consent || !displayName.trim()} className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-white disabled:opacity-50">{operation === "clone" ? "正在提交…" : "创建音色"}</button>
         </form>
         <AudioFormError message={voiceError} />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{customVoices.map(voice => voiceCard(voice, true))}</div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{voices.map(voiceCard)}</div>
       </div>}
     </section>
     {operation === "generate" && <AudioGeneratingBanner />}

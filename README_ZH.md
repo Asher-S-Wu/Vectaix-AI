@@ -40,14 +40,14 @@
 
 ### 🎨 媒体工作区
 
-在媒体工作区中生成和编辑图片，并使用 Fish Audio S2.1 Pro Free 合成配音。
+在媒体工作区中生成和编辑图片，并使用 Fish Audio S2.1 Pro 合成配音。
 
 独立媒体模型：
 
 | 模型 | 供应商 | 能力 |
 |:---:|:---:|:---|
 | **GPT Image 2.5** | Micu | 图片生成，以及使用参考图进行图片编辑 |
-| **Fish Audio S2.1 Pro Free** (`s2.1-pro-free`) | Fish Audio | 多语言配音与音色选择；按输入文本的 UTF-8 字节数计费，每百万字节 0 美元 |
+| **Fish Audio S2.1 Pro** (`s2.1-pro-free`) | Fish Audio | 使用当前用户复刻的声音进行多语言配音；按输入文本的 UTF-8 字节数计费，每百万字节 0 美元 |
 
 <br/>
 
@@ -234,7 +234,7 @@ vectaix-ai/
 | `ADMIN_EMAILS` | — | 管理员邮箱，多个邮箱使用英文逗号分隔 |
 | `DEEPSEEK_API_KEY` | ✅ | 助手使用的 DeepSeek 官方 API 密钥（`deepseek-flash`） |
 | `MICU_OPENAI_IMAGE_API_KEY` | — | Micu 图片服务 API 密钥 |
-| `FISH_API_KEY` | — | Fish Audio 官方 API 密钥，启用 S2.1 Pro Free 配音时配置 |
+| `FISH_API_KEY` | — | Fish Audio 官方 API 密钥，启用 S2.1 Pro 配音时配置 |
 | `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址；通行密钥登录时需要 |
 | `APP_SECRETS_KEY` | — | 用于加密外部连接凭据、浏览器登录状态和定时备份密码；启用这些功能时需要。值为 32 字节随机密钥的 Base64 编码，请妥善保存 |
 | `TINYFISH_API_KEY` | — | TinyFish 免费 Search 与 Fetch 接口共用的 API 密钥，启用联网时必需 |

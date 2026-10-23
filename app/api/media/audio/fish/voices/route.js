@@ -1,7 +1,7 @@
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { readMultipart } from "@/lib/server/files/uploads";
-import { createFishVoice, deleteFishVoice, fishErrorStatus, fishPublicMessage, listFishVoices } from "@/lib/media/server/fishAudio";
+import { createFishVoice, deleteFishVoice, fishErrorStatus, fishPublicMessage } from "@/lib/media/server/fishAudio";
 import { serializeFishVoice } from "@/lib/media/server/fishAudioRecords";
 import { inspectAudioMetadata } from "@/lib/media/server/audioSampleInspection";
 import { acquireVoiceCreationLease, assertMediaWriteLeaseActive, beginMediaWriteLease, endMediaWriteLease, releaseVoiceCreationLease } from "@/lib/media/server/userOperationLeases";
@@ -15,18 +15,8 @@ export async function GET(request) {
   try {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
-    const params = new URL(request.url).searchParams;
-    const page = Number(params.get("page") || 1);
-    const query = (params.get("query") || "").trim();
-    const language = (params.get("language") || "").trim();
-    if (!Number.isSafeInteger(page) || page < 1 || page > 100 || query.length > 100 || (language && !/^[A-Za-z-]{2,12}$/.test(language))) {
-      return Response.json({ success: false, message: "音色查询参数有误" }, { status: 400 });
-    }
-    const [library, custom] = await Promise.all([
-      listFishVoices({ query, language, page, signal: request.signal }),
-      FishVoice.find({ userId: auth.payload.userId }).sort({ createdAt: -1 }).lean(),
-    ]);
-    return Response.json({ success: true, systemVoices: library.voices, customVoices: custom.map(serializeFishVoice), hasMore: library.hasMore });
+    const voices = await FishVoice.find({ userId: auth.payload.userId }).sort({ createdAt: -1 }).lean();
+    return Response.json({ success: true, voices: voices.map(serializeFishVoice) });
   } catch (error) {
     return Response.json({ success: false, message: fishPublicMessage(error, "读取声音库失败") }, { status: fishErrorStatus(error) });
   }
