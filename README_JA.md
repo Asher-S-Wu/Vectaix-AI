@@ -9,7 +9,7 @@
 
 <br/><br/>
 
-**会話・ウェブ検索・メディア制作のためのマルチモデルAIチャットプラットフォーム**
+**会話・ウェブ検索・メディア制作のためのAIアシスタント**
 
 <br/>
 
@@ -24,19 +24,6 @@
 
 <br/>
 
-<table>
-<tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--6%20Astra-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-6 Astra"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205.5-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.8%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.6-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.6"/><br/><sub><b>xAI</b></sub></td>
-</tr>
-<tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>Alibaba Cloud</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
-</tr>
-</table>
-
 </div>
 
 <br/>
@@ -47,26 +34,20 @@
 
 ## 機能
 
-### 🤖 マルチモデルチャット
+### 🤖 Vectaix アシスタント
 
-5つのチャットモデルに統一インターフェースでアクセスできます。モデルを切り替えると新しい会話が始まり、履歴は会話ごとに保存されます。
+入力欄に質問を書き、送信ボタンで会話を始められます。Vectaix は会話履歴を保存し、思考と回答を順次表示します。回答の読み上げも利用できます。チャットには DeepSeek 公式 API の `deepseek-flash` を使用します。
 
-| モデル | プロバイダー | コンテキスト | 入力タイプ | 思考 | ウェブ検索 |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| **GPT-6 Astra** | OpenAI | 1,000,000 | テキスト、画像 | ✅ | ✅ |
-| **Claude Opus 5.5** | Anthropic | 1,000,000 | テキスト、画像 | ✅ | ✅ |
-| **Gemini 3.8 Flash** | Google | 1,000,000 | テキスト、画像、音声、動画 | ✅ | ✅ |
-| **Grok 4.6** | xAI | 256,000 | テキスト、画像 | ✅ | ✅ |
-| **Kimi K3** | Moonshot AI | 262,144 | テキスト、画像 | ✅ | ✅ |
+### 🎨 メディアワークスペース
+
+画像の生成・編集と、Fish Audio S2.1 Pro Free による音声合成を利用できます。
 
 専用メディアモデル：
 
 | モデル | プロバイダー | 機能 |
 |:---:|:---:|:---|
-| **Qwen Image 3.0 Pro** | Alibaba Cloud | 画像生成と1～3枚の参照画像を使った画像編集 |
-| **AI MediaKit 動画画質向上** | Volcengine | ローカル動画または公開HTTPS URLを生成AIで画質向上（720p／1080p／2K）し、結果をプライベートストレージに保存 |
-| **Qwen Audio 3.0 TTS Plus** | Alibaba Cloud | 多言語音声合成、表現制御、音声クローン |
-| **MiniMax Speech 2.8 HD / Turbo** | Alibaba Cloud | 感情音声合成、システム音声、ユーザー専用音声クローン |
+| **GPT Image 2.5** | Micu | 画像生成と参照画像を使った画像編集 |
+| **Fish Audio S2.1 Pro Free** (`s2.1-pro-free`) | Fish Audio | 多言語音声合成と音声の選択。入力テキストの UTF-8 バイト数に基づき、100万バイトあたり0米ドルで課金 |
 
 <br/>
 
@@ -83,15 +64,9 @@
 
 <br/>
 
-### 📎 プライベートマルチメディア
+### 📎 プライベートメディアストレージ
 
-Zeabur のマウントディスクに保存したプライベートメディアを分析できます。
-
-| ファイルタイプ | 対応フォーマット | 機能 |
-|:---|:---|:---|
-| 🖼️ **画像** | PNG, JPG, GIF, WebP | 視覚分析、OCR、説明生成 |
-| 🎵 **音声** | MP3、WAV、M4A、AAC、OGG | Gemini 音声理解 |
-| 🎬 **動画** | MP4、MOV、WebM、M4V | Gemini 動画理解 |
+メディアワークスペースでは、アップロードした素材と生成した画像・音声をプライベートストレージに保存します。所有者は自分のファイルをプレビュー・ダウンロードできます。
 
 <br/>
 
@@ -104,7 +79,7 @@ Zeabur のマウントディスクに保存したプライベートメディア�
 **💬 会話管理**
 - MongoDBベースの永続的チャット履歴
 - 重要な会話のピン留め
-- 会話単位のモデル・設定管理
+- 会話単位のメモリ・スキル設定
 
 </td>
 <td width="50%">
@@ -172,11 +147,11 @@ vectaix-ai/
 │   │   ├── chat/             # マルチプロバイダーチャット
 │   │   ├── auth/             # 認証エンドポイント
 │   │   ├── conversations/    # 会話CRUD
-│   │   ├── media/            # 画像・音声・動画画質向上
+│   │   ├── media/            # 画像・音声の生成
 │   │   ├── upload/           # プライベートディスクアップロード
 │   │   └── admin/            # 管理機能
 │   ├── components/           # React UIコンポーネント
-│   │   ├── chat/             # チャット入力とモデル選択
+│   │   ├── chat/             # チャット入力と送信
 │   │   ├── message/          # メッセージ表示コンポーネント
 │   │   │   ├── MessageList.js
 │   │   │   └── ...
@@ -257,21 +232,15 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB接続文字列 |
 | `STORAGE_ROOT` | ✅ | マウントディスクのパス。Zeabur では `/data/vectaix` |
 | `ADMIN_EMAILS` | — | カンマ区切りの管理者メールアドレス |
-| `MICU_OPENAI_API_KEY` | — | GPT-6 Astra 専用の Micu API キー |
-| `MICU_ANTHROPIC_API_KEY` | — | Claude Opus 5.5 専用の Micu API キー |
-| `MICU_GOOGLE_API_KEY` | — | Gemini 3.8 Flash 専用の Micu API キー。録音の文字起こしにも使用 |
-| `MICU_XAI_API_KEY` | — | Grok 4.6 専用の Micu API キー |
-| `MICU_MOONSHOT_API_KEY` | — | Kimi K3 専用の Micu API キー |
-| `MICU_OPENAI_IMAGE_API_KEY` | — | Micu 画像サービスのキー。5つのチャットモデルのキーとは個別に設定 |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen Image 3.0 Pro、Qwen Audio 3.0 TTS Plus 用のシンガポール地域Alibaba Cloud Model Studio APIキー |
-| `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 用の北京地域Alibaba Cloud Model Studio APIキー |
-| `AI_MEDIAKIT_API_KEY` | — | AI MediaKit画質向上（大規模モデル版）用のAPIキー。有効にする場合に設定 |
-| `PUBLIC_APP_URL` | — | デプロイ済みアプリの公開HTTPSアドレス。パスキーでのログインと、MiniMax音声クローンによる入力素材の取得に必要 |
+| `DEEPSEEK_API_KEY` | ✅ | アシスタント用の DeepSeek 公式 API キー（`deepseek-flash`） |
+| `MICU_OPENAI_IMAGE_API_KEY` | — | Micu 画像サービスの API キー |
+| `FISH_API_KEY` | — | Fish Audio 公式 API キー。S2.1 Pro Free 音声合成を有効にする場合に設定 |
+| `PUBLIC_APP_URL` | — | デプロイ済みアプリの公開HTTPSアドレス。パスキーでのログインに必要 |
 | `APP_SECRETS_KEY` | — | 外部接続の認証情報、ブラウザーのログイン状態、定期バックアップのパスワードを暗号化する鍵。これらの機能を使う場合に必要。32バイトのランダムな鍵をBase64形式で指定し、安全に保管してください |
 | `TINYFISH_API_KEY` | — | 無料の TinyFish Search と Fetch 共通の API キー。ウェブブラウジングを有効にする場合は必須 |
 
 > [!TIP]
-> 有効にするモデルや機能ごとに対応するキーを設定してください。キーがない場合は明確な設定エラーを返します。
+> アシスタントのキーと、利用するメディア・ウェブ機能のキーを設定してください。
 
 <br/>
 

@@ -1,11 +1,10 @@
 import Link from "@/app/components/layout/NavigationMotion";
-import { ArrowUpRight, AudioLines, ImagePlus, ScanLine } from "lucide-react";
+import { ArrowUpRight, AudioLines, ImagePlus } from "lucide-react";
 import { MEDIA_WORKSPACES } from "@/lib/media/shared/workspaces";
 
 const WORKSPACE_VISUALS = {
   image: { icon: ImagePlus, label: "图片创作", color: "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400" },
   audio: { icon: AudioLines, label: "语音创作", color: "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400" },
-  enhancement: { icon: ScanLine, label: "画质增强", color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" },
 };
 
 export default function MediaPage() {
@@ -17,11 +16,11 @@ export default function MediaPage() {
           让想法变成作品
         </h1>
         <p className="mt-4 max-w-xl text-sm leading-7 text-zinc-500 sm:text-base dark:text-zinc-400">
-          选择图片创作、语音合成或视频画质增强工具。
+          选择图片创作或语音合成工具。
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {MEDIA_WORKSPACES.map((workspace) => {
           const visual = WORKSPACE_VISUALS[workspace.kind];
           const Icon = visual.icon;

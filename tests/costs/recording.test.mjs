@@ -9,7 +9,7 @@ const { default: dbConnect } = await import('../../lib/db.js');
 const { default: User } = await import('../../models/User.js');
 const { default: Transaction, ensureCreditTransactionIndexes } = await import('../../models/CreditTransaction.js');
 const { reserveCredits, settleCredits, releaseCredits, getCreditOperation } = await import('../../lib/server/credits/service.js');
-const { calculateQwenTtsCost, calculateQwenVoiceCloneCost, createPricingSnapshot } = await import('../../lib/server/credits/pricing.js');
+const { calculateFishTtsCost, createPricingSnapshot } = await import('../../lib/server/credits/pricing.js');
 const { DEFAULT_BILLING_SETTINGS } = await import('../../lib/server/credits/constants.js');
 await dbConnect();
 await ensureCreditTransactionIndexes();
@@ -46,31 +46,12 @@ test('失败请求记录为零花费，操作不能被其他用户或不同请�
   await assert.rejects(settleCredits({ operationId: 'failure' }), /实际人民币/);
 });
 
-test('媒体成本保留细小金额和原汇率，价格快照无积分设置', () => {
-  assert.equal(calculateQwenVoiceCloneCost(DEFAULT_BILLING_SETTINGS).costCny, 0.0672);
-  const cost = calculateQwenTtsCost({ characters: 1 }, DEFAULT_BILLING_SETTINGS);
-  assert.equal(cost.costCny, 1.49884 / 10000);
+test('Fish Free 按零费用记录，价格快照保留原汇率', () => {
+  const cost = calculateFishTtsCost({ bytes: 3 }, DEFAULT_BILLING_SETTINGS);
+  assert.equal(cost.costCny, 0);
+  assert.equal(cost.costUsd, 0);
   assert.equal(Object.hasOwn(cost, 'points'), false);
   const snapshot = createPricingSnapshot(DEFAULT_BILLING_SETTINGS);
   assert.equal(snapshot.usdToCny, 6.72);
   assert.equal(Object.hasOwn(snapshot, 'costMultiplier'), false);
-});
-
-test('视频画质增强仍可同步最终账单，重复同步不重复记账', async () => {
-  const { default: VideoEnhancementTask } = await import('../../models/VideoEnhancementTask.js');
-  const { reconcileResolvedMediaTaskBilling } = await import('../../lib/media/server/billing.js');
-  const operationId = 'enhancement-billing';
-  await reserveCredits({ operationId, userId: user._id, feature: 'media_video_enhancement', usage: { requestFingerprint: operationId } });
-  const task = await VideoEnhancementTask.create({
-    userId: user._id, sourceType: 'upload', sourceName: 'source.mp4', sourceDurationSeconds: 5,
-    settings: { resolution: '1080p', bitrate: { mode: 'level', value: 'high' } },
-    clientToken: operationId, status: 'canceled', billing: { operationId, status: 'reserved' },
-  });
-  await releaseCredits(operationId);
-  assert.deepEqual(await reconcileResolvedMediaTaskBilling(), { scannedOperations: 1, syncedOperations: 1 });
-  const saved = await VideoEnhancementTask.findById(task._id).lean();
-  assert.equal(saved.billing.status, 'released');
-  assert.equal(saved.billing.actualCostCny, 0);
-  assert.deepEqual(await reconcileResolvedMediaTaskBilling(), { scannedOperations: 0, syncedOperations: 0 });
-  assert.equal(await Transaction.countDocuments({ operationId }), 1);
 });

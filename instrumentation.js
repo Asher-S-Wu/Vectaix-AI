@@ -1,6 +1,4 @@
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
-const MEDIAKIT_RECONCILE_INTERVAL_MS = 15 * 1000;
-const MEDIAKIT_DELETION_RECONCILE_INTERVAL_MS = 15 * 1000;
 const COST_RECONCILE_INTERVAL_MS = 60 * 1000;
 
 function safeErrorDetails(error) {
@@ -46,38 +44,18 @@ export async function register() {
         cleanupOrphanedStorageFiles,
         ensureStorageReady,
       },
-      { cleanupExpiredAudioSourceUploads },
-      { cleanupExpiredVoiceSamples },
-      { reconcileMediaKitVideoEnhancementTasks },
-      { reconcileMediaKitVideoEnhancementTaskDeletions },
-      { ensureVideoEnhancementTaskIndexes },
-      { ensureMediaKitUploadTicketIndexes },
       { removeLegacyGuestData },
       { ensureUserIndexes },
       { ensureSessionIndexes },
       { ensureCreditTransactionIndexes },
       { reconcileCreditTransactions },
-      { reconcileMinimaxUnlockClaims },
-      { reconcileMinimaxVoiceCleanup },
-      { ensureMinimaxVoiceIndexes },
-      { reconcileResolvedMediaTaskBilling },
     ] = await Promise.all([
       import("@/lib/server/storage/service"),
-      import("@/lib/media/server/audioSourceUploads"),
-      import("@/lib/media/server/voiceSampleCleanup"),
-      import("@/lib/media/server/mediaKit/reconciler"),
-      import("@/lib/media/server/mediaKit/taskDeletion"),
-      import("@/models/VideoEnhancementTask"),
-      import("@/models/MediaKitUploadTicket"),
       import("@/lib/server/users/legacyIdentityCleanup"),
       import("@/models/User"),
       import("@/models/Session"),
       import("@/models/CreditTransaction"),
       import("@/lib/server/credits/service"),
-      import("@/lib/media/server/minimaxUnlockClaims"),
-      import("@/lib/media/server/minimaxVoiceCleanup"),
-      import("@/models/MinimaxVoice"),
-      import("@/lib/media/server/billing"),
     ]);
     const legacyCleanup = await removeLegacyGuestData();
     reportLegacyCleanupState(legacyCleanup);
@@ -85,19 +63,10 @@ export async function register() {
     await ensureSessionIndexes();
     await ensureCreditTransactionIndexes();
     await reconcileCreditTransactions();
-    await Promise.all([
-      ensureVideoEnhancementTaskIndexes(),
-      ensureMediaKitUploadTicketIndexes(),
-      ensureMinimaxVoiceIndexes(),
-    ]);
-    await reconcileResolvedMediaTaskBilling();
     await ensureStorageReady();
-    await reconcileMinimaxVoiceCleanup();
     await Promise.all([
       cleanupExpiredTemporaryFiles(),
       cleanupOrphanedStorageFiles(),
-      cleanupExpiredAudioSourceUploads(),
-      cleanupExpiredVoiceSamples(),
     ]);
 
     const { migrateUserCapabilities } = await import("@/lib/server/settings/migration");
@@ -131,8 +100,6 @@ export async function register() {
         await Promise.all([
           cleanupExpiredTemporaryFiles(),
           cleanupOrphanedStorageFiles(),
-          cleanupExpiredAudioSourceUploads(),
-          cleanupExpiredVoiceSamples(),
         ]);
       } catch (error) {
         console.error("[Storage] scheduled cleanup:", safeErrorDetails(error));
@@ -142,55 +109,6 @@ export async function register() {
     };
     const timer = setInterval(cleanup, CLEANUP_INTERVAL_MS);
     timer.unref?.();
-
-    let mediaKitReconcileRunning = false;
-    const reconcileMediaKitTasks = async () => {
-      if (mediaKitReconcileRunning) return;
-      mediaKitReconcileRunning = true;
-      try {
-        await reconcileMediaKitVideoEnhancementTasks();
-      } catch (error) {
-        console.error(
-          "[AI MediaKit] scheduled reconcile failed",
-          safeErrorDetails(error),
-        );
-      } finally {
-        mediaKitReconcileRunning = false;
-      }
-    };
-    const initialMediaKitReconcile = setTimeout(reconcileMediaKitTasks, 0);
-    initialMediaKitReconcile.unref?.();
-    const mediaKitTimer = setInterval(
-      reconcileMediaKitTasks,
-      MEDIAKIT_RECONCILE_INTERVAL_MS,
-    );
-    mediaKitTimer.unref?.();
-
-    let mediaKitDeletionReconcileRunning = false;
-    const reconcileMediaKitTaskDeletions = async () => {
-      if (mediaKitDeletionReconcileRunning) return;
-      mediaKitDeletionReconcileRunning = true;
-      try {
-        await reconcileMediaKitVideoEnhancementTaskDeletions();
-      } catch (error) {
-        console.error(
-          "[AI MediaKit] scheduled deletion reconcile failed",
-          safeErrorDetails(error),
-        );
-      } finally {
-        mediaKitDeletionReconcileRunning = false;
-      }
-    };
-    const initialMediaKitDeletionReconcile = setTimeout(
-      reconcileMediaKitTaskDeletions,
-      0,
-    );
-    initialMediaKitDeletionReconcile.unref?.();
-    const mediaKitDeletionTimer = setInterval(
-      reconcileMediaKitTaskDeletions,
-      MEDIAKIT_DELETION_RECONCILE_INTERVAL_MS,
-    );
-    mediaKitDeletionTimer.unref?.();
 
     let costReconcileRunning = false;
     const reconcileCosts = async () => {
@@ -204,9 +122,6 @@ export async function register() {
           await ensureSessionIndexes();
         }
         await reconcileCreditTransactions();
-        await reconcileMinimaxUnlockClaims();
-        await reconcileMinimaxVoiceCleanup();
-        await reconcileResolvedMediaTaskBilling();
       } catch (error) {
         console.error("[Costs] scheduled reconcile:", safeErrorDetails(error));
       } finally {

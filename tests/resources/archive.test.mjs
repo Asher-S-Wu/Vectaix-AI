@@ -30,8 +30,8 @@ test('archive paths and expansion limits reject unsafe entries', async () => {
 test('backup excludes credentials, permissions and provider execution state', () => {
   const result = safeSettings({ nickname: '用户', permissions: { browser: true }, providerKey: 'SECRET', assistant: { name: '助手', token: 'SECRET' }, systemPrompts: [{ name: 'a', content: 'b', secret: 'SECRET' }] });
   assert.equal(JSON.stringify(result).includes('SECRET'), false); assert.equal(result.permissions, undefined);
-  const media = safeSettings({ chatMediaSettings: { video: { mode: 'text' }, enhancement: { resolution: '1080p', bitrate: { mode: 'level', value: 'high' } } } }).chatMediaSettings;
-  assert.deepEqual(media, { enhancement: { resolution: '1080p', bitrate: { mode: 'level', value: 'high' } } });
+  const media = safeSettings({ chatMediaSettings: { image: { model: 'gpt-image-2.5', size: '1024x1024' } } }).chatMediaSettings;
+  assert.deepEqual(media, { image: { model: 'gpt-image-2.5', size: '1024x1024' } });
   const conversation = safeConversation({ _id: 'id', messages: [{ role: 'model', content: 'hello', providerState: { secret: 'SECRET' }, tools: [{ cookie: 'SECRET' }] }], browserState: 'SECRET' });
   assert.equal(JSON.stringify(conversation).includes('SECRET'), false);
 });

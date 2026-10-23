@@ -7,6 +7,7 @@ import User from "@/models/User";
 import { getAuthPayload } from "@/lib/auth";
 import { rateLimit, getClientIP } from "@/lib/rateLimit";
 import { getManagedModel } from "@/lib/server/models/service";
+import { DEFAULT_MODEL_ID } from "@/lib/server/models/config";
 import {
   isNonEmptyString,
   sanitizeStoredMessagesStrict,
@@ -186,7 +187,6 @@ export async function POST(req) {
 
     const {
       prompt,
-      model,
       config,
       history,
       conversationId,
@@ -198,9 +198,7 @@ export async function POST(req) {
       billingOperationId,
     } = body;
 
-    if (!model || typeof model !== "string") {
-      return Response.json({ error: "Model is required" }, { status: 400 });
-    }
+    const model = DEFAULT_MODEL_ID;
     if (typeof prompt !== "string") {
       return Response.json({ error: "Prompt is required" }, { status: 400 });
     }
@@ -310,7 +308,7 @@ export async function POST(req) {
     const validatedFiles = await Promise.all(referencedFileIds.map((fileId) => (
       findOwnedStoredFile({ userId: user.userId, fileId })
     )));
-    if (validatedFiles.some((file) => !file || file.kind === "audio-source")) {
+    if (validatedFiles.some((file) => !file)) {
       return Response.json({ error: "附件不存在或无权访问" }, { status: 400 });
     }
     const allowedOwnerId = currentConversationId ? String(currentConversationId) : null;
@@ -472,7 +470,7 @@ export async function POST(req) {
         const regenerateTime = nextConversationWriteTime(writePermitTime);
         const conv = await Conversation.findOneAndUpdate(
           buildConversationWriteCondition(currentConversationId, user.userId, writePermitTime),
-          { $set: { messages: sanitizedRegenerateMessages, updatedAt: regenerateTime } },
+          { $set: { messages: sanitizedRegenerateMessages, model, updatedAt: regenerateTime } },
           { new: true }
         ).select("messages updatedAt");
         if (!conv) {
@@ -520,7 +518,7 @@ export async function POST(req) {
           buildConversationWriteCondition(currentConversationId, user.userId, writePermitTime),
           {
             $push: { messages: { id: resolvedUserMessageId, role: "user", content: prompt, type: "parts", parts: storedUserParts } },
-            $set: { updatedAt: userMsgTime },
+            $set: { model, updatedAt: userMsgTime },
           },
           { new: true }
         ).select("updatedAt");
@@ -679,7 +677,7 @@ export async function POST(req) {
               provider,
               files: estimatedInputFiles,
             });
-            const outputBudget = Math.min(modelConfig.maxOutputTokens, modelConfig.contextWindow - estimatedInputTokens);
+            const outputBudget = Math.min(modelConfig.defaultOutputTokens, modelConfig.contextWindow - estimatedInputTokens);
             if (outputBudget < MIN_CHAT_OUTPUT_TOKENS) {
               throw Object.assign(new Error("对话内容超过该模型的上下文长度，请减少附件或开始新对话"), { publicMessage: true });
             }
@@ -715,7 +713,6 @@ export async function POST(req) {
             model,
             messages: chatMessages,
             system: systemPrompt,
-            cacheKey: `vectaix-${currentConversationId}`,
             tools,
             getTools: () => getWebToolDefinitions(roundController?.getAvailableToolApiNames() || []),
             signal: req.signal,
@@ -773,20 +770,6 @@ export async function POST(req) {
 
           fullText = fullText.trim();
           fullThought = fullThought.trim();
-
-          const isGoogleBlankRefusal = (
-            provider === "google"
-            && fullText === ""
-            && fullThought === ""
-            && citations.length === 0
-          );
-          if (isGoogleBlankRefusal) {
-            await finalizeBilling();
-            await rollbackCurrentTurn({ preserveCreatedConversation: true });
-            if (!clientAborted) controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-            controller.close();
-            return;
-          }
 
           if (user && currentConversationId) {
             if (clientAborted) {

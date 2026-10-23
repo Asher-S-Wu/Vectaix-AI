@@ -55,7 +55,7 @@ export function proxy(request) {
   );
   response.headers.set(
     "Permissions-Policy",
-    "camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()"
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
   );
 
   return response;

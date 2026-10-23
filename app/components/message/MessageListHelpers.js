@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, ExternalLink, FileText, Loader2, Search, Terminal, X } from "lucide-react";
-import { ModelAvatar } from "../common/ModelVisuals";
+import BrandMark from "../common/BrandMark";
 import { formatAttachmentMeta } from "@/lib/shared/messageAttachments";
 import { toFileDownloadUrl } from "@/lib/shared/fileUrls";
 import {
@@ -36,13 +36,13 @@ function WebFavicon({ url, size = 12, className = "" }) {
   );
 }
 
-export function AIAvatar({ model, size = 24, className = "" }) {
+export function AIAvatar({ size = 24, className = "" }) {
   return (
     <span
       className={`inline-flex items-center justify-center overflow-hidden rounded-md ${className}`.trim()}
       style={{ width: size, height: size }}
     >
-      <ModelAvatar model={model} size={size} />
+      <BrandMark size={size} />
     </span>
   );
 }
@@ -64,11 +64,11 @@ export function LoadingSweepText({ text = "加载中", className = "", ariaText 
   );
 }
 
-export function ResponsiveAIAvatar({ model, mobileSize = 22, desktopSize = 26 }) {
+export function ResponsiveAIAvatar({ mobileSize = 22, desktopSize = 26 }) {
   return (
     <>
-      <span className="sm:hidden"><AIAvatar model={model} size={mobileSize} /></span>
-      <span className="hidden sm:inline"><AIAvatar model={model} size={desktopSize} /></span>
+      <span className="sm:hidden"><AIAvatar size={mobileSize} /></span>
+      <span className="hidden sm:inline"><AIAvatar size={desktopSize} /></span>
     </>
   );
 }

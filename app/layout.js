@@ -17,7 +17,7 @@ const inter = Inter({
 
 export const metadata = {
     title: 'Vectaix AI',
-    description: 'Vectaix AI 支持多模型对话、联网搜索，以及图片、视频和语音创作。',
+    description: 'Vectaix AI 支持智能对话、联网搜索，以及图片、视频和语音创作。',
     manifest: '/manifest.webmanifest',
     icons: {
         shortcut: '/favicon.ico',

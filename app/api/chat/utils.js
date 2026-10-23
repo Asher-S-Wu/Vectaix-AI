@@ -108,7 +108,7 @@ export function generateMessageId() {
     return `msg_${Date.now()}_${rand}`;
 }
 
-export function getStoredPartsFromMessage(msg, { includeThoughtSignature = false } = {}) {
+export function getStoredPartsFromMessage(msg) {
     if (!msg || typeof msg !== 'object') return null;
 
     if (Array.isArray(msg.parts) && msg.parts.length > 0) {
@@ -152,7 +152,6 @@ export function getStoredPartsFromMessage(msg, { includeThoughtSignature = false
                         };
                     }
                 }
-                if (includeThoughtSignature && isNonEmptyString(part.thoughtSignature)) out.thoughtSignature = part.thoughtSignature;
                 return out;
             })
             .filter((part) => Object.keys(part).length > 0);

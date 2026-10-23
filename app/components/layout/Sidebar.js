@@ -6,7 +6,6 @@ import { useState, useRef, useEffect } from "react";
 import NextImage from "next/image";
 import { Folder, FolderInput, LogOut, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import ConfirmModal from "../modals/ConfirmModal";
-import { ModelGlyph } from "../common/ModelVisuals";
 import BrandMark from "../common/BrandMark";
 
 export default function Sidebar({
@@ -235,7 +234,7 @@ export default function Sidebar({
                       }`}
                   >
                     <span className={`shrink-0 transition-transform duration-200 ${currentConversationId === conv._id ? "scale-110" : "group-hover:scale-105 opacity-70 group-hover:opacity-100"}`}>
-                      <ModelGlyph model={conv.model} size={18} />
+                      <BrandMark size={18} />
                     </span>
                     <span className="truncate pr-28">{conv.title}</span>
                   </button>
@@ -291,6 +290,9 @@ export default function Sidebar({
             <div className="flex items-center gap-3">
               <button
                 onClick={onOpenProfile}
+                type="button"
+                aria-label="设置"
+                title="设置"
                 className="flex items-center gap-3 flex-1 hover:bg-white p-2 rounded-xl transition-all active:scale-[0.98]"
               >
                 {avatar ? (

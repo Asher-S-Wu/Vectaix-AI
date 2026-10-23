@@ -1,35 +1,39 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { access } from 'node:fs/promises';
-import { getPublicModels, getManagedModel, getModelConnection, getDefaultTranscriptionModel, getManagedChatRates } from '../../lib/server/models/service.js';
+import { getPublicModels, getManagedModel, getModelConnection, getManagedChatRates } from '../../lib/server/models/service.js';
 
 test('模型目录、默认模型和价格无需数据库，由代码决定',async()=>{
  const catalog=await getPublicModels();
- assert.equal(catalog.models.length,5);
- assert.equal(catalog.defaultModelId,'gpt-6-astra');
- const opus=catalog.models.find(model=>model.id==='claude-opus-5-5');
- assert.equal(opus?.name,'Claude Opus 5.5');
- assert.equal(opus.providerId,'micu-claude-opus-5-5');
- assert.equal(opus.contextWindow,1000000);
- assert.equal(opus.maxOutputTokens,128000);
- assert.equal((await getDefaultTranscriptionModel()).id,'google/gemini-3.8-flash');
- assert.ok((await getDefaultTranscriptionModel()).nativeInputs.includes('audio'));
- const model=await getManagedModel('gpt-6-astra');
+ assert.equal(catalog.models.length,1);
+ assert.equal(catalog.defaultModelId,'deepseek-flash');
+ const assistant=catalog.models[0];
+ assert.equal(assistant.name,'助手');
+ assert.equal(assistant.providerId,'deepseek');
+ assert.equal(assistant.contextWindow,1048576);
+ assert.equal(assistant.maxOutputTokens,393216);
+ assert.deepEqual(assistant.nativeInputs,['text','image']);
+ const model=await getManagedModel();
  model.requestOptions.reasoning.effort='low';
  model.pricing.inputPerMillion=999;
- assert.equal((await getManagedModel(model.id)).requestOptions.reasoning.effort,'max');
- assert.equal((await getManagedChatRates())[model.id].inputPerMillion,10);
+ assert.equal((await getManagedModel()).requestOptions.reasoning.effort,'max');
+ assert.equal((await getManagedModel()).requestOptions.top_p,1);
+ assert.equal((await getManagedModel()).defaultOutputTokens,393216);
+ assert.equal((await getManagedChatRates())[model.id].inputPerMillion,0.3);
  await assert.rejects(getManagedModel('database-custom-model'),/模型不存在/);
 });
-test('连接只读取服务器环境密钥，公开目录不泄漏密钥',async()=>{
- process.env.MICU_OPENAI_API_KEY='test-env-key';
- const connection=await getModelConnection('gpt-6-astra');
+test('连接固定官方服务，公开目录不泄漏密钥',async t=>{
+ const previous=process.env.DEEPSEEK_API_KEY;
+ t.after(()=>{if(previous===undefined)delete process.env.DEEPSEEK_API_KEY;else process.env.DEEPSEEK_API_KEY=previous;});
+ process.env.DEEPSEEK_API_KEY='test-env-key';
+ const connection=await getModelConnection('arbitrary-client-model');
  assert.equal(connection.provider.apiKey,'test-env-key');
- assert.equal(connection.provider.baseUrl,'https://www.micuapi.ai/v1');
+ assert.equal(connection.model.id,'deepseek-flash');
+ assert.equal(connection.provider.baseUrl,'https://api.deepseek.com');
  assert.equal(connection.provider.protocol,'responses');
  assert.ok(!JSON.stringify(await getPublicModels()).includes('test-env-key'));
- delete process.env.MICU_OPENAI_API_KEY;
- await assert.rejects(getModelConnection('gpt-6-astra'),/尚未配置/);
+ delete process.env.DEEPSEEK_API_KEY;
+ await assert.rejects(getModelConnection(),/对话服务尚未配置/);
 });
 test('管理员模型、服务商和积分费率管理接口已删除',async()=>{
  for(const path of ['app/api/admin/models/route.js','app/api/admin/providers/route.js','app/api/admin/billing-settings/route.js','app/api/admin/credit-transactions/route.js','app/components/settings/panels/ModelsPanel.js']) {

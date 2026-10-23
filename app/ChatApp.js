@@ -7,27 +7,19 @@ import { useConversationTasks } from "@/lib/client/hooks/useConversationTasks";
 import { useChatAppActions } from "@/lib/client/chat/chatAppActions";
 import { decorateConversationMessages } from "@/lib/client/chat/conversationMessages";
 import { useAuthSession } from "@/lib/client/hooks/useAuthSession";
-import { useChatModeController } from "@/lib/client/hooks/useChatModeController";
 import { useThemeMode } from "@/lib/client/hooks/useThemeMode";
 import { useChatScroll } from "@/lib/client/hooks/useChatScroll";
 import { useUserSettings } from "@/lib/client/hooks/useUserSettings";
 import { normalizeWebSearchSettings } from "@/lib/shared/webSearch";
-import {
-  DEFAULT_MODEL,
-  resolveUsableModelId,
-} from "@/lib/shared/models";
 import { useToast } from "./components/common/ToastProvider";
 import TaskNotifications from "./components/common/TaskNotifications";
 import AuthModal from "./components/modals/AuthModal";
-import ConfirmModal from "./components/modals/ConfirmModal";
 import ChatLayout from "./components/layout/ChatLayout";
 
 const FONT_SIZE_CLASSES = { small: "text-size-small", medium: "text-size-medium", large: "text-size-large" };
 export default function ChatApp() {
   const toast = useToast();
   const savedConversationRef = useRef(typeof window !== "undefined" ? window.localStorage.getItem("vectaix-current-conversation") : null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmModalConfig, setConfirmModalConfig] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [conversationsReady, setConversationsReady] = useState(false);
@@ -44,21 +36,13 @@ export default function ChatApp() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const {
-    model,
     isSettingsReady,
-    permissions,
     assistant,
-    setModel,
     webSearch,
     setWebSearch,
     chatMediaSettings: mediaSettings,
     resetChatMediaSettings,
     chatSystemPrompt,
-    setChatSystemPrompt,
-    systemPrompts,
-    addSystemPrompt,
-    updateSystemPrompt,
-    deleteSystemPrompt,
     themeMode,
     fontSize,
     completionSoundVolume,
@@ -75,9 +59,6 @@ export default function ChatApp() {
   const [serverSettingsReady, setServerSettingsReady] = useState(false);
 
   const conversationLoadRef = useRef(null);
-  const syncSettingsTimeoutRef = useRef(null);
-  const pendingSettingsRef = useRef({});
-  const pendingConversationIdRef = useRef(null);
   const hasRestoredConversationRef = useRef(false);
   const currentConversationIdRef = useRef(null);
   const isStreaming = messages.some((message) => message?.isStreaming === true);
@@ -102,14 +83,8 @@ export default function ChatApp() {
     conversationLoadRef.current?.abort();
     conversationLoadRef.current = null;
     taskActions.invalidateView();
-    actions.cancelEdit({ preserveUploaded: taskActions.submitting });
+    actions.cancelEdit();
     userInterruptedRef.current = false;
-    if (syncSettingsTimeoutRef.current) {
-      clearTimeout(syncSettingsTimeoutRef.current);
-      syncSettingsTimeoutRef.current = null;
-    }
-    pendingSettingsRef.current = {};
-    pendingConversationIdRef.current = null;
     setLoading(false);
   };
 
@@ -171,12 +146,6 @@ export default function ChatApp() {
   useEffect(() => {
     return () => {
       conversationLoadRef.current?.abort();
-      if (syncSettingsTimeoutRef.current) {
-        clearTimeout(syncSettingsTimeoutRef.current);
-        syncSettingsTimeoutRef.current = null;
-      }
-      pendingSettingsRef.current = {};
-      pendingConversationIdRef.current = null;
     };
   }, []);
 
@@ -237,15 +206,15 @@ export default function ChatApp() {
   }, [user]);
 
   const taskActions = useConversationTasks({
-    user, conversationId: currentConversationId, projectId, model, webSearch, chatSystemPrompt, mediaSettings,
+    user, conversationId: currentConversationId, projectId, webSearch, chatSystemPrompt, mediaSettings,
     paused: loading,
     setMessages, setCurrentConversationId, onActivity: fetchConversations,
-    onAuthExpired: handleAuthExpired, toast, completionSoundVolume, permissions,
+    onAuthExpired: handleAuthExpired, toast, completionSoundVolume,
   });
   const busy = loading || taskActions.submitting || isStreaming;
 
   const actions = useChatAppActions({
-    toast, messages, loading: busy, model, editingImages,
+    messages, loading: busy,
     setEditingMsgIndex, setEditingContent, setEditingImages,
   });
 
@@ -261,13 +230,9 @@ export default function ChatApp() {
   };
   const submitEditedMessage = async () => {
     if (busy || editingMsgIndex === null) return;
-    if (editingImages.some(image => image.uploadStatus !== "ready")) {
-      toast.warning("请等待图片上传完成，或移除上传失败的图片");
-      return;
-    }
     const message = messages[editingMsgIndex];
     const attachments = [...getMessageAttachments(message).filter(file => !file.isImage), ...editingImages.map(image => ({ fileId: image.fileId }))];
-    if (await taskActions.send({ text: editingContent, attachments, replaceFromMessageId: message.id })) actions.cancelEdit({ preserveUploaded: true });
+    if (await taskActions.send({ text: editingContent, attachments, replaceFromMessageId: message.id })) actions.cancelEdit();
   };
   const removeMessage = (index) => {
     if (!busy && messages[index]?.id) taskActions.deleteMessage(messages[index].id);
@@ -282,50 +247,18 @@ export default function ChatApp() {
     } catch (error) { toast.error(error.message); }
   };
 
-  const persistConversationModel = async (conversationIdToUpdate, nextModel) => {
-    if (!conversationIdToUpdate || !nextModel) return false;
-    try {
-      const response = await fetch(`/api/conversations/${conversationIdToUpdate}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: nextModel }),
-      });
-      if (!response.ok) return false;
-      setConversations((prev) => prev.map((conversation) => (
-        conversation?._id === conversationIdToUpdate
-          ? { ...conversation, model: nextModel }
-          : conversation
-      )));
-      return true;
-    } catch {
-      return false;
-    }
+  const startNewChat = () => {
+    stopOngoingChatWork();
+    setCurrentConversationId(null);
+    setMessages([]);
+    if (window.innerWidth < 768) setSidebarOpen(false);
   };
-
-  const {
-    startNewChat,
-    requestModelChange,
-  } = useChatModeController({
-    loading: busy,
-    messages,
-    model,
-    setModel,
-    currentConversationId,
-    setCurrentConversationId,
-    setMessages,
-    setSidebarOpen,
-    setConfirmModalConfig,
-    setShowConfirmModal,
-    stopOngoingChatWork,
-    persistConversationModel,
-    userInterruptedRef,
-  });
 
   const loadConversation = async (id, options = {}) => {
     const silent = options?.silent === true;
     conversationLoadRef.current?.abort();
     taskActions.invalidateView();
-    actions.cancelEdit({ preserveUploaded: taskActions.submitting });
+    actions.cancelEdit();
     const controller = new AbortController();
     conversationLoadRef.current = controller;
     setLoading(true);
@@ -355,14 +288,6 @@ export default function ChatApp() {
         setMessages(decorateConversationMessages(conversation.messages));
         setCurrentConversationId(id);
 
-        const targetModel = resolveUsableModelId(conversation.model, DEFAULT_MODEL);
-        if (targetModel !== model) {
-          setModel(targetModel);
-        }
-        if (conversation.model !== targetModel) {
-          void persistConversationModel(id, targetModel);
-        }
-
         setWebSearch(normalizeWebSearchSettings(conversation.settings?.webSearch, { defaultEnabled: true }));
       }
     } catch (e) {
@@ -391,34 +316,6 @@ export default function ChatApp() {
     const timer = setTimeout(() => restoreConversation(savedConversationId), 0);
     return () => clearTimeout(timer);
   }, [conversations, serverSettingsReady, user]);
-
-  const syncConversationSettings = (settingsUpdate) => {
-    if (!currentConversationId) return;
-    if (pendingConversationIdRef.current && pendingConversationIdRef.current !== currentConversationId) {
-      pendingSettingsRef.current = {};
-      if (syncSettingsTimeoutRef.current) {
-        clearTimeout(syncSettingsTimeoutRef.current);
-        syncSettingsTimeoutRef.current = null;
-      }
-    }
-    pendingConversationIdRef.current = currentConversationId;
-    pendingSettingsRef.current = { ...pendingSettingsRef.current, ...settingsUpdate };
-    if (syncSettingsTimeoutRef.current) clearTimeout(syncSettingsTimeoutRef.current);
-    syncSettingsTimeoutRef.current = setTimeout(async () => {
-      const toSync = pendingSettingsRef.current;
-      const targetId = pendingConversationIdRef.current;
-      pendingSettingsRef.current = {};
-      pendingConversationIdRef.current = null;
-      if (!targetId) return;
-      try {
-        await fetch(`/api/conversations/${targetId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ settings: toSync }),
-        });
-      } catch { }
-    }, 500);
-  };
 
   const deleteConversation = async (id, e) => {
     e?.stopPropagation?.();
@@ -521,7 +418,6 @@ export default function ChatApp() {
           editingImages={editingImages}
           fontSizeClass={FONT_SIZE_CLASSES[fontSize]}
           onEditingContentChange={setEditingContent}
-          onEditingImagesSelect={actions.onEditingImagesSelect}
           onEditingImageRemove={actions.onEditingImageRemove}
           onCancelEdit={actions.cancelEdit}
           onSubmitEdit={submitEditedMessage}
@@ -535,23 +431,7 @@ export default function ChatApp() {
             loading: busy,
             isStreaming,
             isWaitingForAI: busy && messages.length > 0,
-            model,
-            modelReady: isSettingsReady,
-            onModelChange: requestModelChange,
-            webSearch,
-            setWebSearch: (v) => {
-              setWebSearch(v);
-              syncConversationSettings({ webSearch: v });
-            },
-            chatSystemPrompt,
-            onChatSystemPromptSave: setChatSystemPrompt,
-            systemPrompts,
-            addSystemPrompt,
-            updateSystemPrompt,
-            deleteSystemPrompt,
             onSend: taskActions.send,
-            onOpenCapabilities: openSettings,
-            permissions,
             onStop: taskActions.stop,
           }}
         />
@@ -560,18 +440,6 @@ export default function ChatApp() {
         <TaskNotifications userId={user?.id} />
         <ProjectManager open={showProjects} onClose={() => setShowProjects(false)} projects={projects} onChanged={async () => { await fetchProjects(); await fetchConversations(); }} onSelectProject={(id) => { setActiveProjectId(id); startNewChat(); }} />
       </>}
-      <ConfirmModal
-        open={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
-        onConfirm={() => {
-          confirmModalConfig?.onConfirm();
-          setShowConfirmModal(false);
-        }}
-        title={confirmModalConfig?.title}
-        message={confirmModalConfig?.message}
-        confirmText="确定"
-        cancelText="取消"
-      />
     </>
   );
 }

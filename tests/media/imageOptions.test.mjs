@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as imageModels from '../../lib/media/shared/models.js';
 
-const QWEN = 'qwen-image-3.0-pro';
 const SUNBURST = 'gpt-image-2.5-sunburst';
 const FLARE = 'gpt-image-2.5-flare';
 const MB = 1024 * 1024;
@@ -29,20 +28,8 @@ test('Image 2.5 modes map to one model selection while retaining distinct reques
   const speed = imageModels.getImageModelOption(FLARE);
   assert.equal(quality, speed);
   assert.deepEqual(quality.modes, [{ id: SUNBURST, label: '质量' }, { id: FLARE, label: '速度' }]);
-  assert.equal(imageModels.getImageModelOption(QWEN).id, QWEN);
-  assert.deepEqual(imageModels.getImageModelOption(QWEN).modes, []);
+  assert.deepEqual(imageModels.IMAGE_MODEL_OPTIONS, [quality]);
   assert.throws(() => imageModels.getImageModelOption('unknown'), error => error.status === 400);
-});
-
-test('Qwen keeps automatic sizing and excludes quality from its validated options', () => {
-  assert.equal(typeof imageModels.validateImageOptions, 'function');
-  assert.deepEqual(imageModels.validateImageOptions({ model: QWEN, size: 'auto' }), {
-    model: QWEN,
-    size: 'auto',
-    count: 1,
-  });
-  rejectsOptions({ model: QWEN, size: 'auto', quality: 'high' });
-  rejectsOptions({ model: QWEN, size: '2048x2048' });
 });
 
 test('Micu models accept every offered size with low quality without replacing supplied values', () => {
@@ -69,7 +56,7 @@ test('invalid or missing image options are rejected instead of using defaults', 
   for (const options of [
     {},
     { model: 'unknown', size: '1024x1024', quality: 'auto' },
-    { model: QWEN },
+    { model: SUNBURST },
     { model: SUNBURST, size: 'not-a-size', quality: 'auto' },
     { model: FLARE },
   ]) rejectsOptions(options);
@@ -78,22 +65,15 @@ test('invalid or missing image options are rejected instead of using defaults', 
 
 test('each model configuration supplies a valid explicit initial selection', () => {
   assert.equal(typeof imageModels.getImageModelConfig, 'function');
-  for (const model of [QWEN, SUNBURST, FLARE]) {
+  for (const model of [SUNBURST, FLARE]) {
     const config = imageModels.getImageModelConfig(model);
     const validated = imageModels.validateImageOptions({
       model,
       size: config.defaultSize,
     });
-    assert.equal(validated.size, model === QWEN ? 'auto' : '1024x1024');
-    assert.equal(validated.quality, model === QWEN ? undefined : 'low');
+    assert.equal(validated.size, '1024x1024');
+    assert.equal(validated.quality, 'low');
   }
-});
-
-test('Qwen accepts three 10 MB references and rejects the fourth or an oversized file', () => {
-  assert.equal(typeof imageModels.validateImageReferences, 'function');
-  assert.doesNotThrow(() => imageModels.validateImageReferences(QWEN, [image(10 * MB), image(10 * MB), image(10 * MB)]));
-  rejectsReferences(QWEN, [image(), image(), image(), image()]);
-  rejectsReferences(QWEN, [image(10 * MB + 1)]);
 });
 
 test('Micu enforces ten references, 4 MB per file and 8 MB for the combined files', () => {
@@ -109,20 +89,19 @@ test('Micu enforces ten references, 4 MB per file and 8 MB for the combined file
 
 test('generation permits no references while editing requires at least one', () => {
   assert.equal(typeof imageModels.validateImageReferences, 'function');
-  for (const model of [QWEN, SUNBURST, FLARE]) {
+  for (const model of [SUNBURST, FLARE]) {
     assert.doesNotThrow(() => imageModels.validateImageReferences(model, []));
     rejectsReferences(model, [], { requireImages: true });
     assert.doesNotThrow(() => imageModels.validateImageReferences(model, [image()], { requireImages: true }));
   }
 });
 
-test('Micu accepts PNG, JPEG and WebP but rejects Qwen-only image formats', () => {
+test('Micu accepts PNG, JPEG and WebP and validates unsupported image formats', () => {
   assert.equal(typeof imageModels.validateImageReferences, 'function');
   for (const [name, type] of [['reference.png', 'image/png'], ['reference.JPG', 'image/jpeg'], ['reference.webp', 'image/webp']]) {
     assert.doesNotThrow(() => imageModels.validateImageReferences(SUNBURST, [image(1024, name, type)]));
   }
   for (const [name, type] of [['reference.gif', 'image/gif'], ['reference.bmp', 'image/bmp'], ['reference.tiff', 'image/tiff']]) {
-    assert.doesNotThrow(() => imageModels.validateImageReferences(QWEN, [image(1024, name, type)]));
     rejectsReferences(SUNBURST, [image(1024, name, type)]);
   }
 });
@@ -142,6 +121,6 @@ test('reference metadata must include a valid filename and positive file size', 
     image(1024, 'reference.svg', 'image/png'),
     image(1024, 'reference.png', 'text/plain'),
   ]) rejectsReferences(SUNBURST, [invalidImage]);
-  assert.doesNotThrow(() => imageModels.validateImageReferences(QWEN, [image(1024, 'reference.PNG', '')]));
+  assert.doesNotThrow(() => imageModels.validateImageReferences(SUNBURST, [image(1024, 'reference.PNG', '')]));
   assert.doesNotThrow(() => imageModels.validateImageReferences(SUNBURST, [new File(['png'], 'reference.png', { type: 'image/png' })]));
 });

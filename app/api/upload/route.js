@@ -1,4 +1,5 @@
 import { getManagedModel } from '@/lib/server/models/service';
+import { DEFAULT_MODEL_ID } from '@/lib/server/models/config';
 import { getModelConfig } from '@/lib/shared/models';
 import { uploadTemporaryDocument } from "@/lib/server/workbench/documents";
 import { getAuthPayload } from "@/lib/auth";
@@ -36,7 +37,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const UPLOAD_RATE_LIMIT = { limit: 30, windowMs: 10 * 60 * 1000 };
-const QWEN_ONLY_IMAGE_EXTENSIONS = new Set(["bmp", "tif", "tiff"]);
 
 function jsonError(error, status = 400) {
   return Response.json({ error }, { status });
@@ -77,12 +77,6 @@ export async function POST(request) {
       cleanupExpiredTemporaryFiles().catch(error => console.error("[Storage] cleanup temporary files:", error));
       return Response.json(stored, { status: 201 });
     }
-    if (
-      QWEN_ONLY_IMAGE_EXTENSIONS.has(extension)
-      && imageConfig?.service !== "qwen"
-    ) {
-      return jsonError("该图片格式仅支持千问图片模型");
-    }
     const limits = getAttachmentLimits(getAttachmentCategory({ extension }));
     const maxBytes = imageConfig
       ? imageConfig.maxImageBytes
@@ -103,7 +97,7 @@ export async function POST(request) {
     }
 
     if (kind === "chat") {
-      const modelConfig = isMediaGenerationModel(model) ? getModelConfig(model) : await getManagedModel(model);
+      const modelConfig = isMediaGenerationModel(model) ? getModelConfig(model) : await getManagedModel(DEFAULT_MODEL_ID);
       const support = { supportsImages: modelConfig.nativeInputs.includes("image"), supportsAudio: modelConfig.nativeInputs.includes("audio"), supportsVideo: modelConfig.nativeInputs.includes("video") };
       const inputType = getAttachmentInputType(category);
       const supported = (
@@ -111,7 +105,7 @@ export async function POST(request) {
         || (inputType === "video" && support.supportsVideo)
         || (inputType === "audio" && support.supportsAudio)
       );
-      if (!supported) return jsonError("当前模型不支持这类文件");
+      if (!supported) return jsonError("请选择图片或文档文件");
     }
 
     await dbConnect();

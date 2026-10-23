@@ -5,10 +5,9 @@ import { chromium } from 'playwright-chromium';
 const base = 'http://localhost:3100';
 const firstId = '000000000000000000000001';
 const secondId = '000000000000000000000002';
-const model = { id: 'test-chat', name: '测试对话模型', provider: 'openai', group: '测试', nativeInputs: ['text', 'image'] };
 const conversations = [
-  { _id: firstId, title: '第一段对话', model: model.id, messages: [{ id: 'first-message', role: 'user', content: '第一段内容' }] },
-  { _id: secondId, title: '第二段对话', model: model.id, messages: [{ id: 'second-message', role: 'user', content: '第二段内容' }] },
+  { _id: firstId, title: '第一段对话', model: 'historical-chat-model', messages: [{ id: 'first-message', role: 'user', content: '第一段内容' }] },
+  { _id: secondId, title: '第二段对话', model: 'historical-chat-model', messages: [{ id: 'second-message', role: 'user', content: '第二段内容' }] },
 ];
 
 async function withChat(run, ip = '192.0.2.250', beforeLoad) {
@@ -19,13 +18,12 @@ async function withChat(run, ip = '192.0.2.250', beforeLoad) {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.route('**/api/models', route => route.fulfill({ json: { models: [model], defaultModelId: model.id } }));
     await page.route('**/api/conversations', route => route.fulfill({ json: { conversations } }));
     await page.route('**/api/conversations/*', route => route.fulfill({ json: { conversation: conversations.find(item => route.request().url().endsWith(item._id)) } }));
     await page.route('**/api/tasks?*', route => route.fulfill({ json: { tasks: [] } }));
     if (beforeLoad) await beforeLoad(page);
     await page.goto(base);
-    await page.getByRole('button', { name: '选择模型', exact: true }).filter({ hasText: model.name }).waitFor();
+    await page.getByRole('textbox', { name: '消息', exact: true }).waitFor();
     await run(page);
     assert.deepEqual(errors, []);
   } finally {
@@ -72,7 +70,9 @@ test('首次恢复历史期间等待读取完成，再向恢复的对话发送�
     await requested;
     await page.route('**/api/tasks', async route => {
       submitted += 1;
-      assert.equal(route.request().postDataJSON().conversationId, firstId);
+      const body = route.request().postDataJSON();
+      assert.equal(body.conversationId, firstId);
+      assert.equal(Object.hasOwn(body, 'model'), false);
       await route.fulfill({ status: 400, json: { error: '发送已到达恢复的对话' } });
     });
     const input = page.getByPlaceholder('给 AI 发送消息…');
@@ -85,7 +85,10 @@ test('首次恢复历史期间等待读取完成，再向恢复的对话发送�
     await page.getByText('发送已到达恢复的对话', { exact: true }).waitFor();
     assert.equal(submitted, 1);
   }, '192.0.2.253', async page => {
-    await page.addInitScript(id => window.localStorage.setItem('vectaix-current-conversation', id), firstId);
+    await page.addInitScript(id => {
+      window.localStorage.setItem('vectaix-current-conversation', id);
+      window.localStorage.setItem('vectaix_ui_model', 'historical-chat-model');
+    }, firstId);
     await page.route(`**/api/conversations/${firstId}`, async route => {
       observed();
       await held;
@@ -94,16 +97,17 @@ test('首次恢复历史期间等待读取完成，再向恢复的对话发送�
   });
 });
 
-test('编辑图片提交途中切换对话，保留正在交给任务的附件', { timeout: 90000 }, async () => {
+test('编辑历史消息提交途中切换对话，保留原消息附件', { timeout: 90000 }, async () => {
   await withChat(async page => {
     const fileId = 'edited-image';
     let release;
     const held = new Promise(resolve => { release = resolve; });
     let deleted = 0;
-    await page.route('**/api/upload', route => route.fulfill({ json: { fileId, url: `/api/files/${fileId}`, mimeType: 'image/png' } }));
+    const conversation = { ...conversations[0], messages: [{ ...conversations[0].messages[0], parts: [{ text: '第一段内容' }, { inlineData: { fileId, url: `/api/files/${fileId}`, mimeType: 'image/png' } }] }] };
+    await page.route(`**/api/conversations/${firstId}`, route => route.fulfill({ json: { conversation } }));
     await page.route(`**/api/files/${fileId}`, route => {
       if (route.request().method() === 'DELETE') deleted += 1;
-      return route.fulfill({ json: { success: true } });
+      return route.fulfill({ contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVMcAAAAASUVORK5CYII=', 'base64') });
     });
     await page.route('**/api/tasks', async route => {
       assert.deepEqual(route.request().postDataJSON().attachments, [{ fileId }]);
@@ -113,7 +117,8 @@ test('编辑图片提交途中切换对话，保留正在交给任务的附件',
     await page.getByRole('button', { name: '第一段对话', exact: true }).click({ position: { x: 20, y: 20 } });
     await page.getByText('第一段内容', { exact: true }).waitFor();
     await page.getByRole('button', { name: '编辑消息', exact: true }).click();
-    await page.locator('input[type="file"]').first().setInputFiles({ name: '参考.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVMcAAAAASUVORK5CYII=', 'base64') });
+    await page.getByRole('img', { name: '第 1 张参考图片', exact: true }).waitFor();
+    assert.equal(await page.locator('input[type="file"]').count(), 0);
     await page.getByRole('button', { name: '提交', exact: true }).waitFor();
     const sent = page.waitForRequest(request => request.url().endsWith('/api/tasks') && request.method() === 'POST');
     await page.getByRole('button', { name: '提交', exact: true }).click();
@@ -132,7 +137,9 @@ test('中文选词回车保留输入，发送途中新建对话后旧响应不�
     let submitted = 0;
     await page.route('**/api/tasks', async route => {
       submitted += 1;
-      const { prompt } = route.request().postDataJSON();
+      const body = route.request().postDataJSON();
+      assert.equal(Object.hasOwn(body, 'model'), false);
+      const { prompt } = body;
       await held;
       await route.fulfill({ json: {
         conversation: { _id: firstId, messages: [{ id: 'sent-message', role: 'user', content: prompt }] },
@@ -140,6 +147,9 @@ test('中文选词回车保留输入，发送途中新建对话后旧响应不�
       } });
     });
     const input = page.getByPlaceholder('给 AI 发送消息…');
+    assert.equal(await page.locator('.composer-shell textarea').count(), 1);
+    assert.equal(await page.locator('.composer-shell button').count(), 1);
+    assert.equal(await page.locator('.composer-shell input').count(), 0);
     await input.fill('正在输入中文');
     const accepted = await input.evaluate(element => element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true, cancelable: true })));
     assert.equal(accepted, true, '选词回车应继续交给输入法处理');

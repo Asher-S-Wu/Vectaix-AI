@@ -42,7 +42,6 @@ export default function ChatLayout({
   editingImages,
   fontSizeClass,
   onEditingContentChange,
-  onEditingImagesSelect,
   onEditingImageRemove,
   onCancelEdit,
   onSubmitEdit,
@@ -95,9 +94,7 @@ export default function ChatLayout({
             editingContent={editingContent}
             editingImages={editingImages}
             fontSizeClass={fontSizeClass}
-            model={composerProps?.model}
             onEditingContentChange={onEditingContentChange}
-            onEditingImagesSelect={onEditingImagesSelect}
             onEditingImageRemove={onEditingImageRemove}
             onCancelEdit={onCancelEdit}
             onSubmitEdit={onSubmitEdit}

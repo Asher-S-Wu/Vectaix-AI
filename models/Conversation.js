@@ -13,9 +13,6 @@ const MessageSchema = new mongoose.Schema({
   tools: { type: [mongoose.Schema.Types.Mixed] },
   providerState: { type: mongoose.Schema.Types.Mixed },
   type: { type: String, default: 'text', enum: ['text', 'parts', 'error'] },
-  // Gemini multi-turn image editing: persist sanitized content.parts with thoughtSignature
-  // - text parts: { text, thought?, thoughtSignature? }
-  // - image parts: { inlineData: { fileId, mimeType, url }, thoughtSignature? }
   parts: { type: [mongoose.Schema.Types.Mixed] },
   createdAt: { type: Date, default: Date.now }
 });

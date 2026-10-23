@@ -157,7 +157,7 @@ test('real task registry reads shared indexed files and sends skill images as mu
   const { default: WorkbenchTask } = await import('../../models/WorkbenchTask.js');
   const { default: WorkbenchTaskEvent } = await import('../../models/WorkbenchTaskEvent.js');
   const conversation = await Conversation.create({ userId, title: 'registry', messages: [{ id: 'registry-model', role: 'model', content: '', thinkingTimeline: [] }] });
-  const task = await WorkbenchTask.create({ userId, conversationId: conversation._id, requestId: 'registry-test', fingerprint: 'registry-test', userMessageId: 'registry-user', modelMessageId: 'registry-model', model: 'google/gemini-3.8-flash', status: 'running' });
+  const task = await WorkbenchTask.create({ userId, conversationId: conversation._id, requestId: 'registry-test', fingerprint: 'registry-test', userMessageId: 'registry-user', modelMessageId: 'registry-model', model: 'deepseek-flash', status: 'running' });
   const skill = await WorkbenchSkill.findOne({ userId });
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lCEAAAAASUVORK5CYII=', 'base64');
   await SkillAsset.create({ userId, skillId: skill._id, path: 'pixel.png', data: png, size: png.length });
@@ -189,7 +189,7 @@ test('streamed restore preserves avatar ownership, media preferences and memory 
   const { createStoredFile } = await import('../../lib/server/storage/service.js');
   const { default: WorkbenchMemory } = await import('../../models/WorkbenchMemory.js');
   const avatar = await createStoredFile({ userId, input: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lCEAAAAASUVORK5CYII=', 'base64'), originalName: 'avatar.png', mimeType: 'image/png', extension: 'png', category: 'image', kind: 'avatar', ownerType: 'avatar', ownerId: userId });
-  await UserSettings.updateOne({ userId }, { $set: { avatarFileId: avatar.fileId, assistant: { name: '测试助手', avatarFileId: avatar.fileId }, chatMediaSettings: { image: { size: '1K', password: 'SECRET' }, audio: { provider: 'qwen', voiceId: 'Cherry', format: 'mp3', rate: 1, apiKey: 'SECRET' } } } });
+  await UserSettings.updateOne({ userId }, { $set: { avatarFileId: avatar.fileId, assistant: { name: '测试助手', avatarFileId: avatar.fileId }, chatMediaSettings: { image: { size: '1K', password: 'SECRET' }, audio: { provider: 'fish', voiceId: '0123456789abcdef0123456789abcdef', format: 'mp3', speed: 1, apiKey: 'SECRET' } } } });
   const origin = await Conversation.findOne({ userId }); const memoryId = new mongoose.Types.ObjectId(), date = new Date('2025-01-02T03:04:05Z');
   await WorkbenchMemory.collection.insertOne({ _id: memoryId, userId: new mongoose.Types.ObjectId(userId), projectId: null, conversationId: origin._id, scope: 'personal', content: '保留来源时间', source: 'automatic', createdAt: date, updatedAt: date });
   const job = await backups.createBackup(userId, { selection: ['files','settings','memories','conversations','projects'], password: 'roundtrip-password-2026' });
@@ -199,6 +199,6 @@ test('streamed restore preserves avatar ownership, media preferences and memory 
   const preview = await backups.inspectBackup(userId, upload, 'roundtrip-password-2026'); await backups.restoreBackup(userId, upload, 'roundtrip-password-2026', { digest: preview.digest, applySettings: true });
   const settings = await UserSettings.findOne({ userId }); assert.notEqual(settings.avatarFileId, avatar.fileId); assert.equal(settings.assistant.avatarFileId, settings.avatarFileId);
   const restoredAvatar = await StoredFile.findOne({ userId, fileId: settings.avatarFileId }); assert.equal(restoredAvatar.ownerType, 'avatar'); assert.equal(restoredAvatar.ownerId, userId); assert.equal(restoredAvatar.kind, 'avatar');
-  assert.equal(settings.chatMediaSettings.audio.voiceId, 'Cherry'); assert.equal(JSON.stringify(settings.chatMediaSettings).includes('SECRET'), false);
+  assert.equal(settings.chatMediaSettings.audio.voiceId, '0123456789abcdef0123456789abcdef'); assert.equal(JSON.stringify(settings.chatMediaSettings).includes('SECRET'), false);
   const memory = await WorkbenchMemory.findOne({ userId, content: '保留来源时间', _id: { $ne: memoryId } }); assert.equal(memory.createdAt.toISOString(), date.toISOString()); assert.equal(memory.updatedAt.toISOString(), date.toISOString()); assert.notEqual(String(memory.conversationId), String(origin._id)); assert.ok(await Conversation.exists({ _id: memory.conversationId, userId }));
 });

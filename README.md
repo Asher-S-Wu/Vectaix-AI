@@ -9,7 +9,7 @@
 
 <br/><br/>
 
-**Multi-Model AI Chat Platform for Conversations, Web Search, and Media Creation**
+**AI Assistant for Conversations, Web Search, and Media Creation**
 
 <br/>
 
@@ -24,19 +24,6 @@
 
 <br/>
 
-<table>
-<tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--6%20Astra-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-6 Astra"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205.5-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.8%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.6-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.6"/><br/><sub><b>xAI</b></sub></td>
-</tr>
-<tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>Alibaba Cloud</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
-</tr>
-</table>
-
 </div>
 
 <br/>
@@ -47,26 +34,20 @@
 
 ## Features
 
-### 🤖 Multi-Model Chat
+### 🤖 Vectaix Assistant
 
-Access 5 chat models through a unified interface. Switching models starts a new conversation with its own chat history.
+Ask questions through a simple message field and send button. Vectaix keeps conversation history, streams replies and thinking, and can read responses aloud. Chat requests use the official DeepSeek API with `deepseek-flash`.
 
-| Model | Provider | Context Window | Inputs | Thinking | Web Search |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| **GPT-6 Astra** | OpenAI | 1,000,000 | Text, Image | ✅ | ✅ |
-| **Claude Opus 5.5** | Anthropic | 1,000,000 | Text, Image | ✅ | ✅ |
-| **Gemini 3.8 Flash** | Google | 1,000,000 | Text, Image, Audio, Video | ✅ | ✅ |
-| **Grok 4.6** | xAI | 256,000 | Text, Image | ✅ | ✅ |
-| **Kimi K3** | Moonshot AI | 262,144 | Text, Image | ✅ | ✅ |
+### 🎨 Media Workspace
+
+Generate and edit images, and create speech with Fish Audio S2.1 Pro Free in the media workspace.
 
 Dedicated media models:
 
 | Model | Provider | Capability |
 |:---:|:---:|:---|
-| **Qwen Image 3.0 Pro** | Alibaba Cloud | Image generation and editing with 1–3 reference images |
-| **AI MediaKit Video Enhancement** | Volcengine | Generative quality enhancement for local videos or public HTTPS URLs at 720p, 1080p, or 2K; results are saved to private storage |
-| **Qwen Audio 3.0 TTS Plus** | Alibaba Cloud | Multilingual speech synthesis, expression control, and voice cloning |
-| **MiniMax Speech 2.8 HD / Turbo** | Alibaba Cloud | Emotional speech synthesis, system voices, and private voice cloning |
+| **GPT Image 2.5** | Micu | Image generation and editing with reference images |
+| **Fish Audio S2.1 Pro Free** (`s2.1-pro-free`) | Fish Audio | Multilingual speech with voice selection; billed at $0 per million UTF-8 input bytes |
 
 <br/>
 
@@ -83,15 +64,9 @@ Search and page fetching have no additional fee. Model calls used to read source
 
 <br/>
 
-### 📎 Private Multimodal Files
+### 📎 Private Media Storage
 
-Upload private media files stored on the Zeabur mounted disk.
-
-| File Type | Supported Formats | Capability |
-|:---|:---|:---|
-| 🖼️ **Images** | PNG, JPG, GIF, WebP | Visual analysis, OCR, description |
-| 🎵 **Audio** | MP3, WAV, M4A, AAC, OGG | Gemini audio understanding |
-| 🎬 **Video** | MP4, MOV, WebM, M4V | Gemini video understanding |
+The media workspace stores uploaded source files and generated images and speech in private storage. Files are available to their owner for preview and download.
 
 <br/>
 
@@ -104,7 +79,7 @@ Upload private media files stored on the Zeabur mounted disk.
 **💬 Conversation Management**
 - Persistent chat history with MongoDB
 - Pin important conversations
-- Conversation-specific model & settings
+- Conversation-specific memory and skill settings
 
 </td>
 <td width="50%">
@@ -172,11 +147,11 @@ vectaix-ai/
 │   │   ├── chat/             # Multi-provider chat
 │   │   ├── auth/             # Authentication endpoints
 │   │   ├── conversations/    # Conversation CRUD
-│   │   ├── media/            # Image, audio, and video enhancement
+│   │   ├── media/            # Image and speech creation
 │   │   ├── upload/           # Private disk file upload
 │   │   └── admin/            # Admin management
 │   ├── components/           # React UI components
-│   │   ├── chat/             # Chat input & model selector
+│   │   ├── chat/             # Chat input and send action
 │   │   ├── message/          # Message display components
 │   │   │   ├── MessageList.js
 │   │   │   └── ...
@@ -258,21 +233,15 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB connection string |
 | `STORAGE_ROOT` | ✅ | Mounted disk directory, use `/data/vectaix` on Zeabur |
 | `ADMIN_EMAILS` | — | Comma-separated administrator email addresses |
-| `MICU_OPENAI_API_KEY` | — | Dedicated Micu key for GPT-6 Astra |
-| `MICU_ANTHROPIC_API_KEY` | — | Dedicated Micu key for Claude Opus 5.5 |
-| `MICU_GOOGLE_API_KEY` | — | Dedicated Micu key for Gemini 3.8 Flash, including recording transcription |
-| `MICU_XAI_API_KEY` | — | Dedicated Micu key for Grok 4.6 |
-| `MICU_MOONSHOT_API_KEY` | — | Dedicated Micu key for Kimi K3 |
-| `MICU_OPENAI_IMAGE_API_KEY` | — | Micu image service key; independent of the five chat model keys |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Singapore-region Alibaba Cloud Model Studio API key for Qwen Image 3.0 Pro and Qwen Audio 3.0 TTS Plus |
-| `DASHSCOPE_BEIJING_API_KEY` | — | Beijing-region Alibaba Cloud Model Studio API key for MiniMax Speech 2.8 HD / Turbo |
-| `AI_MEDIAKIT_API_KEY` | — | API key for AI MediaKit video enhancement (large-model edition); configure when enabled |
-| `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app; required for passkey login and for MiniMax voice cloning to read input media |
+| `DEEPSEEK_API_KEY` | ✅ | Official DeepSeek API key for the assistant (`deepseek-flash`) |
+| `MICU_OPENAI_IMAGE_API_KEY` | — | Micu image service API key |
+| `FISH_API_KEY` | — | Official Fish Audio API key; configure to enable S2.1 Pro Free speech generation |
+| `PUBLIC_APP_URL` | — | Public HTTPS address of the deployed app; required for passkey login |
 | `APP_SECRETS_KEY` | — | Encrypts external connection credentials, browser login state, and scheduled backup passwords; required when using these features. Use a Base64-encoded 32-byte random key and keep it safe |
 | `TINYFISH_API_KEY` | — | Shared API key for free TinyFish Search and Fetch; required when web browsing is enabled |
 
 > [!TIP]
-> Configure the key for every model or feature you enable. Missing keys return a clear configuration error.
+> Configure the assistant key and the keys for the media and web features you use.
 
 <br/>
 

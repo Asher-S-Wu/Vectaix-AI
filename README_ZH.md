@@ -9,7 +9,7 @@
 
 <br/><br/>
 
-**多模型 AI 聊天平台 · 对话、联网搜索与多媒体创作**
+**AI 助手 · 对话、联网搜索与多媒体创作**
 
 <br/>
 
@@ -24,19 +24,6 @@
 
 <br/>
 
-<table>
-<tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-GPT--6%20Astra-412991?style=for-the-badge&logo=openai&logoColor=white" alt="GPT-6 Astra"/><br/><sub><b>OpenAI</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Claude%20Opus%205.5-D97757?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude"/><br/><sub><b>Anthropic</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Gemini%203.8%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/><br/><sub><b>Google</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Grok%204.6-111111?style=for-the-badge&logo=x&logoColor=white" alt="Grok 4.6"/><br/><sub><b>xAI</b></sub></td>
-</tr>
-<tr>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Qwen%20Image%203.0%20Pro-615CED?style=for-the-badge&logoColor=white" alt="Qwen Image 3.0 Pro"/><br/><sub><b>阿里云</b></sub></td>
-<td align="center" width="150"><img src="https://img.shields.io/badge/-Kimi%20K3-2563EB?style=for-the-badge&logoColor=white" alt="Kimi K3"/><br/><sub><b>Moonshot AI</b></sub></td>
-</tr>
-</table>
-
 </div>
 
 <br/>
@@ -47,26 +34,20 @@
 
 ## 功能特性
 
-### 🤖 多模型对话
+### 🤖 Vectaix 助手
 
-支持 5 个聊天模型，通过统一界面访问。切换模型时会新建对话，各自保留独立的聊天记录。
+在输入框中写下问题，点击发送即可开始对话。Vectaix 保存聊天记录，逐步展示思考与回答，并提供回复朗读。聊天通过 DeepSeek 官方 API 使用 `deepseek-flash`。
 
-| 模型 | 供应商 | 上下文窗口 | 输入类型 | 深度思考 | 联网搜索 |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| **GPT-6 Astra** | OpenAI | 1,000,000 | 文本、图像 | ✅ | ✅ |
-| **Claude Opus 5.5** | Anthropic | 1,000,000 | 文本、图像 | ✅ | ✅ |
-| **Gemini 3.8 Flash** | Google | 1,000,000 | 文本、图像、音频、视频 | ✅ | ✅ |
-| **Grok 4.6** | xAI | 256,000 | 文本、图像 | ✅ | ✅ |
-| **Kimi K3** | Moonshot AI | 262,144 | 文本、图像 | ✅ | ✅ |
+### 🎨 媒体工作区
+
+在媒体工作区中生成和编辑图片，并使用 Fish Audio S2.1 Pro Free 合成配音。
 
 独立媒体模型：
 
 | 模型 | 供应商 | 能力 |
 |:---:|:---:|:---|
-| **Qwen Image 3.0 Pro** | 阿里云 | 图片生成，以及使用 1–3 张参考图进行图片编辑 |
-| **AI MediaKit 视频画质增强** | 火山引擎 | 支持本地视频或公网 HTTPS 地址，进行生成式画质增强（720p、1080p 或 2K），结果保存到私有空间 |
-| **Qwen Audio 3.0 TTS Plus** | 阿里云 | 多语言语音合成、表达控制和声音复刻 |
-| **MiniMax Speech 2.8 HD / Turbo** | 阿里云 | 情感语音合成、系统音色和用户专属声音复刻 |
+| **GPT Image 2.5** | Micu | 图片生成，以及使用参考图进行图片编辑 |
+| **Fish Audio S2.1 Pro Free** (`s2.1-pro-free`) | Fish Audio | 多语言配音与音色选择；按输入文本的 UTF-8 字节数计费，每百万字节 0 美元 |
 
 <br/>
 
@@ -83,15 +64,9 @@
 
 <br/>
 
-### 📎 私有多媒体文件
+### 📎 私有媒体存储
 
-上传到 Zeabur 挂载硬盘中的私有媒体文件。
-
-| 文件类型 | 支持格式 | 能力 |
-|:---|:---|:---|
-| 🖼️ **图像** | PNG, JPG, GIF, WebP | 视觉分析、OCR、图像描述 |
-| 🎵 **音频** | MP3、WAV、M4A、AAC、OGG | Gemini 音频理解 |
-| 🎬 **视频** | MP4、MOV、WebM、M4V | Gemini 视频理解 |
+媒体工作区将上传素材、生成的图片与语音保存到私有空间。文件所有者可以预览和下载自己的文件。
 
 <br/>
 
@@ -104,7 +79,7 @@
 **💬 对话管理**
 - 基于 MongoDB 的持久化聊天记录
 - 置顶重要对话
-- 对话级别的模型与设置
+- 对话级别的记忆与技能设置
 
 </td>
 <td width="50%">
@@ -172,11 +147,11 @@ vectaix-ai/
 │   │   ├── chat/             # 多供应商聊天
 │   │   ├── auth/             # 认证端点
 │   │   ├── conversations/    # 对话 CRUD
-│   │   ├── media/            # 图片、语音和视频增强
+│   │   ├── media/            # 图片和语音创作
 │   │   ├── upload/           # 私有硬盘文件上传
 │   │   └── admin/            # 管理后台
 │   ├── components/           # React UI 组件
-│   │   ├── chat/             # 聊天输入与模型选择
+│   │   ├── chat/             # 聊天输入与发送
 │   │   ├── message/          # 消息展示组件
 │   │   │   ├── MessageList.js
 │   │   │   └── ...
@@ -257,21 +232,15 @@ vectaix-ai/
 | `MONGO_URI` | ✅ | MongoDB 连接字符串 |
 | `STORAGE_ROOT` | ✅ | 挂载硬盘目录，Zeabur 使用 `/data/vectaix` |
 | `ADMIN_EMAILS` | — | 管理员邮箱，多个邮箱使用英文逗号分隔 |
-| `MICU_OPENAI_API_KEY` | — | GPT-6 Astra 专用的 Micu 密钥 |
-| `MICU_ANTHROPIC_API_KEY` | — | Claude Opus 5.5 专用的 Micu 密钥 |
-| `MICU_GOOGLE_API_KEY` | — | Gemini 3.8 Flash 专用的 Micu 密钥，录音转文字也使用此模型 |
-| `MICU_XAI_API_KEY` | — | Grok 4.6 专用的 Micu 密钥 |
-| `MICU_MOONSHOT_API_KEY` | — | Kimi K3 专用的 Micu 密钥 |
-| `MICU_OPENAI_IMAGE_API_KEY` | — | Micu 图片服务密钥，与五个聊天模型的密钥分别配置 |
-| `DASHSCOPE_SINGAPORE_API_KEY` | — | Qwen Image 3.0 Pro 和 Qwen Audio 3.0 TTS Plus 使用的新加坡区域阿里云百炼 API 密钥 |
-| `DASHSCOPE_BEIJING_API_KEY` | — | MiniMax Speech 2.8 HD / Turbo 使用的北京区域阿里云百炼 API 密钥 |
-| `AI_MEDIAKIT_API_KEY` | — | AI MediaKit 画质增强（大模型版）使用的 API Key，实际启用时配置 |
-| `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址；通行密钥登录、MiniMax 声音复刻读取素材时需要 |
+| `DEEPSEEK_API_KEY` | ✅ | 助手使用的 DeepSeek 官方 API 密钥（`deepseek-flash`） |
+| `MICU_OPENAI_IMAGE_API_KEY` | — | Micu 图片服务 API 密钥 |
+| `FISH_API_KEY` | — | Fish Audio 官方 API 密钥，启用 S2.1 Pro Free 配音时配置 |
+| `PUBLIC_APP_URL` | — | 已部署应用的公网 HTTPS 地址；通行密钥登录时需要 |
 | `APP_SECRETS_KEY` | — | 用于加密外部连接凭据、浏览器登录状态和定时备份密码；启用这些功能时需要。值为 32 字节随机密钥的 Base64 编码，请妥善保存 |
 | `TINYFISH_API_KEY` | — | TinyFish 免费 Search 与 Fetch 接口共用的 API 密钥，启用联网时必需 |
 
 > [!TIP]
-> 请为实际启用的模型或功能配置对应密钥；缺少密钥时接口会返回明确的配置错误。
+> 配置助手密钥，以及实际使用的媒体和联网功能所需密钥。
 
 <br/>
 

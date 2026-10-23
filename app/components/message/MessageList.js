@@ -10,7 +10,6 @@ import {
   Copy,
   Download,
   Edit3,
-  Paperclip,
   RefreshCw,
   Trash2,
   X,
@@ -38,30 +37,12 @@ import {
   ToolRunCards,
 } from "./MessageListHelpers";
 import {
-  CHAT_MODELS,
-  isImageGenerationModel,
-  modelSupportsAvailableInput,
-} from "@/lib/shared/models";
-import {
-  getImageModelConfig,
-  validateImageReferences,
-} from "@/lib/media/shared/models";
-import {
   STARTER_PROMPTS,
   isPendingRunText,
   normalizeFallbackToolTimeline,
 } from "./messageListUtils";
 
 const EXPORT_FORMAT_LABELS = { markdown: "Markdown", pdf: "PDF", docx: "Word 文档" };
-
-function readImagePreview(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => resolve(event.target?.result || "");
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 const STARTER_ICONS = {
   sparkles: Sparkles,
@@ -82,9 +63,7 @@ export default function MessageList({
   editingContent,
   editingImages,
   fontSizeClass,
-  model,
   onEditingContentChange,
-  onEditingImagesSelect,
   onEditingImageRemove,
   onCancelEdit,
   onSubmitEdit,
@@ -99,7 +78,6 @@ export default function MessageList({
   onSendStarterPrompt,
 }) {
   const editTextareaRef = useRef(null);
-  const editFileInputRef = useRef(null);
   const exportMenuRef = useRef(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
@@ -107,24 +85,6 @@ export default function MessageList({
   const [openExportMenuIndex, setOpenExportMenuIndex] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const copyTimerRef = useRef(null);
-  const canEditImages = modelSupportsAvailableInput(model, "image");
-  const imageConfig = isImageGenerationModel(model) ? getImageModelConfig(model) : null;
-  const editingImageLimit = imageConfig ? imageConfig.maxReferenceImages : 1;
-  let editingImageError = "";
-  if (imageConfig) {
-    try {
-      validateImageReferences(model, editingImages.map((image) => ({
-        name: image.name,
-        type: image.mimeType,
-        size: image.size,
-      })));
-      if (editingImages.some((image) => image.uploadStatus === "error")) {
-        editingImageError = "参考图片未上传成功，请移除后重新选择";
-      }
-    } catch (error) {
-      editingImageError = error.message;
-    }
-  }
   const toast = useToast();
   const hasWaitingFirstChunk = messages.some((message) => message?.isWaitingFirstChunk);
   const hasStreamingContent = messages.some((message) => (message?.isStreaming && !message?.isWaitingFirstChunk) || message?.isSearching);
@@ -183,53 +143,6 @@ export default function MessageList({
     }
     setDeleteConfirm({ open: false, index: null, role: null });
   };
-
-  const handleEditFileSelect = async (e) => {
-    if (!canEditImages) return;
-    const files = Array.from(e.target.files || []);
-    if (editFileInputRef.current) editFileInputRef.current.value = "";
-    if (files.length === 0) return;
-
-    const remainingSlots = editingImageLimit - editingImages.length;
-    if (files.length > remainingSlots) {
-      toast.warning(`最多保留 ${editingImageLimit} 张参考图片`);
-      return;
-    }
-    if (imageConfig) {
-      try {
-        validateImageReferences(model, [
-          ...editingImages.map((image) => ({ name: image.name, type: image.mimeType, size: image.size })),
-          ...files,
-        ]);
-      } catch (error) {
-        toast.warning(error.message);
-        return;
-      }
-    }
-
-    const selected = [];
-    for (const file of files) {
-      if (!imageConfig && !file.type.startsWith("image/")) {
-        toast.warning(`“${file.name}”不是支持的图片格式`);
-        return;
-      }
-      const preview = await readImagePreview(file).catch(() => "");
-      if (!preview) {
-        toast.warning(`无法读取“${file.name}”`);
-        return;
-      }
-      selected.push({
-        file,
-        preview,
-        name: file.name,
-        mimeType: file.type,
-        size: file.size,
-      });
-    }
-    onEditingImagesSelect?.(selected);
-  };
-
-  const isEditingImageUploading = editingImages.some((image) => image?.uploadStatus === "uploading");
 
   const resizeEditTextarea = useCallback(() => {
     const el = editTextareaRef.current;
@@ -310,7 +223,7 @@ export default function MessageList({
             </div>
           </div>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center space-y-10 text-center px-4 max-w-4xl mx-auto w-full relative">
+          <div className="min-h-full flex flex-col items-center justify-center space-y-10 text-center px-4 max-w-4xl mx-auto w-full relative">
             <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
               <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-primary/10 blur-3xl" />
             </div>
@@ -332,7 +245,7 @@ export default function MessageList({
                   今天能帮你做点什么？
                 </h2>
                 <p className="text-zinc-400 dark:text-zinc-500 text-[15px] max-w-sm mx-auto leading-relaxed">
-                  选择一个模型开始对话，或从下面的灵感开始
+                  说说你想完成的事，或从下面的灵感开始
                 </p>
               </div>
             </div>
@@ -401,9 +314,9 @@ export default function MessageList({
             >
               {msg.role === "model" && (msg.taskId || msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasToolRuns) && (
                 <div className="flex items-center gap-2 pl-1">
-                  {assistant?.avatarFileId ? <NextImage src={`/api/files/${assistant.avatarFileId}`} alt={assistant.name} width={24} height={24} unoptimized className="h-6 w-6 rounded-lg object-cover"/> : <AIAvatar model={msg.model || model} size={24} />}
+                  {assistant?.avatarFileId ? <NextImage src={`/api/files/${assistant.avatarFileId}`} alt={assistant.name} width={24} height={24} unoptimized className="h-6 w-6 rounded-lg object-cover" /> : <AIAvatar size={24} />}
                   <span className="text-[11px] text-zinc-400 font-bold tracking-wider">
-                    {assistant?.name} · {CHAT_MODELS.find((m) => m.id === (msg.model || model))?.name}
+                    {assistant?.name}
                   </span>
                 </div>
               )}
@@ -440,64 +353,33 @@ export default function MessageList({
                 {editingMsgIndex === i && msg.role === "user" ? (
                   <div className="w-full flex flex-col items-end gap-2">
                     <div className="msg-bubble-user w-full max-w-full glass-effect !bg-white border-primary/20">
-                      {canEditImages ? (
-                        <>
-                          <input
-                            type="file"
-                            ref={editFileInputRef}
-                            onChange={handleEditFileSelect}
-                            className="hidden"
-                            accept={imageConfig
-                              ? [
-                                  ...imageConfig.mimeTypes,
-                                  ...imageConfig.extensions.map((extension) => `.${extension}`),
-                                ].join(",")
-                              : "image/*"}
-                            multiple={editingImageLimit > 1}
-                          />
-                          <div className="mb-3 flex flex-wrap items-center gap-2">
-                            {editingImages.map((image, imageIndex) => (
-                              <div key={image.id} className="relative h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900">
-                                {image.preview ? (
-                                  <NextImage
-                                    src={image.preview}
-                                    alt={`第 ${imageIndex + 1} 张参考图片`}
-                                    fill
-                                    sizes="64px"
-                                    unoptimized
-                                    className="object-cover"
-                                  />
-                                ) : null}
-                                <button
-                                  type="button"
-                                  onClick={() => onEditingImageRemove(image.id)}
-                                  className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-white hover:bg-black/80"
-                                  title={`移除第 ${imageIndex + 1} 张参考图片`}
-                                  aria-label={`移除第 ${imageIndex + 1} 张参考图片`}
-                                >
-                                  <X size={11} />
-                                </button>
-                              </div>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() => editFileInputRef.current?.click()}
-                              disabled={editingImages.length >= editingImageLimit}
-                              className="p-2 text-zinc-500 hover:text-primary hover:bg-primary/5 rounded-lg disabled:cursor-not-allowed disabled:opacity-40"
-                              title={editingImages.length > 0 ? "添加参考图片" : "选择参考图片"}
-                            >
-                              <Paperclip size={14} />
-                            </button>
-                            {editingImageLimit > 1 ? (
-                              <span className="text-[11px] text-zinc-400">
-                                {editingImages.length}/{editingImageLimit} 张
-                              </span>
-                            ) : null}
-                          </div>
-                          {imageConfig ? <p className="mb-2 text-[11px] text-zinc-500">单张不超过 {imageConfig.maxImageBytes / (1024 * 1024)}MB，合计不超过 {imageConfig.maxTotalImageBytes / (1024 * 1024)}MB</p> : null}
-                          {editingImageError ? <p role="alert" className="mb-2 text-xs text-red-500">{editingImageError}</p> : null}
-                        </>
-                      ) : null}
+                      {editingImages.length > 0 && (
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          {editingImages.map((image, imageIndex) => (
+                            <div key={image.id} className="relative h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900">
+                              {image.preview ? (
+                                <NextImage
+                                  src={image.preview}
+                                  alt={`第 ${imageIndex + 1} 张参考图片`}
+                                  fill
+                                  sizes="64px"
+                                  unoptimized
+                                  className="object-cover"
+                                />
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => onEditingImageRemove(image.id)}
+                                className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-white hover:bg-black/80"
+                                title={`移除第 ${imageIndex + 1} 张参考图片`}
+                                aria-label={`移除第 ${imageIndex + 1} 张参考图片`}
+                              >
+                                <X size={11} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <textarea
                         ref={editTextareaRef}
                         value={editingContent}
@@ -508,11 +390,10 @@ export default function MessageList({
                     <div className="flex gap-2">
                       <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors">取消</button>
                       <button
-                        onClick={() => { if (!editingImageError) onSubmitEdit(i); }}
-                        disabled={isEditingImageUploading || Boolean(editingImageError)}
+                        onClick={() => onSubmitEdit(i)}
                         className="btn-primary px-3 py-1.5 text-xs rounded-lg disabled:opacity-40"
                       >
-                        {isEditingImageUploading ? "上传中" : "提交"}
+                        提交
                       </button>
                     </div>
                   </div>
@@ -647,7 +528,7 @@ export default function MessageList({
           transition={{ duration: 0.25 }}
           className="flex gap-3 items-start max-w-4xl mx-auto w-full"
         >
-          <ResponsiveAIAvatar model={model} desktopSize={24} />
+          <ResponsiveAIAvatar desktopSize={24} />
           <div className="msg-bubble-ai px-5 py-3.5">
             <LoadingSweepText text="..." className="loading-sweep-dots text-xl" />
           </div>
