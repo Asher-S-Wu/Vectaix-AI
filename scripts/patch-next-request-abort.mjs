@@ -1,6 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
-const bodyStreamsUrl = new URL('../node_modules/next/dist/server/body-streams.js', import.meta.url);
 const original = `function replaceRequestBody(base, stream) {
     for(const key in stream){
         let v = stream[key];
@@ -25,13 +24,29 @@ const patched = `function replaceRequestBody(base, stream) {
     return base;
 }`;
 
-const source = await readFile(bodyStreamsUrl, 'utf8');
-if (source.includes(patched)) {
-  console.log('Next.js request abort patch is already applied.');
-} else {
-  if (!source.includes(original)) {
-    throw new Error('Next.js body-streams.js changed; review the request abort patch for this version.');
+const middlewareOriginal = `                if (bubblingResult) {
+                    throw err;
+                }`;
+const middlewarePatched = `${middlewareOriginal}
+                if (err?.code === 'ECONNRESET' && req.originalRequest.aborted && req.originalRequest.errored === err) {
+                    return true;
+                }`;
+
+async function patchNextFile(relativePath, original, patched) {
+  const url = new URL(`../node_modules/next/dist/${relativePath}`, import.meta.url);
+  const source = await readFile(url, 'utf8');
+  if (source.includes(patched)) {
+    console.log(`Next.js request abort patch is already applied: ${relativePath}`);
+    return;
   }
-  await writeFile(bodyStreamsUrl, source.replace(original, patched));
-  console.log('Applied Next.js request abort patch.');
+  if (!source.includes(original)) {
+    throw new Error(`Next.js ${relativePath} changed; review the request abort patch for this version.`);
+  }
+  await writeFile(url, source.replace(original, patched));
+  console.log(`Applied Next.js request abort patch: ${relativePath}`);
+}
+
+for (const format of ['', 'esm/']) {
+  await patchNextFile(`${format}server/body-streams.js`, original, patched);
+  await patchNextFile(`${format}server/next-server.js`, middlewareOriginal, middlewarePatched);
 }
