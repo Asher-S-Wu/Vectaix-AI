@@ -95,8 +95,11 @@ test('语音记录删除失败时不返回内部异常', async t => {
 test('上传文件的内部异常不返回给用户', async t => {
  const member = await login('upload-error@example.com');
  const { POST } = await import('../../app/api/upload/route.js');
- const request = new Request('http://test/api/upload', { method: 'POST' });
- request.formData = async () => { throw new Error('internal-upload-secret'); };
+ const form = new FormData();
+ form.set('kind', 'avatar');
+ form.set('file', new File([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a/eUAAAAASUVORK5CYII=', 'base64')], 'avatar.png', { type: 'image/png' }));
+ const request = new Request('http://test/api/upload', { method: 'POST', body: form });
+ t.mock.method(User, 'updateOne', () => { throw new Error('internal-upload-secret'); });
  t.mock.method(console, 'error', () => {});
  const response = await call(member, POST, request);
  assert.equal(response.status, 500);
