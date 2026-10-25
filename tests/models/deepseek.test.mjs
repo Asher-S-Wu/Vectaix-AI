@@ -4,10 +4,10 @@ import { runDirectChat } from '../../lib/server/providers/directChat.js';
 import { sanitizeMessage } from '../../lib/server/conversations/sanitize.js';
 
 const fixtureKey = 'protocol-test-key';
-const previousKey = process.env.DEEPSEEK_API_KEY;
-process.env.DEEPSEEK_API_KEY = fixtureKey;
-test.after(() => { if (previousKey === undefined) delete process.env.DEEPSEEK_API_KEY; else process.env.DEEPSEEK_API_KEY = previousKey; });
-const base = { messages: [{ role: 'user', content: '查询编号' }], system: '中文回答', onText() {}, onThought() {} };
+const connection = { model: { id: 'test-agent', upstreamModel: 'test-agent', defaultOutputTokens: 8192, supportsTools: true, requestOptions: {} }, provider: { id: 'test-provider', protocol: 'responses', baseUrl: 'https://models.example.com/v1', apiKey: fixtureKey } };
+
+
+const base = { connection, messages: [{ role: 'user', content: '查询编号' }], system: '中文回答', onText() {}, onThought() {} };
 const tool = { name: 'lookup', description: '查询编号', parameters: { type: 'object', properties: {}, additionalProperties: false } };
 const usage = { input_tokens: 12, output_tokens: 5, input_tokens_details: { cached_tokens: 3 }, output_tokens_details: { reasoning_tokens: 2 } };
 const created = 1792720800;
@@ -24,19 +24,19 @@ function toolReply(stats = usage) { return stream([
 ]); }
 function storedMessage(providerState) { return { role: 'model', type: 'text', content: '编号 42', parts: [{ text: '编号 42' }], providerState }; }
 
-test('官方Responses固定模型、max思考和最大输出，记录真实用量及时间', async () => {
+test('Responses使用管理员连接快照，记录真实用量及时间', async () => {
   let request;
   const texts = [], thoughts = [];
   const result = await runDirectChat({ ...base, model: 'client-selected-model', onText: value => texts.push(value), onThought: value => thoughts.push(value), fetchImpl: async (url, init) => {
     request = { url: String(url), headers: new Headers(init.headers), body: JSON.parse(init.body) };
     return completed();
   } });
-  assert.equal(request.url, 'https://api.deepseek.com/responses');
+  assert.equal(request.url, 'https://models.example.com/v1/responses');
   assert.equal(request.headers.get('authorization'), `Bearer ${fixtureKey}`);
-  assert.equal(request.body.model, 'deepseek-flash');
-  assert.equal(request.body.max_output_tokens, 393216);
-  assert.deepEqual(request.body.reasoning, { effort: 'max' });
-  assert.equal(request.body.top_p, 1);
+  assert.equal(request.body.model, 'test-agent');
+  assert.equal(request.body.max_output_tokens, 8192);
+  assert.equal(request.body.reasoning, undefined);
+  assert.equal(request.body.top_p, undefined);
   assert.equal(request.body.instructions, '中文回答');
   for (const key of ['previous_response_id', 'include', 'stream_options', 'store', 'service_tier', 'text', 'max_tokens', 'thinking', 'prompt_cache_key']) assert.equal(request.body[key], undefined);
   assert.deepEqual(texts, ['编号 42']);
@@ -44,11 +44,11 @@ test('官方Responses固定模型、max思考和最大输出，记录真实用�
   assert.deepEqual(result.usageRecords[0], { usage, responseId: 'response-id', created });
 });
 
-test('图片使用original精度，预算限制传到max_output_tokens', async () => {
+test('图片使用auto精度，预算限制传到max_output_tokens', async () => {
   let body;
   const content = [{ type: 'text', text: '描述图片' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }];
   await runDirectChat({ ...base, messages: [{ role: 'user', content }], resolveMaxOutputTokens: async () => 1024, fetchImpl: async (url, init) => { body = JSON.parse(init.body); return completed(); } });
-  assert.deepEqual(body.input[0].content, [{ type: 'input_text', text: '描述图片' }, { type: 'input_image', image_url: 'data:image/png;base64,aW1hZ2U=', detail: 'original' }]);
+  assert.deepEqual(body.input[0].content, [{ type: 'input_text', text: '描述图片' }, { type: 'input_image', image_url: 'data:image/png;base64,aW1hZ2U=', detail: 'auto' }]);
   assert.equal(body.max_output_tokens, 1024);
 });
 
@@ -74,10 +74,10 @@ test('历史文本会话使用当前助手继续，旧服务原生状态不传�
   assert.ok(!JSON.stringify(body).includes('obsolete'));
 });
 
-test('工具图片使用original精度并随完整原生状态保存', async () => {
+test('工具图片使用auto精度并随完整原生状态保存', async () => {
   const requests = [];
   let imagePending = false;
-  const image = { type: 'input_image', image_url: 'data:image/png;base64,aW1hZ2U=', detail: 'original' };
+  const image = { type: 'input_image', image_url: 'data:image/png;base64,aW1hZ2U=', detail: 'auto' };
   const injected = { role: 'user', content: [image] };
   const result = await runDirectChat({ ...base, tools: [tool],
     fetchImpl: async (url, init) => { requests.push(JSON.parse(init.body)); return requests.length === 1 ? toolReply() : completed(); },
@@ -128,7 +128,7 @@ test('原生状态完整保存超过25万字的思考和超过200条工具记录
 
 test('状态校验拒绝错误服务标识和未配对工具结果', () => {
   const state = { model: 'deepseek-flash', providerId: 'deepseek', items: [message()] };
-  for (const bad of [{ ...state, model: 'other' }, { ...state, providerId: 'other' }, { ...state, items: [{ type: 'function_call_output', call_id: 'missing', output: '42' }] }, { ...state, items: [{ type: 'reasoning', content: [{ type: 'reasoning_text' }] }, message()] }]) {
+  for (const bad of [{ ...state, model: ' ' }, { ...state, providerId: ' ' }, { ...state, items: [{ type: 'function_call_output', call_id: 'missing', output: '42' }] }, { ...state, items: [{ type: 'reasoning', content: [{ type: 'reasoning_text' }] }, message()] }]) {
     assert.throws(() => sanitizeMessage(storedMessage({ responses: bad }), 0), /responses invalid/);
   }
 });

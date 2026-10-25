@@ -1,3 +1,4 @@
+import { seedMediaSettings } from '../helpers/media-config.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import crypto from "node:crypto";
@@ -22,6 +23,7 @@ test.before(async () => {
   process.env.FISH_API_KEY = "test-fish-key";
   const { default: dbConnect } = await import("../../lib/db.js");
   await dbConnect();
+  await seedMediaSettings({audioKey: 'test-fish-key'});
   const { default: User } = await import("../../models/User.js");
   userId = String((await User.create({ email: "fish@example.test", password: "test-only" }))._id);
   otherUserId = String((await User.create({ email: "other-fish@example.test", password: "test-only" }))._id);

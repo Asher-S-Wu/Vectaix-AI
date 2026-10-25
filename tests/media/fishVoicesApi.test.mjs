@@ -1,3 +1,4 @@
+import { seedMediaSettings } from '../helpers/media-config.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -25,6 +26,7 @@ test.before(async () => {
   ({ RequestCookies } = await import("next/dist/server/web/spec-extension/cookies.js"));
   const { default: dbConnect } = await import("../../lib/db.js");
   await dbConnect();
+  await seedMediaSettings({audioKey: 'test-fish-voices-key'});
   ({ default: User } = await import("../../models/User.js"));
   ({ default: Session } = await import("../../models/Session.js"));
   ({ default: Voice } = await import("../../models/FishVoice.js"));
@@ -40,6 +42,7 @@ test.after(async () => {
 });
 
 async function login(label) {
+  process.env.ADMIN_EMAILS = [process.env.ADMIN_EMAILS, `${label}@fish-voices.test`].filter(Boolean).join(',');
   const user = await User.create({ email: `${label}@fish-voices.test`, password: "test-only" });
   const token = randomBytes(32).toString("base64url");
   await Session.create({

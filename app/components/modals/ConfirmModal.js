@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from '@/lib/client/i18n';
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
 import { useCallback, useState, useEffect } from "react";
@@ -8,12 +9,18 @@ export default function ConfirmModal({
     open,
     onClose,
     onConfirm,
-    title = "确认操作",
-    message = "确定要执行此操作吗？",
-    confirmText = "确定",
-    cancelText = "取消",
+    title,
+    message,
+    confirmText,
+    cancelText,
     danger = false,
 }) {
+  const { t } = useI18n();
+    title ??= t('确认操作', 'Confirm action');
+    message ??= t('确定要执行此操作吗？', 'Continue with this action?');
+    confirmText ??= t('确定', 'Confirm');
+    cancelText ??= t('取消', 'Cancel');
+
     const [isProcessing, setIsProcessing] = useState(false);
 
     const handleConfirm = useCallback(() => {
@@ -84,7 +91,7 @@ export default function ConfirmModal({
                         <button
                             onClick={handleCancel}
                             disabled={isProcessing}
-                            aria-label="关闭"
+                            aria-label={t("关闭", "Close")}
                             className="absolute top-4 right-4 p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <X size={18} />

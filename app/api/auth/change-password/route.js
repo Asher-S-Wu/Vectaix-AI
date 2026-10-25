@@ -1,10 +1,11 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 import { getAuthPayload, replaceAuthSessionsForUser } from '@/lib/auth';
 import { validatePassword } from '@/lib/server/auth/validation';
 
-export async function POST(req) {
+async function POSTHandler(req) {
   try {
     await dbConnect();
     const auth = await getAuthPayload(req);
@@ -59,3 +60,5 @@ export async function POST(req) {
     return Response.json({ error: '修改密码失败，请稍后再试' }, { status: 500 });
   }
 }
+
+export const POST = localizedRoute(POSTHandler);

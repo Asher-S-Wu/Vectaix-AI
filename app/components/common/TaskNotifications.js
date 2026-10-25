@@ -1,11 +1,14 @@
 "use client";
-import { useEffect } from 'react';
+import { useI18n } from "@/lib/client/i18n";
+import { useEffect, useEffectEvent } from 'react';
 import { usePathname } from 'next/navigation';
 import { apiJson } from '@/lib/client/apiClient';
 
 const active = new Set(['queued','running','waiting_media','waiting_approval']);
 export default function TaskNotifications({userId}) {
   const pathname = usePathname();
+  const { t } = useI18n();
+  const notify = useEffectEvent(task => new Notification(t("花卷任务更新", "Huajuan task update"), {body:task.status === "completed" ? t("任务已完成，打开对话查看结果。", "Task completed. Open the conversation to see the result.") : t("任务已结束，打开对话查看详情。", "Task ended. Open the conversation for details."), tag:task._id}));
   useEffect(()=>{
     if (!userId || !('Notification' in window)) return;
     let disposed = false, timer;
@@ -20,7 +23,7 @@ export default function TaskNotifications({userId}) {
         for (const task of tasks) {
           const previous = states.get(task._id);
           if (previous && active.has(previous) && !active.has(task.status)) {
-            const notification = new Notification('Vectaix 任务更新',{body:task.status==='completed'?'任务已完成，打开对话查看结果。':'任务已结束，打开对话查看详情。',tag:task._id});
+            const notification = notify(task);
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 重新挂载首页以加载通知指定的对话。
             notification.onclick = () => { window.focus(); window.localStorage.setItem('vectaix-current-conversation',task.conversationId); window.location.assign('/'); notification.close(); };
           }

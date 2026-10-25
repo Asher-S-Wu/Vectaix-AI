@@ -7,9 +7,9 @@ const image = '<svg xmlns="http://www.w3.org/2000/svg" width="768" height="512">
 
 async function withPage(run, ip) {
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': ip } });
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': ip } });
   try {
-    const login = await context.request.post(`${base}/api/auth/login`, { data: { email: 'member@example.test', password: 'Vectaix-Test-2026!' } });
+    const login = await context.request.post(`${base}/api/auth/login`, { data: { email: 'admin@example.test', password: 'Vectaix-Test-2026!' } });
     assert.equal(login.status(), 200);
     const page = await context.newPage();
     const errors = [];
@@ -24,6 +24,7 @@ async function withPage(run, ip) {
 
 test('图片页传递 1～4 张数量，等待整组完成并展示成功与失败位置', { timeout: 90000 }, async () => {
   await withPage(async (page, context) => {
+    assert.equal((await context.request.put(`${base}/api/admin/media`, { data: { image: { enabled: false, baseUrl: 'https://1.1.1.1/v1/images' } } })).status(), 200);
     let release, submitted;
     await page.route('**/api/files/ui-image-*', route => route.fulfill({ contentType: 'image/svg+xml', body: image }));
     await page.route('**/api/media/image', async route => {
@@ -33,7 +34,7 @@ test('图片页传递 1～4 张数量，等待整组完成并展示成功与失�
         ? { success: false, message: '测试图片未通过审核' }
         : { success: true, fileId: `ui-image-${index}`, url: `/api/files/ui-image-${index}` }) } });
     });
-    await page.goto(`${base}/media/image`);
+    await page.goto(`${base}/admin/media/image`);
     await page.getByLabel('图片描述').fill('风景');
     assert.equal(await page.locator('select').count(), 0);
     for (const count of [1, 2, 3, 4]) {
@@ -54,9 +55,9 @@ test('图片页传递 1～4 张数量，等待整组完成并展示成功与失�
     await page.getByText('测试图片未通过审核', { exact: true }).waitFor();
     await page.getByRole('button', { name: '放大', exact: true }).first().click();
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: '用于对话创作', exact: true }).click();
-    await page.getByText('对话创作已使用当前配置', { exact: true }).waitFor();
-    assert.equal((await (await context.request.get(`${base}/api/settings`)).json()).settings.chatMediaSettings.image.count, 4);
+    await page.getByRole('button', { name: '设为全平台默认参数', exact: true }).click();
+    await page.getByText('已保存为全平台媒体默认参数', { exact: true }).waitFor();
+    assert.equal((await (await context.request.get(`${base}/api/admin/media`)).json()).config.image.count, 4);
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     const cards = await page.locator('[aria-busy="false"] > div').evaluateAll(items => items.map(item => item.getBoundingClientRect().x));

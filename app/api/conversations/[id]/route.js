@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import {
   deleteConversationForUser,
   getConversationForUser,
@@ -23,7 +24,7 @@ async function getRouteId(context) {
   return id;
 }
 
-export async function GET(req, context) {
+async function GETHandler(req, context) {
   const id = await getRouteId(context);
   if (!isValidConversationId(id)) {
     return Response.json({ error: "Invalid id" }, { status: 400 });
@@ -38,7 +39,7 @@ export async function GET(req, context) {
   return Response.json({ conversation });
 }
 
-export async function DELETE(req, context) {
+async function DELETEHandler(req, context) {
   const id = await getRouteId(context);
   if (!isValidConversationId(id)) {
     return Response.json({ error: "Invalid id" }, { status: 400 });
@@ -61,7 +62,7 @@ export async function DELETE(req, context) {
   }
 }
 
-export async function PUT(req, context) {
+async function PUTHandler(req, context) {
   const id = await getRouteId(context);
   if (!isValidConversationId(id)) {
     return Response.json({ error: "Invalid id" }, { status: 400 });
@@ -90,7 +91,7 @@ export async function PUT(req, context) {
   }
 }
 
-export async function PATCH(req, context) {
+async function PATCHHandler(req, context) {
   const id = await getRouteId(context);
   if (!isValidConversationId(id)) {
     return Response.json({ error: "Invalid id" }, { status: 400 });
@@ -124,3 +125,8 @@ export async function PATCH(req, context) {
     return Response.json({ error: error?.message || "更新失败" }, { status: 400 });
   }
 }
+
+export const GET = localizedRoute(GETHandler);
+export const DELETE = localizedRoute(DELETEHandler);
+export const PUT = localizedRoute(PUTHandler);
+export const PATCH = localizedRoute(PATCHHandler);

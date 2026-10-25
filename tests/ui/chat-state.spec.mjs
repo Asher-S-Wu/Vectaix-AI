@@ -51,7 +51,7 @@ async function transferFile(page, action, file, size) {
 
 async function withChat(run, ip = '192.0.2.250', beforeLoad) {
   const browser = await chromium.launch();
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': ip } });
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': ip } });
   try {
     assert.equal((await context.request.post(`${base}/api/auth/login`, { data: { email: 'member@example.test', password: 'Vectaix-Test-2026!' } })).status(), 200);
     const page = await context.newPage();
@@ -70,6 +70,35 @@ async function withChat(run, ip = '192.0.2.250', beforeLoad) {
     await browser.close();
   }
 }
+
+test('设置加载失败后可重试，保留草稿和搜索偏好', { timeout: 90000 }, async () => {
+  let attempts = 0;
+  await withChat(async page => {
+    const retry = page.getByRole('button', { name: '重新加载设置', exact: true });
+    await retry.waitFor();
+    const input = page.getByRole('textbox', { name: '消息', exact: true });
+    await input.fill('加载完成后继续发送');
+    assert.equal(await page.getByRole('button', { name: '发送', exact: true }).isDisabled(), true);
+    await retry.click();
+    await retry.waitFor({ state: 'hidden' });
+    await page.waitForFunction(() => !document.querySelector('button[aria-label="发送"]').disabled);
+    assert.equal(await input.inputValue(), '加载完成后继续发送');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('vectaix_ui_webSearch')).enabled), false);
+    await page.route('**/api/tasks', route => {
+      const body = route.request().postDataJSON();
+      assert.equal(body.prompt, '加载完成后继续发送');
+      assert.equal(body.webSearch.enabled, false);
+      return completeTask(route);
+    });
+    await input.press('Enter');
+    await page.waitForFunction(() => document.querySelector('.composer-shell textarea').value === '');
+  }, '192.0.2.240', async page => {
+    await page.addInitScript(() => localStorage.setItem('vectaix_ui_webSearch', JSON.stringify({ enabled: false })));
+    await page.route('**/api/settings', route => ++attempts === 1
+      ? route.fulfill({ status: 503, json: { error: '加载设置失败' } })
+      : route.continue());
+  });
+});
 
 test('连续切换对话只显示最后选择的内容，并清理上一段对话的编辑框', { timeout: 90000 }, async () => {
   await withChat(async page => {
@@ -114,7 +143,7 @@ test('首次恢复历史期间等待读取完成，再向恢复的对话发送�
       assert.equal(Object.hasOwn(body, 'model'), false);
       await route.fulfill({ status: 400, json: { error: '发送已到达恢复的对话' } });
     });
-    const input = page.getByPlaceholder('给 AI 发送消息…');
+    const input = page.getByPlaceholder('输入问题或描述任务，也可以添加文件…');
     await input.fill('恢复完成后发送');
     await input.press('Enter');
     assert.equal(submitted, 0);
@@ -156,7 +185,7 @@ test('编辑历史消息提交途中切换对话，保留原消息附件', { tim
     await page.getByRole('button', { name: '第一段对话', exact: true }).click({ position: { x: 20, y: 20 } });
     await page.getByText('第一段内容', { exact: true }).waitFor();
     await page.getByRole('button', { name: '编辑消息', exact: true }).click();
-    await page.getByRole('img', { name: '第 1 张参考图片', exact: true }).waitFor();
+    await page.getByRole('img', { name: '参考图片 1', exact: true }).waitFor();
     assert.equal(await page.locator('.composer-shell input[type="file"]').count(), 1);
     await page.getByRole('button', { name: '提交', exact: true }).waitFor();
     const sent = page.waitForRequest(request => request.url().endsWith('/api/tasks') && request.method() === 'POST');
@@ -185,7 +214,7 @@ test('中文选词回车保留输入，发送途中新建对话后旧响应不�
         task: { _id: 'test-task', conversationId: firstId, status: 'completed' },
       } });
     });
-    const input = page.getByPlaceholder('给 AI 发送消息…');
+    const input = page.getByPlaceholder('输入问题或描述任务，也可以添加文件…');
     assert.equal(await page.locator('.composer-shell textarea').count(), 1);
     assert.equal(await page.locator('.composer-shell button').count(), 2);
     assert.equal(await page.locator('.composer-shell input').count(), 1);
@@ -203,10 +232,10 @@ test('中文选词回车保留输入，发送途中新建对话后旧响应不�
     const requested = page.waitForRequest(request => request.url().endsWith('/api/tasks') && request.method() === 'POST');
     await input.press('Enter');
     await requested;
-    await page.getByRole('button', { name: '新建对话', exact: true }).first().click();
+    await page.getByRole('button', { name: '新任务', exact: true }).first().click();
     release();
     await page.waitForFunction(() => document.querySelector('textarea')?.value === '');
-    await page.getByRole('heading', { name: '今天能帮你做点什么？', exact: true }).waitFor();
+    await page.getByRole('heading', { name: '你想完成什么？', exact: true }).waitFor();
     assert.equal(await page.locator('button[aria-current="page"]').count(), 0);
     assert.equal(await page.getByText('正在输入中文', { exact: true }).count(), 0);
     assert.equal(submitted, 1);
@@ -460,7 +489,7 @@ test('附件数量与大小在上传前校验，五个附件时显示全部卡�
 test('登录网络失败给出提示，退出请求失败时保留当前会话', { timeout: 90000 }, async () => {
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({ locale: 'zh-CN' });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/api/auth/login', route => route.abort('failed'));
@@ -468,7 +497,7 @@ test('登录网络失败给出提示，退出请求失败时保留当前会话',
     await page.getByPlaceholder('邮箱', { exact: true }).fill('member@example.test');
     await page.getByPlaceholder('密码', { exact: true }).fill('Vectaix-Test-2026!');
     await page.getByRole('button', { name: '登录', exact: true }).click();
-    await page.getByText(/登录失败：/).waitFor();
+    await page.getByText('网络连接失败，请检查网络后重试。', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: '登录', exact: true }).isEnabled(), true);
     assert.deepEqual(errors, []);
   } finally {

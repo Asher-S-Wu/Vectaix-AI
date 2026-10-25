@@ -1,9 +1,10 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import WorkbenchTaskEvent from '@/models/WorkbenchTaskEvent';
 import { workbenchRoute, workbenchError } from '@/lib/server/workbench/apiHelpers';
 import { ownedTask } from '@/lib/server/workbench/tasks';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
-export async function GET(req,context) {
+async function GETHandler(req,context) {
   return workbenchRoute(req,async(userId)=>{
     const task=await ownedTask(userId,(await context.params).id);
     const after=Number(new URL(req.url).searchParams.get('after') || 0);
@@ -12,3 +13,5 @@ export async function GET(req,context) {
     return Response.json({events});
   });
 }
+
+export const GET = localizedRoute(GETHandler);

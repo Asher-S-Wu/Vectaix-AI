@@ -1,7 +1,9 @@
 "use client";
 
+import { useI18n } from "@/lib/client/i18n";
+
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, ChevronUp, FileScan, Lightbulb, Loader2, Paintbrush, Scale, Search, Terminal, Zap } from "lucide-react";
 import Markdown from "../common/Markdown";
 import { LoadingSweepText, ToolRunPreview, hasToolRunPreview } from "./MessageListHelpers";
@@ -10,6 +12,7 @@ import {
   StepStatusText,
   getDisplayHostname,
   normalizeTimeline,
+  getTimelineToolLabel,
 } from "./thinkingBlockUtils";
 
 export default function ThinkingBlock({
@@ -22,6 +25,8 @@ export default function ThinkingBlock({
   bodyText,
   showThoughtDetails = true,
 }) {
+  const { t, locale, formatNumber, localizeMessage } = useI18n();
+  const reducedMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedTimelineId, setExpandedTimelineId] = useState(null);
   const containerRef = useRef(null);
@@ -102,8 +107,8 @@ export default function ThinkingBlock({
 
   const isThinkingActive = Boolean(isStreaming || isSearching) || timelineItems.some((step) => step.status === "running" || step.status === "streaming");
 
-  const activeThoughtLabel = "思考中";
-  const completedThoughtLabel = "已思考";
+  const activeThoughtLabel = t("思考中", "Thinking");
+  const completedThoughtLabel = t("已思考", "Thought complete");
   const toggleExpandedStep = (stepId) => {
     const nextId = expandedTimelineId === stepId ? null : stepId;
     setDismissedStepId(nextId === null ? stepId : null);
@@ -117,26 +122,11 @@ export default function ThinkingBlock({
     const isError = step.status === "error";
 
     const getTitle = () => {
-      if (step.title) return step.title;
-      if (step.kind === "thought") return "思考过程";
-      if (step.kind === "search") {
-        const query = step.query ? `「${step.query}」` : "";
-        const countLabel = Number.isFinite(step.resultCount) && step.resultCount > 0 ? `（${step.resultCount}条）` : "";
-        if (isRunning) return `联网搜索中${query}`;
-        if (isError) return `联网搜索失败${query}`;
-        return `联网搜索完成${query}${countLabel}`;
-      }
-      if (step.kind === "reader") {
-        const hostname = getDisplayHostname(step.url);
-        const target = hostname ? `「${hostname}」` : "";
-        const countLabel = Number.isFinite(step.resultCount) && step.resultCount > 0 ? `（${step.resultCount}页）` : "";
-        if (isRunning) return `浏览网页中${target}`;
-        if (isError) return `网页获取失败${target}`;
-        return `网页阅读完成${target}${countLabel}`;
-      }
-      if (step.kind === "planner") return isRunning ? "正在制定计划" : (isError ? "制定计划失败" : "执行计划已确定");
-      if (step.kind === "writer") return isRunning ? "正在整理结果" : (isError ? "整理结果失败" : "最终结果已生成");
-      return "处理中";
+      if (step.title) return localizeMessage(step.title);
+      if (step.kind === "thought") return t("思考过程", "Reasoning");
+      if (step.kind === "planner") return isRunning ? t("正在制定计划", "Planning") : (isError ? t("制定计划失败", "Planning failed") : t("执行计划已确定", "Plan ready"));
+      if (step.kind === "writer") return isRunning ? t("正在整理结果", "Preparing results") : (isError ? t("整理结果失败", "Could not prepare results") : t("最终结果已生成", "Results ready"));
+      return t("处理中", "Working");
     };
 
     const hasDetail = (() => {
@@ -173,7 +163,7 @@ export default function ThinkingBlock({
       const hasContent = typeof step.content === "string" && step.content.trim();
       const thoughtDetailText = hasContent
         ? step.content
-        : "这一阶段没有可展示的思考内容。";
+        : t("这一阶段没有可展示的思考内容。", "No reasoning details for this step.");
       const canExpandThought = showThoughtDetails && hasContent;
       const isThoughtOpen = canExpandThought && isExpanded;
       return (
@@ -187,7 +177,7 @@ export default function ThinkingBlock({
               <div className={`p-1 rounded-md ${isThoughtStreaming ? "bg-primary/10 text-primary animate-pulse" : "bg-zinc-200 dark:bg-zinc-700"}`}>
                 {icon}
               </div>
-              <StepStatusText text={isThoughtStreaming ? activeThoughtLabel : "思考过程"} active={showThoughtDots} />
+              <StepStatusText text={isThoughtStreaming ? activeThoughtLabel : t("思考过程", "Reasoning")} active={showThoughtDots} />
               <div className="ml-auto flex items-center gap-1">
                 {isThoughtOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </div>
@@ -203,8 +193,9 @@ export default function ThinkingBlock({
           <AnimatePresence>
             {isThoughtOpen && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
+                initial={reducedMotion ? false : { height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
+                transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeInOut" }}
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
@@ -223,7 +214,7 @@ export default function ThinkingBlock({
                     <div className="sticky bottom-2 flex justify-end mt-2 pointer-events-none">
                       <div className="text-[10px] text-primary/70 flex items-center gap-1.5 backdrop-blur-md bg-white/80 dark:bg-zinc-800/90 px-2.5 py-1 rounded-full border border-primary/20 dark:border-primary/30 shadow-sm dark:shadow-none pointer-events-auto">
                         <Loader2 className="w-3 h-3 animate-spin" />
-                        思考过程中...
+                        {t("正在思考…", "Thinking…")}
                       </div>
                     </div>
                   )}
@@ -236,7 +227,7 @@ export default function ThinkingBlock({
     }
 
     if (step.kind === "search") {
-      const querySuffix = step.query ? `「${step.query}」` : "";
+      const querySuffix = step.query ? t("“{query}”", " “{query}”", { query: step.query }) : "";
       const isOpen = hasLinkedToolPreview && isExpanded;
       return (
         <div key={step.id || `search-${idx}`} className="w-full max-w-full md:max-w-[760px]">
@@ -244,9 +235,9 @@ export default function ThinkingBlock({
             <button type="button" onClick={() => toggleExpandedStep(step.id)} className={capsuleClass}>
               {icon}
               {isRunning ? (
-                <SplitStatusText status="联网搜索中" suffix={querySuffix} active />
+                <SplitStatusText status={t("联网搜索中", "Searching the web")} suffix={querySuffix} active />
               ) : (
-                <span>{isError ? `联网搜索失败${querySuffix}` : `联网搜索完成${querySuffix}`}</span>
+                <span>{isError ? t("搜索失败{query}", "Search failed{query}", { query: querySuffix }) : t("搜索完成{query}", "Search completed{query}", { query: querySuffix })}</span>
               )}
               <div className="ml-auto flex items-center gap-1">
                 {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -256,17 +247,18 @@ export default function ThinkingBlock({
             <div className={capsuleClass}>
               {icon}
               {isRunning ? (
-                <SplitStatusText status="联网搜索中" suffix={querySuffix} active />
+                <SplitStatusText status={t("联网搜索中", "Searching the web")} suffix={querySuffix} active />
               ) : (
-                <span>{isError ? `联网搜索失败${querySuffix}` : `联网搜索完成${querySuffix}`}</span>
+                <span>{isError ? t("搜索失败{query}", "Search failed{query}", { query: querySuffix }) : t("搜索完成{query}", "Search completed{query}", { query: querySuffix })}</span>
               )}
             </div>
           )}
           <AnimatePresence>
             {isOpen && linkedTool ? (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
+                initial={reducedMotion ? false : { height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
+                transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeInOut" }}
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
@@ -282,7 +274,7 @@ export default function ThinkingBlock({
 
     if (step.kind === "reader") {
       const hostname = getDisplayHostname(step.url);
-      const urlSuffix = hostname ? `「${hostname}」` : "";
+      const urlSuffix = hostname ? t("“{host}”", " “{host}”", { host: hostname }) : "";
       const isOpen = hasLinkedToolPreview && isExpanded;
       return (
         <div key={step.id || `reader-${idx}`} className="w-full max-w-full md:max-w-[760px]">
@@ -290,9 +282,9 @@ export default function ThinkingBlock({
             <button type="button" onClick={() => toggleExpandedStep(step.id)} className={capsuleClass}>
               {icon}
               {isRunning ? (
-                <SplitStatusText status="浏览网页中" suffix={urlSuffix} active />
+                <SplitStatusText status={t("浏览网页中", "Reading web pages")} suffix={urlSuffix} active />
               ) : (
-                <span>{isError ? `网页获取失败${urlSuffix}` : `网页阅读完成${urlSuffix}`}</span>
+                <span>{isError ? t("网页读取失败{host}", "Could not read page{host}", { host: urlSuffix }) : t("网页阅读完成{host}", "Page read{host}", { host: urlSuffix })}</span>
               )}
               <div className="ml-auto flex items-center gap-1">
                 {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -302,17 +294,18 @@ export default function ThinkingBlock({
             <div className={capsuleClass}>
               {icon}
               {isRunning ? (
-                <SplitStatusText status="浏览网页中" suffix={urlSuffix} active />
+                <SplitStatusText status={t("浏览网页中", "Reading web pages")} suffix={urlSuffix} active />
               ) : (
-                <span>{isError ? `网页获取失败${urlSuffix}` : `网页阅读完成${urlSuffix}`}</span>
+                <span>{isError ? t("网页读取失败{host}", "Could not read page{host}", { host: urlSuffix }) : t("网页阅读完成{host}", "Page read{host}", { host: urlSuffix })}</span>
               )}
             </div>
           )}
           <AnimatePresence>
             {isOpen && linkedTool ? (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
+                initial={reducedMotion ? false : { height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
+                transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeInOut" }}
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
@@ -339,7 +332,7 @@ export default function ThinkingBlock({
     }
 
     if (step.kind === "writer") {
-      const detail = step.message || step.title || "";
+      const detail = localizeMessage(step.message || step.title || "");
       const titleText = getTitle();
       const canExpand = Boolean(step.content);
       const isOpen = canExpand && isExpanded;
@@ -362,8 +355,9 @@ export default function ThinkingBlock({
           <AnimatePresence>
             {isOpen ? (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
+                initial={reducedMotion ? false : { height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
+                transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeInOut" }}
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
@@ -382,7 +376,7 @@ export default function ThinkingBlock({
                     <div className="sticky bottom-2 flex justify-end mt-2 pointer-events-none">
                       <div className="text-[10px] text-primary/70 flex items-center gap-1.5 backdrop-blur-md bg-white/80 dark:bg-zinc-800/90 px-2.5 py-1 rounded-full border border-primary/20 dark:border-primary/30 shadow-sm dark:shadow-none pointer-events-auto">
                         <Loader2 className="w-3 h-3 animate-spin" />
-                        思考过程中...
+                        {t("正在思考…", "Thinking…")}
                       </div>
                     </div>
                   )}
@@ -396,8 +390,8 @@ export default function ThinkingBlock({
 
     if (step.kind === "image_gen") {
       const progressMatch = typeof step.content === "string" && step.content.match(/(\d+)%/);
-      const progressText = progressMatch ? ` (${progressMatch[1]}%)` : "";
-      const label = isRunning ? `生成中${progressText}` : (isError ? "生成失败" : "已生成");
+      const progressText = progressMatch ? ` (${formatNumber(Number(progressMatch[1]) / 100, { style: "percent" })})` : "";
+      const label = isRunning ? t("生成中{progress}", "Generating{progress}", { progress: progressText }) : (isError ? t("生成失败", "Generation failed") : t("已生成", "Generated"));
       return (
         <div key={step.id || `${step.kind}-${idx}`} className="w-full max-w-full md:max-w-[760px]">
           <div className={`thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium py-1.5 px-3 rounded-full ${isError ? "bg-red-50 text-red-600" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500"}`}>
@@ -411,7 +405,7 @@ export default function ThinkingBlock({
     }
 
     if (step.kind === "tool") {
-      const label = step.content || step.message || step.title || "工具执行";
+      const label = step.eventType === "tool_start" && step.tool ? getTimelineToolLabel(step.tool, locale) : localizeMessage(step.content || step.message || step.title) || t("工具执行", "Running tool");
       const isOpen = hasLinkedToolPreview && isExpanded;
       return (
         <div key={step.id || `tool-${idx}`} className="w-full max-w-full md:max-w-[760px]">
@@ -432,8 +426,9 @@ export default function ThinkingBlock({
           <AnimatePresence>
             {isOpen && linkedTool ? (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
+                initial={reducedMotion ? false : { height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
+                transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeInOut" }}
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
@@ -459,7 +454,7 @@ export default function ThinkingBlock({
           >
             {isThinkingActive ? <Loader2 className="thinking-icon-header animate-spin text-primary" /> : <Zap className="thinking-icon-header" />}
             <span className="thinking-btn-label flex items-center">
-              <span className="truncate max-w-[240px]">执行过程</span>
+              <span className="truncate max-w-[240px]">{t("执行过程", "Task activity")}</span>
             </span>
             {collapsed ? (
               <ChevronDown className="thinking-icon-chevron" />
@@ -470,17 +465,17 @@ export default function ThinkingBlock({
 
           {!hasTimeline && !isSearching && safeSearchError ? (
             <div className="thinking-error-tip text-red-600 bg-red-50 border border-red-200">
-              联网搜索失败：{safeSearchError}
+              {t("搜索失败：{error}", "Search failed: {error}", { error: localizeMessage(safeSearchError) })}
             </div>
           ) : null}
 
           <AnimatePresence>
             {!collapsed && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
+                initial={reducedMotion ? false : { height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
+                transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeInOut" }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
                 {hasTimeline ? (
@@ -497,7 +492,7 @@ export default function ThinkingBlock({
                           className="thinking-capsule inline-flex w-fit max-w-full items-center font-medium transition-colors text-zinc-500 cursor-pointer"
                         >
                           <Lightbulb className="thinking-icon-step" />
-                          <StepStatusText text={isStreaming ? activeThoughtLabel : "思考过程"} active={isStreaming && expandedTimelineId !== "__simple__"} />
+                          <StepStatusText text={isStreaming ? activeThoughtLabel : t("思考过程", "Reasoning")} active={isStreaming && expandedTimelineId !== "__simple__"} />
                           {expandedTimelineId === "__simple__" ? <ChevronUp className="thinking-icon-chevron" /> : <ChevronDown className="thinking-icon-chevron" />}
                         </button>
                         {expandedTimelineId === "__simple__" ? (
@@ -516,7 +511,7 @@ export default function ThinkingBlock({
                               <div className="sticky bottom-2 flex justify-end mt-2 pointer-events-none">
                                 <div className="text-[10px] text-primary/70 flex items-center gap-1.5 backdrop-blur-md bg-white/80 dark:bg-zinc-800/90 px-2.5 py-1 rounded-full border border-primary/20 dark:border-primary/30 shadow-sm dark:shadow-none pointer-events-auto">
                                   <Loader2 className="w-3 h-3 animate-spin" />
-                                  思考过程中...
+                                  {t("正在思考…", "Thinking…")}
                                 </div>
                               </div>
                             )}

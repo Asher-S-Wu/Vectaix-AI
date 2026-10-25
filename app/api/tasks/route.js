@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import Conversation from '@/models/Conversation';
 import WorkbenchTask from '@/models/WorkbenchTask';
 import { workbenchRoute, readBody, requireObjectId, workbenchError } from '@/lib/server/workbench/apiHelpers';
@@ -6,7 +7,7 @@ import { createTask, ownedTask } from '@/lib/server/workbench/tasks';
 import { WORKBENCH_LIMITS } from '@/lib/server/workbench/config';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
-export async function GET(req) {
+async function GETHandler(req) {
   return workbenchRoute(req,async(userId)=>{
     const projectId=new URL(req.url).searchParams.get('projectId');
     const conversationId=new URL(req.url).searchParams.get('conversationId');
@@ -20,6 +21,9 @@ export async function GET(req) {
     return Response.json({tasks,limits:WORKBENCH_LIMITS});
   });
 }
-export async function POST(req) {
+async function POSTHandler(req) {
   return workbenchRoute(req,async(userId)=>Response.json(await createTask(userId,await readBody(req)),{status:201}));
 }
+
+export const GET = localizedRoute(GETHandler);
+export const POST = localizedRoute(POSTHandler);

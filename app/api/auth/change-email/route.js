@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import dbConnect from '@/lib/db';
 import { getAuthPayload } from '@/lib/auth';
 import User from '@/models/User';
@@ -5,7 +6,7 @@ import bcrypt from 'bcryptjs';
 import { getUserAccessFlags, isAdminEmail } from '@/lib/admin';
 import { isValidEmail, normalizeEmail } from '@/lib/server/auth/validation';
 
-export async function POST(req) {
+async function POSTHandler(req) {
   try {
     await dbConnect();
     const auth = await getAuthPayload(req);
@@ -85,3 +86,5 @@ export async function POST(req) {
     return Response.json({ error: '修改邮箱失败' }, { status: 500 });
   }
 }
+
+export const POST = localizedRoute(POSTHandler);

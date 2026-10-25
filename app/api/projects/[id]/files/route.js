@@ -1,10 +1,11 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import { workbenchRoute, workbenchError } from "@/lib/server/workbench/apiHelpers";
 import { listProjectFiles, uploadProjectDocument, MAX_DOCUMENT_BYTES } from "@/lib/server/workbench/documents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(request, context) {
+async function GETHandler(request, context) {
   return workbenchRoute(request, async (userId) => {
     const { id } = await context.params;
     return Response.json({ files: await listProjectFiles({ userId, projectId: id }) });
@@ -37,7 +38,7 @@ async function boundedFormData(request) {
   } catch { throw workbenchError("文件上传表单格式不正确"); }
 }
 
-export async function POST(request, context) {
+async function POSTHandler(request, context) {
   return workbenchRoute(request, async (userId) => {
     const { id } = await context.params;
     const form = await boundedFormData(request);
@@ -46,3 +47,6 @@ export async function POST(request, context) {
     return Response.json({ file }, { status: 201 });
   });
 }
+
+export const GET = localizedRoute(GETHandler);
+export const POST = localizedRoute(POSTHandler);

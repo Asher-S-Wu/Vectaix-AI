@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/client/i18n";
+
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
@@ -10,10 +12,14 @@ export default function MediaConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmText = "确认",
-  cancelText = "取消",
+  confirmText,
+  cancelText,
   danger = false,
 }) {
+  const { t } = useI18n();
+  confirmText ??= t("确认", "Confirm");
+  cancelText ??= t("取消", "Cancel");
+
   const reduceMotion = useReducedMotion();
   const dialogRef = useRef(null);
   const cancelButtonRef = useRef(null);
@@ -89,12 +95,13 @@ export default function MediaConfirmDialog({
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18 }}
         >
           <button
             type="button"
             onClick={() => onCloseRef.current()}
             className="absolute inset-0 cursor-default bg-zinc-950/45 backdrop-blur-sm"
-            aria-label="关闭确认窗口"
+            aria-label={t("关闭确认窗口", "Close confirmation dialog")}
             tabIndex={-1}
           />
           <motion.section
@@ -106,14 +113,14 @@ export default function MediaConfirmDialog({
             initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.97 }}
-            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.16, 1, 0.3, 1] }}
             className="relative w-full max-w-sm rounded-[24px] border border-zinc-200 bg-white p-6 shadow-pop dark:border-zinc-800 dark:bg-zinc-950"
           >
             <button
               type="button"
               onClick={() => onCloseRef.current()}
               className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-              aria-label="关闭"
+              aria-label={t("关闭", "Close")}
             >
               <X className="h-5 w-5" />
             </button>

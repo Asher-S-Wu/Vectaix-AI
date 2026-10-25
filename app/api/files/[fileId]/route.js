@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import { Readable } from "node:stream";
 import { stat } from "node:fs/promises";
 import { getAuthPayload } from "@/lib/auth";
@@ -92,7 +93,7 @@ async function serve(request, context, headOnly = false) {
   }
 }
 
-export function GET(request, context) {
+function GETHandler(request, context) {
   return serve(request, context, false);
 }
 
@@ -100,7 +101,7 @@ export function HEAD(request, context) {
   return serve(request, context, true);
 }
 
-export async function DELETE(request, context) {
+async function DELETEHandler(request, context) {
   const owned = await getOwnedFile(request, context);
   if (owned.error) return owned.error;
   if (owned.file.ownerType !== "temporary") {
@@ -115,3 +116,7 @@ export async function DELETE(request, context) {
   }
   return Response.json({ success: true });
 }
+
+export const DELETE = localizedRoute(DELETEHandler);
+
+export const GET = localizedRoute(GETHandler);

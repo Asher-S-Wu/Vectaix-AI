@@ -29,10 +29,17 @@ test('权限迁移直接清理旧数据并保留当前权限', async () => {
     const migrations = mongoose.connection.collection('settings_migrations');
     await migrations.insertOne({ _id: 'capabilities-v1', completedAt: new Date() });
     const { insertedId } = await settings.insertOne({ userId: new mongoose.Types.ObjectId(), permissions: { microphone: true, camera: true, clipboard: true, geolocation: true, browser: true, notifications: false } });
+    const schedules = mongoose.connection.collection('backupschedules');
+    await schedules.insertMany([{ name: 'mixed', selection: ['files', 'skills', 'memories'], enabled: true }, { name: 'removed', selection: ['memories'], enabled: true }]);
+    const memories = mongoose.connection.collection('workbenchmemories');
+    await memories.insertOne({ content: '旧记忆' });
     await migrateUserCapabilities();
     await migrateUserCapabilities();
+    assert.deepEqual((await schedules.findOne({ name: 'mixed' })).selection, ['files']);
+    assert.equal((await schedules.findOne({ name: 'removed' })).enabled, false);
+    assert.equal(await memories.countDocuments(), 0);
     assert.deepEqual((await settings.findOne({ _id: insertedId })).permissions, { browser: true, notifications: false });
-    assert.equal(await migrations.countDocuments({ _id: 'permissions-v2' }), 1);
+    assert.equal(await migrations.countDocuments({ _id: 'huajuan-agent-v1' }), 1);
   } finally {
     await mongoose.disconnect();
     await mongo.stop();

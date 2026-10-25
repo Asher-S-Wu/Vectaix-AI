@@ -1,5 +1,5 @@
 {
-  "name": "vectaix-ai",
+  "name": "huajuan-ai",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,11 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "prebuild": "node scripts/install-rclone.mjs && playwright install chromium --only-shell",
     "postinstall": "node scripts/patch-next-request-abort.mjs",
     "setup:remotes": "node scripts/install-rclone.mjs",
-    "test": "TSX_TSCONFIG_PATH=jsconfig.json MONGO_URI=mongodb://127.0.0.1/test node --import tsx --test tests/*.test.* tests/**/*.test.*",
-    "test:ui": "node --test tests/ui/*.spec.mjs"
+    "test": "node scripts/test.mjs",
+    "test:ui": "node --test tests/ui/*.spec.mjs",
+    "setup:runtime": "node scripts/install-rclone.mjs && playwright install chromium --only-shell"
   },
   "dependencies": {
     "@ffprobe-installer/ffprobe": "^2.1.2",
@@ -33,6 +33,7 @@
     "openai": "^6.42.0",
     "pdfjs-dist": "^6.3.289",
     "playwright-chromium": "^1.63.0",
+    "railway": "3.16.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-markdown": "^9.0.0",
@@ -41,6 +42,7 @@
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
+    "skills": "1.7.4",
     "undici": "^8.10.2",
     "yaml": "^2.9.0",
     "yauzl": "^3.4.0",

@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/client/i18n";
+
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import ChatHeader from "./ChatHeader";
@@ -13,6 +15,8 @@ export default function ChatLayout({
   user,
   assistant,
   isSettingsReady,
+  settingsError,
+  onRetrySettings,
   nickname,
   sidebarOpen,
   conversations,
@@ -53,6 +57,7 @@ export default function ChatLayout({
   composerProps,
   userAvatar,
 }) {
+  const { t, localizeMessage } = useI18n();
   return (
     <div className="app-root flex overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <Sidebar projects={projects} activeProjectId={activeProjectId} onSelectProject={onSelectProject} onManageProjects={onManageProjects} onMoveConversation={onMoveConversation} isOpen={sidebarOpen} conversations={conversations} conversationsReady={conversationsReady} conversationsError={conversationsError} onRetryConversations={onRetryConversations} currentConversationId={currentConversationId} user={user} avatar={userAvatar} nickname={nickname} profileReady={isSettingsReady} onStartNewChat={onStartNewChat} onLoadConversation={onLoadConversation} onDeleteConversation={onDeleteConversation} onRenameConversation={onRenameConversation} onTogglePinConversation={onTogglePinConversation} onOpenProfile={onOpenProfile} onLogout={onLogout} onClose={onCloseSidebar} />
@@ -66,7 +71,7 @@ export default function ChatLayout({
             transition={{ duration: 0.2 }}
             onClick={onCloseSidebar}
             type="button"
-            aria-label="收起对话列表"
+            aria-label={t("收起对话列表", "Close chat list")}
             className="fixed inset-0 z-[45] bg-black/30 dark:bg-black/60 backdrop-blur-[2px] md:hidden"
           />
         ) : null}
@@ -118,13 +123,21 @@ export default function ChatLayout({
                 onClick={onScrollToBottom}
                 className="absolute bottom-28 md:bottom-24 left-1/2 -translate-x-1/2 z-30 w-10 h-10 rounded-full glass-effect shadow-pop flex items-center justify-center text-zinc-500 hover:text-primary transition-all active:scale-95"
                 type="button"
-                aria-label="滚动到底部"
+                aria-label={t("滚动到底部", "Scroll to bottom")}
               >
                 <ChevronDown size={22} />
               </motion.button>
             )}
           </AnimatePresence>
           <div className="composer-wrapper px-4 pt-2 z-20 safe-bottom">
+            {settingsError && (
+              <div role="alert" className="mx-auto mb-2 flex max-w-4xl items-center justify-between gap-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                <span>{t("设置加载失败：{error}", "Could not load settings: {error}", { error: localizeMessage(settingsError) })}</span>
+                <button type="button" onClick={onRetrySettings} className="shrink-0 rounded-lg px-3 py-1.5 font-medium hover:bg-red-100 dark:hover:bg-red-900/40">
+                  {t("重新加载设置", "Reload settings")}
+                </button>
+              </div>
+            )}
             <Composer {...composerProps} />
           </div>
         </main>

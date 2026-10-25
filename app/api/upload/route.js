@@ -1,5 +1,6 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
+import { readMultipart } from '@/lib/server/files/uploads';
 import { getManagedModel } from '@/lib/server/models/service';
-import { DEFAULT_MODEL_ID } from '@/lib/server/models/config';
 import { getModelConfig } from '@/lib/shared/models';
 import { uploadTemporaryDocument } from "@/lib/server/workbench/documents";
 import { getAuthPayload } from "@/lib/auth";
@@ -42,7 +43,7 @@ function jsonError(error, status = 400) {
   return Response.json({ error }, { status });
 }
 
-export async function POST(request) {
+async function POSTHandler(request) {
   const user = await getAuthPayload(request);
   if (!user?.userId) return jsonError("未登录", 401);
   let mediaWriteLease = null;
@@ -54,7 +55,7 @@ export async function POST(request) {
   }
 
   try {
-    const formData = await request.formData();
+    const formData = await readMultipart(request, 21 * 1024 * 1024);
     const file = formData.get("file");
     const kind = String(formData.get("kind") || "chat").trim();
     const model = String(formData.get("model") || "").trim();
@@ -97,7 +98,7 @@ export async function POST(request) {
     }
 
     if (kind === "chat") {
-      const modelConfig = isMediaGenerationModel(model) ? getModelConfig(model) : await getManagedModel(DEFAULT_MODEL_ID);
+      const modelConfig = isMediaGenerationModel(model) ? getModelConfig(model) : await getManagedModel();
       const support = { supportsImages: modelConfig.nativeInputs.includes("image"), supportsAudio: modelConfig.nativeInputs.includes("audio"), supportsVideo: modelConfig.nativeInputs.includes("video") };
       const inputType = getAttachmentInputType(category);
       const supported = (
@@ -143,3 +144,5 @@ export async function POST(request) {
     }
   }
 }
+
+export const POST = localizedRoute(POSTHandler);

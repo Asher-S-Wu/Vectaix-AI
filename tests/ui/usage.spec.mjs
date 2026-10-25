@@ -6,7 +6,7 @@ const base = 'http://localhost:3100';
 
 test('usage logs endpoint and settings page return data instead of an HTML 404', { timeout: 90000 }, async () => {
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
+  const context = await browser.newContext({ locale: 'zh-CN' });
   try {
     const anonymous = await context.request.get(`${base}/api/usage/logs`);
     assert.equal(anonymous.status(), 401);
@@ -54,10 +54,11 @@ test('usage logs endpoint and settings page return data instead of an HTML 404',
     const adminLogin = await context.request.post(`${base}/api/auth/login`, {data:{email:'admin@example.test',password:'Vectaix-Test-2026!'}});
     assert.equal(adminLogin.status(),200);
     await page.goto(`${base}/settings?section=usage`);
-    await page.getByRole('button',{name:'用户管理 管理',exact:true}).waitFor();
+    await page.getByRole('link',{name:'管理后台',exact:true}).waitFor();
     assert.equal(await page.getByText('模型管理',{exact:true}).count(),0);
     assert.equal(await page.getByText('积分与费率',{exact:true}).count(),0);
-    for(const route of ['models','providers','billing-settings']) {
+    assert.equal((await context.request.get(`${base}/api/admin/models`)).status(),200);
+    for(const route of ['providers','billing-settings']) {
       assert.equal((await context.request.get(`${base}/api/admin/${route}`)).status(),404);
     }
     assert.deepEqual(errors, []);

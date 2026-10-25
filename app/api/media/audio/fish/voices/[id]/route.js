@@ -1,3 +1,6 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
+import { getCurrentUserWithAccess } from '@/lib/admin';
+import { clearSharedVoice } from '@/lib/server/media/settings';
 import { requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { deleteFishVoice, fishErrorStatus, fishPublicMessage, getFishVoice } from "@/lib/media/server/fishAudio";
 import { serializeFishVoice } from "@/lib/media/server/fishAudioRecords";
@@ -10,6 +13,8 @@ export const dynamic = "force-dynamic";
 async function operate(request, context, remove) {
   let lease;
   try {
+    const access = await getCurrentUserWithAccess(request);
+    if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const userId = String(auth.payload.userId);
@@ -25,6 +30,7 @@ async function operate(request, context, remove) {
         if (error?.code !== "UPSTREAM_404") throw error;
       }
       await assertMediaWriteLeaseActive(lease);
+      await clearSharedVoice(record.voiceId);
       await FishVoice.deleteOne({ userId, _id: record._id });
       return Response.json({ success: true, deleted: true });
     }
@@ -42,5 +48,8 @@ async function operate(request, context, remove) {
   }
 }
 
-export function GET(request, context) { return operate(request, context, false); }
-export function DELETE(request, context) { return operate(request, context, true); }
+function GETHandler(request, context) { return operate(request, context, false); }
+function DELETEHandler(request, context) { return operate(request, context, true); }
+
+export const GET = localizedRoute(GETHandler);
+export const DELETE = localizedRoute(DELETEHandler);

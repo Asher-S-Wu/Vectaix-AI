@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import { cookies } from 'next/headers';
 import dbConnect from '@/lib/db';
 import { getAuthPayload, startAuthSession } from '@/lib/auth';
@@ -7,12 +8,12 @@ import { rateLimit, getClientIP } from '@/lib/rateLimit';
 import { registrationOptions, registerPasskey, authenticationOptions, authenticatePasskey } from '@/lib/server/auth/passkeys';
 import Passkey from '@/models/Passkey';
 
-export async function GET(req) {
+async function GETHandler(req) {
   const auth = await getAuthPayload(req);
   if (!auth) return Response.json({ error: '请先登录' }, { status: 401 });
   return Response.json({ passkeys: await Passkey.find({ userId: auth.userId }).select('name createdAt lastUsedAt').lean() });
 }
-export async function DELETE(req) {
+async function DELETEHandler(req) {
   const auth = await getAuthPayload(req);
   if (!auth) return Response.json({ error: '请先登录' }, { status: 401 });
   const parsed = await parseJsonRequest(req, '请求内容无效', 1024);
@@ -21,7 +22,7 @@ export async function DELETE(req) {
   const result = await Passkey.deleteOne({ _id: parsed.body.id, userId: auth.userId });
   return result.deletedCount ? Response.json({ success: true }) : Response.json({ error: '通行密钥不存在' }, { status: 404 });
 }
-export async function POST(req) {
+async function POSTHandler(req) {
   try {
     if (!rateLimit(`passkey:${getClientIP(req)}`, { limit: 20, windowMs: 60000 }).success) return Response.json({ error: '尝试次数过多，请稍后再试' }, { status: 429 });
     const parsed = await parseJsonRequest(req, '请求内容无效', 65536);
@@ -50,3 +51,7 @@ export async function POST(req) {
     return Response.json({ error: error.status ? error.message : '通行密钥验证未完成，请检查网站地址和设备支持情况' }, { status: error.status || 400 });
   }
 }
+
+export const GET = localizedRoute(GETHandler);
+export const DELETE = localizedRoute(DELETEHandler);
+export const POST = localizedRoute(POSTHandler);

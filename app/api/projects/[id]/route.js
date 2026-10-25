@@ -1,34 +1,31 @@
-import { stopTasksForSettings } from '@/lib/server/settings/stopTasks';
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import { withProjectLock } from "@/lib/server/workbench/projectLock";
 import WorkspaceProject from "@/models/WorkspaceProject";
 import WorkspaceDocument from "@/models/WorkspaceDocument";
-import WorkbenchMemory from "@/models/WorkbenchMemory";
 import WorkbenchTask from "@/models/WorkbenchTask";
 import WorkbenchTaskEvent from "@/models/WorkbenchTaskEvent";
 import Conversation from "@/models/Conversation";
 import { deleteStoredFilesByOwner } from "@/lib/server/storage/service";
 import { requireProject } from "@/lib/server/workbench/catalog";
-import { workbenchRoute, readBody, textField, booleanField, workbenchError } from "@/lib/server/workbench/apiHelpers";
+import { workbenchRoute, readBody, textField, workbenchError } from "@/lib/server/workbench/apiHelpers";
 
-export function GET(req, context) {
+function GETHandler(req, context) {
   return workbenchRoute(req, async (userId) => Response.json({ project: await requireProject(userId, (await context.params).id) }));
 }
 
-export function PUT(req, context) {
+function PUTHandler(req, context) {
   return workbenchRoute(req, async (userId) => {
     const project = await requireProject(userId, (await context.params).id);
     const body = await readBody(req);
     for (const [key, label, max] of [["name", "项目名称", 100], ["description", "项目介绍", 2000], ["instructions", "项目指令", 20000]]) {
       if (Object.hasOwn(body, key)) project[key] = textField(body[key], label, max, key === "name");
     }
-    if (Object.hasOwn(body, "memoryEnabled")) project.memoryEnabled = booleanField(body.memoryEnabled, "项目记忆");
     await project.save();
-    if (body.memoryEnabled === false) await stopTasksForSettings(userId, { projectId: project._id });
     return Response.json({ project });
   });
 }
 
-export function DELETE(req, context) {
+function DELETEHandler(req, context) {
   return workbenchRoute(req, async (userId) => {
     const id = (await context.params).id;
     return withProjectLock(userId, "task-creation", () => withProjectLock(userId, id, async () => {
@@ -44,10 +41,13 @@ export function DELETE(req, context) {
     await WorkbenchTask.deleteMany({ userId, _id: { $in: tasks.map(task => task._id) } });
     await WorkbenchTask.updateMany({ userId, projectId }, { $set: { projectId: null } });
     await WorkspaceDocument.updateMany({ userId, projectId }, { $set: { projectId: null } });
-    await WorkbenchMemory.deleteMany({ userId, projectId });
     await Conversation.updateMany({ userId, projectId }, { $set: { projectId: null } });
     await WorkspaceProject.deleteOne({ _id: projectId, userId });
     return Response.json({ success: true });
     }));
   });
 }
+
+export const GET = localizedRoute(GETHandler);
+export const PUT = localizedRoute(PUTHandler);
+export const DELETE = localizedRoute(DELETEHandler);

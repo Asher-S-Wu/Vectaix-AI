@@ -1,46 +1,10 @@
-export default function BrandMark({
-  size = 24,
-  gradientId = "vectaix-brand-gradient",
-  className = "",
-  withGlow = false,
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 32 32"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden
-    >
-      <defs>
-        <linearGradient
-          id={gradientId}
-          x1="4"
-          y1="28"
-          x2="28"
-          y2="4"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0%" stopColor="#0ea5e9" />
-          <stop offset="55%" stopColor="#38bdf8" />
-          <stop offset="100%" stopColor="#7dd3fc" />
-        </linearGradient>
-      </defs>
-      {withGlow ? (
-        <circle cx="16" cy="16" r="15" fill={`url(#${gradientId})`} opacity="0.14" />
-      ) : null}
-      <path
-        d="M16 2C16.9 8.6 20.4 12.1 27 13C20.4 13.9 16.9 17.4 16 24C15.1 17.4 11.6 13.9 5 13C11.6 12.1 15.1 8.6 16 2Z"
-        fill={`url(#${gradientId})`}
-      />
-      <path
-        d="M24.5 20.5C24.9 22.7 26.3 24.1 28.5 24.5C26.3 24.9 24.9 26.3 24.5 28.5C24.1 26.3 22.7 24.9 20.5 24.5C22.7 24.1 24.1 22.7 24.5 20.5Z"
-        fill={`url(#${gradientId})`}
-        opacity="0.85"
-      />
-      <circle cx="7.5" cy="24" r="1.6" fill={`url(#${gradientId})`} opacity="0.7" />
-    </svg>
-  );
+export default function BrandMark({ size = 32, className = '' }) {
+  return <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+    <path d="M12 58c8 13 45 15 57-1-9-5-45-7-57 1Z" fill="#D9E8D9" />
+    <path d="M15 47C10 34 20 22 31 21c1-10 15-14 23-7 12 2 17 12 13 22 10 16-1 29-25 29-18 0-31-5-27-18Z" fill="#FFFDF3" stroke="#426955" strokeWidth="3" strokeLinejoin="round" />
+    <path d="M30 22c11-6 26 1 24 11-2 11-24 11-26 0-1-6 10-10 15-6 5 5-2 9-6 5M19 43c7 9 24 11 36 3M54 17c11 9 10 21 4 26" stroke="#B9C9A9" strokeWidth="3" strokeLinecap="round" />
+    <circle cx="30" cy="51" r="2.5" fill="#263B32" /><circle cx="51" cy="51" r="2.5" fill="#263B32" />
+    <path d="M37 56c2 3 5 3 7 0" stroke="#263B32" strokeWidth="2.5" strokeLinecap="round" />
+    <ellipse cx="24" cy="55" rx="3.5" ry="2" fill="#EDCA75" /><ellipse cx="57" cy="55" rx="3.5" ry="2" fill="#EDCA75" />
+  </svg>;
 }

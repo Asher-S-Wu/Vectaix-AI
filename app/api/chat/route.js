@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import { calculateAccumulatedCosts } from "@/lib/server/credits/chatCosts";
 import crypto from "node:crypto";
 
@@ -7,7 +8,6 @@ import User from "@/models/User";
 import { getAuthPayload } from "@/lib/auth";
 import { rateLimit, getClientIP } from "@/lib/rateLimit";
 import { getManagedModel } from "@/lib/server/models/service";
-import { DEFAULT_MODEL_ID } from "@/lib/server/models/config";
 import {
   isNonEmptyString,
   sanitizeStoredMessagesStrict,
@@ -168,7 +168,7 @@ function pushUniqueCitations(target, items) {
   return changed;
 }
 
-export async function POST(req) {
+async function POSTHandler(req) {
   let writePermitTime = null;
 
   try {
@@ -198,7 +198,7 @@ export async function POST(req) {
       billingOperationId,
     } = body;
 
-    const model = DEFAULT_MODEL_ID;
+    const model = (await getManagedModel()).id;
     if (typeof prompt !== "string") {
       return Response.json({ error: "Prompt is required" }, { status: 400 });
     }
@@ -910,3 +910,5 @@ export async function POST(req) {
     return Response.json({ error: message }, { status });
   }
 }
+
+export const POST = localizedRoute(POSTHandler);

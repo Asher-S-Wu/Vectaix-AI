@@ -18,7 +18,7 @@ after(async()=>{
  await browser?.close();for(const name of ['sessions','usersettings','passkeys','authchallenges','conversations','storedfiles','workspacedocuments'])await mongoose.connection.collection(name).deleteMany({userId});await User.deleteOne({_id:userId});await mongoose.disconnect();
 });
 async function session({mobile=false,init}={}){
- const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1280,height:900},extraHTTPHeaders:{'x-forwarded-for':`192.0.2.${sessionIndex++}`}});if(init)await context.addInitScript(init);
+ const context=await browser.newContext({locale:'zh-CN',viewport:mobile?{width:390,height:844}:{width:1280,height:900},extraHTTPHeaders:{'x-forwarded-for':`192.0.2.${sessionIndex++}`}});if(init)await context.addInitScript(init);
  const response=await context.request.post(base+'/api/auth/login',{data:{email,password}});assert.equal(response.status(),200,await response.text());
  const page=await context.newPage();return {context,page};
 }

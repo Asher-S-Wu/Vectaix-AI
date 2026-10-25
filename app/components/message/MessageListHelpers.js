@@ -1,3 +1,6 @@
+
+import { useI18n } from "@/lib/client/i18n";
+import { translate } from "@/lib/shared/i18n.mjs";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -47,10 +50,12 @@ export function AIAvatar({ size = 24, className = "" }) {
   );
 }
 
-export function LoadingSweepText({ text = "加载中", className = "", ariaText }) {
+export function LoadingSweepText({ text, className = "", ariaText }) {
+  const { t } = useI18n();
+  text = text ?? t("加载中", "Loading");
   if (text === "...") {
     return (
-      <span className={`loading-sweep ${className}`.trim()} data-text={text} aria-label={ariaText || text}>
+      <span className={`loading-sweep ${className}`.trim()} data-text={text} aria-label={ariaText || (text === "..." ? t("加载中", "Loading") : text)}>
         <span className="jump-dot">.</span>
         <span className="jump-dot">.</span>
         <span className="jump-dot">.</span>
@@ -58,7 +63,7 @@ export function LoadingSweepText({ text = "加载中", className = "", ariaText 
     );
   }
   return (
-    <span className={`loading-sweep ${className}`.trim()} data-text={text} aria-label={ariaText || text}>
+    <span className={`loading-sweep ${className}`.trim()} data-text={text} aria-label={ariaText || (text === "..." ? t("加载中", "Loading") : text)}>
       {text}
     </span>
   );
@@ -80,7 +85,7 @@ export function normalizeCopiedText(text) {
     .replace(/\n{3,}/g, "\n\n");
 }
 
-function getMessageText(msg) {
+function getMessageText(msg, locale) {
   if (!msg) return "";
   if (typeof msg.content === "string" && msg.content.trim()) {
     return msg.content;
@@ -89,7 +94,7 @@ function getMessageText(msg) {
     return msg.parts
       .map((part) => {
         if (typeof part?.text === "string") return part.text.trim();
-        if (part?.fileData?.name) return `[附件] ${part.fileData.name}`;
+        if (part?.fileData?.name) return translate(locale, "[附件] {name}", "[Attachment] {name}", { name: part.fileData.name });
         return "";
       })
       .filter(Boolean)
@@ -103,9 +108,9 @@ function stripThinkingBlocks(text) {
   return text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
 }
 
-export function buildCopyText(msg) {
+export function buildCopyText(msg, locale) {
   if (!msg) return "";
-  const raw = getMessageText(msg);
+  const raw = getMessageText(msg, locale);
   const cleaned = msg.role === "model" ? stripThinkingBlocks(raw) : raw;
   return normalizeCopiedText(cleaned);
 }
@@ -120,6 +125,7 @@ export function isSelectionFullyInsideElement(el) {
 }
 
 export function Thumb({ src, previewSrc = "", className = "", onClick }) {
+  const { t } = useI18n();
   const [loadedSrc, setLoadedSrc] = useState("");
 
   useEffect(() => {
@@ -145,11 +151,11 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
       type="button"
       onClick={() => onClick?.(activeSrc)}
       className={`block text-left group/thumb ${className}`}
-      title="点击查看"
+      title={t("点击查看", "View image")}
     >
       <Image
         src={activeSrc}
-        alt="图片附件"
+        alt={t("图片附件", "Image attachment")}
         width={280}
         height={240}
         unoptimized
@@ -162,6 +168,7 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
 }
 
 export function AttachmentCard({ file, compact = false }) {
+  const { t, locale } = useI18n();
   if (!file?.name) return null;
   const canDownload = typeof file.url === "string" && file.url.startsWith("/api/files/");
   const downloadUrl = canDownload
@@ -175,7 +182,7 @@ export function AttachmentCard({ file, compact = false }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium text-zinc-700 dark:text-zinc-300">{file.name}</div>
-        <div className="truncate text-xs text-zinc-400">{formatAttachmentMeta(file)}</div>
+        <div className="truncate text-xs text-zinc-400">{formatAttachmentMeta(file, locale)}</div>
         {file.category === "audio" && file.url ? (
           <audio controls preload="metadata" src={file.url} className="mt-2 h-8 w-full max-w-[320px]" />
         ) : null}
@@ -187,7 +194,7 @@ export function AttachmentCard({ file, compact = false }) {
         <a
           href={downloadUrl}
           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
-          title="下载附件"
+          title={t("下载附件", "Download attachment")}
         >
           <Download size={15} />
         </a>
@@ -197,6 +204,7 @@ export function AttachmentCard({ file, compact = false }) {
 }
 
 export function Citations({ citations }) {
+  const { t, formatNumber } = useI18n();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -230,10 +238,10 @@ export function Citations({ citations }) {
         type="button"
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-full text-xs transition-colors"
-        title="查看全部来源"
+        title={t("查看全部来源", "View all sources")}
       >
         <Search size={12} className="text-zinc-500" />
-        <span>信息来源</span>
+        <span>{t("信息来源", "Sources")}</span>
         <span className="flex -space-x-1.5">
           {previewItems.map((citation, idx) => (
             <span key={idx} className="inline-flex w-4 h-4 rounded-full border border-white dark:border-zinc-700 bg-white dark:bg-zinc-800 items-center justify-center overflow-hidden">
@@ -242,13 +250,13 @@ export function Citations({ citations }) {
           ))}
         </span>
         {uniqueCitations.length > previewCount && (
-          <span className="text-zinc-500">+{uniqueCitations.length - previewCount}</span>
+          <span className="text-zinc-500">+{formatNumber(uniqueCitations.length - previewCount)}</span>
         )}
       </button>
 
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label="信息来源">
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label={t("信息来源", "Sources")}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -267,13 +275,13 @@ export function Citations({ citations }) {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 font-medium">
                 <Search size={14} />
-                信息来源
+                {t("信息来源", "Sources")}
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                title="关闭"
+                title={t("关闭", "Close")}
               >
                 <X size={16} />
               </button>
@@ -366,6 +374,7 @@ export function ToolRunPreview({ tool }) {
 }
 
 export function ToolRunCards({ tools }) {
+  const { t, locale, localizeMessage } = useI18n();
   if (!Array.isArray(tools) || tools.length === 0) return null;
 
   return (
@@ -376,9 +385,9 @@ export function ToolRunCards({ tools }) {
         const isWeb = isWebBrowsingIdentifier(toolIdentifier);
         const icon = isWeb ? <Search size={13} /> : <Terminal size={13} />;
         const title = typeof tool.title === "string" && tool.title
-          ? tool.title
-          : (isWeb ? getWebBrowsingToolTitle(tool.apiName) : "工具调用");
-        const statusText = tool.status === "error" ? "失败" : (tool.status === "running" ? "运行中" : "完成");
+          ? localizeMessage(tool.title)
+          : (isWeb ? getWebBrowsingToolTitle(tool.apiName, locale) : t("工具调用", "Tool call"));
+        const statusText = tool.status === "error" ? t("失败", "Failed") : (tool.status === "running" ? t("运行中", "Running") : t("完成", "Completed"));
         const isRunning = tool.status === "running";
 
         return (

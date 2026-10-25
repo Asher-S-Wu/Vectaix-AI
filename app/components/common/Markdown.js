@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/lib/client/i18n";
 import NextImage from "next/image";
 import { useState, useEffect, useRef, cloneElement } from "react";
 import ReactMarkdown from "react-markdown";
@@ -45,6 +46,7 @@ export default function Markdown({
   enableHighlight = true,
   enableMath = false,
 }) {
+  const { t } = useI18n();
   const prevEnableRef = useRef(enableHighlight);
   const [actualHighlight, setActualHighlight] = useState(enableHighlight);
 
@@ -78,7 +80,7 @@ export default function Markdown({
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins}
         components={{
-          img: ({ node, src, alt, ...props }) => <NextImage {...props} src={src} alt={alt || "图片"} width={1200} height={800} unoptimized className="h-auto max-w-full" />,
+          img: ({ node, src, alt, ...props }) => <NextImage {...props} src={src} alt={alt || t("图片", "Image")} width={1200} height={800} unoptimized className="h-auto max-w-full" />,
           a: ({ node, href, children, ...props }) => <a {...props} href={href}>{children}</a>,
           table: ({ children, ...props }) => (
             <div className="table-scroll-wrapper">
@@ -136,6 +138,7 @@ function extractText(node) {
 }
 
 function CodeCopyButton({ text }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   
   const handleCopy = async () => {
@@ -154,12 +157,12 @@ function CodeCopyButton({ text }) {
       {copied ? (
         <>
           <Check size={12} />
-          <span>已复制</span>
+          <span>{t("已复制", "Copied")}</span>
         </>
       ) : (
         <>
           <Copy size={12} />
-          <span>复制</span>
+          <span>{t("复制", "Copy")}</span>
         </>
       )}
     </button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from '@/lib/client/i18n';
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -18,6 +19,8 @@ export default function SystemPromptModal({
   updateSystemPrompt,
   deleteSystemPrompt,
 }) {
+  const { t } = useI18n();
+
   const toast = useToast();
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -50,10 +53,10 @@ export default function SystemPromptModal({
     setSaving(true);
     try {
       await onChatSystemPromptSave(draft);
-      toast.success(draft.trim() ? "对话指令已生效" : "对话指令已清除");
+      toast.success(draft.trim() ? ["对话指令已生效", "Chat instructions saved"] : ["对话指令已清除", "Chat instructions cleared"]);
       onClose();
     } catch (e) {
-      toast.error("保存失败");
+      toast.error(["保存失败", "Could not save"]);
     } finally {
       setSaving(false);
     }
@@ -61,11 +64,11 @@ export default function SystemPromptModal({
 
   const handleCreatePreset = () => {
     if (!draft.trim()) {
-      toast.warning("当前内容为空，请输入内容后再存为模板");
+      toast.warning(["当前内容为空，请输入内容后再存为模板", "Add some instructions before saving a template."]);
       return;
     }
     setEditingId("new");
-    setEditName("新模板");
+    setEditName(t("新模板", "New template"));
     setEditContent(draft);
   };
 
@@ -78,26 +81,26 @@ export default function SystemPromptModal({
 
   const submitPreset = async () => {
     if (!editName.trim() || !editContent.trim()) {
-      toast.warning("名称和内容不能为空");
+      toast.warning(["名称和内容不能为空", "Enter a name and instructions."]);
       return;
     }
     try {
       if (editingId === "new") {
         await addSystemPrompt(editName, editContent);
-        toast.success("已创建模板");
+        toast.success(["已创建模板", "Template created"]);
       } else {
         await updateSystemPrompt(editingId, editName, editContent);
-        toast.success("已更新模板");
+        toast.success(["已更新模板", "Template updated"]);
       }
       setEditingId(null);
     } catch (e) {
-      toast.error(e?.message || "保存失败");
+      toast.error(e?.message || ["保存失败", "Could not save"]);
     }
   };
 
   const applyPreset = (preset) => {
     setDraft(preset.content);
-    toast.success(`已载入模板：${preset.name}`);
+    toast.success(["已载入模板：{name}", "Loaded template: {name}", { name: preset.name }]);
   };
 
   const handleDeletePreset = (e, id) => {
@@ -111,10 +114,10 @@ export default function SystemPromptModal({
     if (!id) return;
     try {
       await deleteSystemPrompt(id);
-      toast.success("已删除模板");
+      toast.success(["已删除模板", "Template deleted"]);
       if (editingId === id) setEditingId(null);
     } catch (e) {
-      toast.error("删除失败");
+      toast.error(["删除失败", "Could not delete"]);
     }
   };
 
@@ -141,9 +144,7 @@ export default function SystemPromptModal({
             <div className="w-full md:w-72 lg:w-80 bg-zinc-50/80 dark:bg-zinc-900/50 border-r border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0 h-1/3 md:h-auto border-b md:border-b-0">
               <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center shrink-0">
                 <h3 className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-                  <MessageSquareQuote size={16} className="text-primary" />
-                  指令模板
-                </h3>
+                  <MessageSquareQuote size={16} className="text-primary" />{t("指令模板", "Instruction templates")}</h3>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2 fade-scrollbar">
                 {systemPrompts && systemPrompts.length > 0 ? (
@@ -156,8 +157,8 @@ export default function SystemPromptModal({
                       <div className="flex justify-between items-start mb-1.5">
                         <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate pr-8">{preset.name}</h4>
                         <div className="preset-actions absolute right-2 top-2 flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-                          <button onClick={(e) => handleEditPreset(e, preset)} aria-label="编辑模板" className="p-1.5 text-zinc-400 hover:text-primary bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 transition-colors"><Edit3 size={14}/></button>
-                          <button onClick={(e) => handleDeletePreset(e, preset._id)} aria-label="删除模板" className="p-1.5 text-zinc-400 hover:text-red-500 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 ml-1 transition-colors"><Trash2 size={14}/></button>
+                          <button onClick={(e) => handleEditPreset(e, preset)} aria-label={t("编辑模板", "Edit template")} className="p-1.5 text-zinc-400 hover:text-primary bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 transition-colors"><Edit3 size={14}/></button>
+                          <button onClick={(e) => handleDeletePreset(e, preset._id)} aria-label={t("删除模板", "Delete template")} className="p-1.5 text-zinc-400 hover:text-red-500 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700 ml-1 transition-colors"><Trash2 size={14}/></button>
                         </div>
                       </div>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">{preset.content}</p>
@@ -168,8 +169,8 @@ export default function SystemPromptModal({
                     <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-3">
                       <MessageSquareQuote size={20} className="text-zinc-400" />
                     </div>
-                    <p className="text-sm text-zinc-500">暂无模板</p>
-                    <p className="text-xs text-zinc-400 mt-1">在右侧编辑内容后可存为模板</p>
+                    <p className="text-sm text-zinc-500">{t("暂无模板", "No templates yet")}</p>
+                    <p className="text-xs text-zinc-400 mt-1">{t("在右侧编辑内容后可存为模板", "Write instructions on the right, then save them as a template.")}</p>
                   </div>
                 )}
               </div>
@@ -178,10 +179,10 @@ export default function SystemPromptModal({
             <div className="flex-1 flex flex-col relative bg-white dark:bg-zinc-900 min-w-0">
               <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center shrink-0">
                 <div>
-                  <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-100">对话指令与模板</h2>
-                  <p className="text-xs text-zinc-500 mt-1">保存常用工作要求，随时选择适合当前工作的模板。</p>
+                  <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-100">{t("对话指令与模板", "Chat instructions and templates")}</h2>
+                  <p className="text-xs text-zinc-500 mt-1">{t("保存常用工作要求，随时选择适合当前工作的模板。", "Save instructions you use often and choose a template for your current task.")}</p>
                 </div>
-                <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                <button onClick={onClose} aria-label={t("关闭", "Close")} className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                   <X size={20} />
                 </button>
               </div>
@@ -191,45 +192,38 @@ export default function SystemPromptModal({
                   <div className="flex flex-col h-full">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                        {editingId === "new" ? "新建模板" : "编辑模板"}
+                        {editingId === "new" ? t("新建模板", "Create template") : t("编辑模板", "Edit template")}
                       </h3>
                     </div>
                     <input
                       type="text"
-                      placeholder="模板名称，例如：前端专家"
+                      placeholder={t("模板名称，例如：前端专家", "Template name, such as Frontend expert")}
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
                       className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary mb-4 transition-all"
                     />
                     <textarea
                       className="flex-1 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 text-sm text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all leading-relaxed fade-scrollbar"
-                      placeholder="输入模板中的对话指令…"
+                      placeholder={t("输入模板中的对话指令…", "Enter instructions for this template…")}
                       value={editContent}
                       onChange={e => setEditContent(e.target.value)}
                     />
                     <div className="flex justify-end gap-3 mt-4 shrink-0">
-                      <button onClick={() => setEditingId(null)} className="px-5 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
-                        取消
-                      </button>
+                      <button onClick={() => setEditingId(null)} className="px-5 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">{t("取消", "Cancel")}</button>
                       <button onClick={submitPreset} className="btn-primary px-6 py-2.5 text-sm font-medium rounded-xl flex items-center gap-2">
-                        <Check size={16} />
-                        保存模板
-                      </button>
+                        <Check size={16} />{t("保存模板", "Save template")}</button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-col h-full">
                     <div className="flex items-center justify-between mb-3 shrink-0">
-                      <label className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                        后续对话使用的指令
-                      </label>
+                      <label className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{t("后续对话使用的指令", "Instructions for future chats")}</label>
                       <button onClick={handleCreatePreset} className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">
-                        <Plus size={14} /> 存为新模板
-                      </button>
+                        <Plus size={14} />{t("存为新模板", "Save as new template")}</button>
                     </div>
                     <textarea
                       className="flex-1 w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-5 text-[15px] text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all leading-relaxed shadow-inner fade-scrollbar"
-                      placeholder="填写你希望助手遵守的工作要求，例如语言、格式和表达习惯。"
+                      placeholder={t("填写你希望助手遵守的工作要求，例如语言、格式和表达习惯。", "Describe how you want the assistant to work, including language, format, and writing style.")}
                       value={draft}
                       onChange={e => setDraft(e.target.value)}
                     />
@@ -239,16 +233,12 @@ export default function SystemPromptModal({
               
               {!editingId && (
                 <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex justify-between items-center shrink-0">
-                  <div className="text-xs text-zinc-500">
-                    保存后将用于后续对话
-                  </div>
+                  <div className="text-xs text-zinc-500">{t("保存后将用于后续对话", "Saved instructions apply to future chats")}</div>
                   <div className="flex items-center gap-3">
-                    <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
-                      取消
-                    </button>
+                    <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">{t("取消", "Cancel")}</button>
                     <button disabled={saving} onClick={handleSave} className="btn-primary px-6 py-2.5 text-sm font-medium disabled:opacity-50 rounded-xl flex items-center gap-2">
                       <Check size={16} />
-                      {saving ? "保存中…" : "保存指令"}
+                      {saving ? t("保存中…", "Saving…") : t("保存指令", "Save instructions")}
                     </button>
                   </div>
                 </div>
@@ -262,9 +252,9 @@ export default function SystemPromptModal({
         open={Boolean(deleteConfirmId)}
         onClose={() => setDeleteConfirmId(null)}
         onConfirm={confirmDeletePreset}
-        title="删除模板"
-        message="确定要删除这个模板吗？此操作无法撤销。"
-        confirmText="删除"
+        title={t("删除模板", "Delete template")}
+        message={t("确定要删除这个模板吗？此操作无法撤销。", "Delete this template? This action is permanent.")}
+        confirmText={t("删除", "Delete")}
         danger
       />
     </>,

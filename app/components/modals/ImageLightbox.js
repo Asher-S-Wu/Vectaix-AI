@@ -1,8 +1,6 @@
 "use client";
 
-
-
-
+import { useI18n } from '@/lib/client/i18n';
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -30,6 +28,8 @@ function extractFilename(src) {
 }
 
 export default function ImageLightbox({ open, onClose, src }) {
+  const { t } = useI18n();
+
   const canDownload = isDownloadableUrl(src);
   const [downloading, setDownloading] = useState(false);
 
@@ -131,17 +131,17 @@ export default function ImageLightbox({ open, onClose, src }) {
                   onClick={handleDownload}
                   disabled={downloading}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white/90 bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg transition-colors disabled:opacity-50"
-                  title="下载原图"
+                  title={t("下载原图", "Download original image")}
                 >
                   <Download size={14} />
-                  {downloading ? "下载中…" : "下载"}
+                  {downloading ? t("下载中…", "Downloading…") : t("下载", "Download")}
                 </button>
               )}
               <button
                 type="button"
                 onClick={onClose}
                 className="inline-flex items-center justify-center w-9 h-9 text-white/85 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg transition-colors"
-                title="关闭"
+                title={t("关闭", "Close")}
               >
                 <X size={16} />
               </button>
@@ -150,7 +150,7 @@ export default function ImageLightbox({ open, onClose, src }) {
             {src && (
               <Image
                 src={src}
-                alt="查看大图"
+                alt={t("查看大图", "Full-size image")}
                 width={loadedImage?.src === src ? loadedImage.w : 1200}
                 height={loadedImage?.src === src ? loadedImage.h : 800}
                 unoptimized

@@ -1,4 +1,6 @@
 "use client";
+
+import { useI18n } from "@/lib/client/i18n";
 import { animateChange, useMotionNavigation } from "./components/layout/NavigationMotion";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import ChatResourcesPanel from "./components/chat/ChatResourcesPanel";
@@ -7,7 +9,6 @@ import { useConversationTasks } from "@/lib/client/hooks/useConversationTasks";
 import { useChatAppActions } from "@/lib/client/chat/chatAppActions";
 import { decorateConversationMessages } from "@/lib/client/chat/conversationMessages";
 import { useAuthSession } from "@/lib/client/hooks/useAuthSession";
-import { useThemeMode } from "@/lib/client/hooks/useThemeMode";
 import { useChatScroll } from "@/lib/client/hooks/useChatScroll";
 import { useUserSettings } from "@/lib/client/hooks/useUserSettings";
 import { normalizeWebSearchSettings } from "@/lib/shared/webSearch";
@@ -18,6 +19,7 @@ import ChatLayout from "./components/layout/ChatLayout";
 
 const FONT_SIZE_CLASSES = { small: "text-size-small", medium: "text-size-medium", large: "text-size-large" };
 export default function ChatApp() {
+  const { t, localizeMessage } = useI18n();
   const toast = useToast();
   const savedConversationRef = useRef(typeof window !== "undefined" ? window.localStorage.getItem("vectaix-current-conversation") : null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -40,25 +42,22 @@ export default function ChatApp() {
     assistant,
     webSearch,
     setWebSearch,
-    chatMediaSettings: mediaSettings,
-    resetChatMediaSettings,
     chatSystemPrompt,
-    themeMode,
     fontSize,
     completionSoundVolume,
     settingsError,
-    setSettingsError,
     fetchSettings,
+    resetSettings,
     avatar,
     nickname,
   } = useUserSettings();
-  useThemeMode(themeMode);
   const [editingMsgIndex, setEditingMsgIndex] = useState(null);
   const [editingContent, setEditingContent] = useState("");
   const [editingImages, setEditingImages] = useState([]);
-  const [serverSettingsReady, setServerSettingsReady] = useState(false);
 
   const conversationLoadRef = useRef(null);
+  const conversationsRequestRef = useRef(null);
+  const projectsRequestRef = useRef(null);
   const hasRestoredConversationRef = useRef(false);
   const currentConversationIdRef = useRef(null);
   const isStreaming = messages.some((message) => message?.isStreaming === true);
@@ -70,15 +69,6 @@ export default function ChatApp() {
     handleMessageListScroll,
     scrollToBottom,
   } = useChatScroll({ messages, isStreaming });
-  const lastSettingsErrorRef = useRef(null);
-
-  useEffect(() => {
-    if (settingsError && settingsError !== lastSettingsErrorRef.current) {
-      toast.error(settingsError);
-      lastSettingsErrorRef.current = settingsError;
-    }
-  }, [settingsError, toast]);
-
   const stopOngoingChatWork = () => {
     conversationLoadRef.current?.abort();
     conversationLoadRef.current = null;
@@ -88,24 +78,25 @@ export default function ChatApp() {
     setLoading(false);
   };
 
-  const handleSessionAuthenticated = ({ settingsReady } = {}) => {
+  const resetSessionView = () => {
+    conversationsRequestRef.current?.abort();
+    projectsRequestRef.current?.abort();
+    resetSettings();
     hasRestoredConversationRef.current = false;
-    setSettingsError(null);
-    setServerSettingsReady(settingsReady === true);
-  };
-
-  const handleSessionExpired = () => {
-    hasRestoredConversationRef.current = false;
-    setServerSettingsReady(false);
     setConversations([]);
     setProjects([]);
     setActiveProjectId("all");
-    resetChatMediaSettings();
     setConversationsReady(false);
     setConversationsError(false);
     setCurrentConversationId(null);
     setMessages([]);
-    setSettingsError(null);
+    setShowResources(false);
+    setShowProjects(false);
+  };
+
+  const handleSessionExpired = () => {
+    resetSessionView();
+    savedConversationRef.current = null;
   };
 
   const {
@@ -129,7 +120,7 @@ export default function ChatApp() {
     stopOngoingChatWork,
     fetchConversations,
     fetchSettings,
-    onAuthenticated: handleSessionAuthenticated,
+    onAuthenticated: resetSessionView,
     onAuthExpired: handleSessionExpired,
   });
 
@@ -146,6 +137,8 @@ export default function ChatApp() {
   useEffect(() => {
     return () => {
       conversationLoadRef.current?.abort();
+      conversationsRequestRef.current?.abort();
+      projectsRequestRef.current?.abort();
     };
   }, []);
 
@@ -163,8 +156,12 @@ export default function ChatApp() {
   };
 
   async function fetchConversations() {
+    conversationsRequestRef.current?.abort();
+    const controller = new AbortController();
+    conversationsRequestRef.current = controller;
     try {
-      const res = await fetch("/api/conversations");
+      const res = await fetch("/api/conversations", { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (res.status === 401) {
         handleAuthExpired();
         return;
@@ -175,6 +172,7 @@ export default function ChatApp() {
       } catch {
         data = null;
       }
+      if (controller.signal.aborted) return;
       if (!res.ok) throw new Error("conversations fetch failed");
       setConversationsError(false);
       const nextConversations = sortConversations(data?.conversations || []);
@@ -184,19 +182,24 @@ export default function ChatApp() {
         setMessages([]);
       }
     } catch {
+      if (controller.signal.aborted) return;
       setConversationsError(true);
     }
     setConversationsReady(true);
   }
 
   async function fetchProjects() {
+    projectsRequestRef.current?.abort();
+    const controller = new AbortController();
+    projectsRequestRef.current = controller;
     try {
-      const response = await fetch("/api/projects", { cache: "no-store" });
+      const response = await fetch("/api/projects", { cache: "no-store", signal: controller.signal });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "加载项目失败");
+      if (controller.signal.aborted) return;
+      if (!response.ok) throw new Error(data.error || t("加载项目失败", "Could not load projects"));
       setProjects(data.projects);
       setActiveProjectId(previous => previous && previous !== "all" && !data.projects.some(project => project._id === previous) ? "all" : previous);
-    } catch (error) { toast.error(error.message); }
+    } catch (error) { if (!controller.signal.aborted) toast.error(localizeMessage(error.message)); }
   }
   const refreshProjects = useEffectEvent(fetchProjects);
   useEffect(() => {
@@ -206,7 +209,7 @@ export default function ChatApp() {
   }, [user]);
 
   const taskActions = useConversationTasks({
-    user, conversationId: currentConversationId, projectId, webSearch, chatSystemPrompt, mediaSettings,
+    user, conversationId: currentConversationId, projectId, webSearch, chatSystemPrompt, settingsReady: isSettingsReady,
     paused: loading,
     setMessages, setCurrentConversationId, onActivity: fetchConversations,
     onAuthExpired: handleAuthExpired, toast, completionSoundVolume,
@@ -241,10 +244,10 @@ export default function ChatApp() {
     try {
       const response = await fetch(`/api/conversations/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: nextProjectId }) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "移动对话失败");
+      if (!response.ok) throw new Error(data.error || t("移动对话失败", "Could not move the chat"));
       await fetchConversations();
       if (id === currentConversationId) setActiveProjectId(nextProjectId);
-    } catch (error) { toast.error(error.message); }
+    } catch (error) { toast.error(localizeMessage(error.message)); }
   };
 
   const startNewChat = () => {
@@ -268,9 +271,10 @@ export default function ChatApp() {
     }
     try {
       const res = await fetch(`/api/conversations/${id}`, { cache: "no-store", signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (res.status === 401) {
         handleAuthExpired();
-        throw new Error("登录已过期，请重新登录");
+        throw new Error(t("登录已过期，请重新登录", "Your session has expired. Please sign in again."));
       }
       const data = await res.json();
       if (controller.signal.aborted) return;
@@ -281,7 +285,7 @@ export default function ChatApp() {
           setMessages([]);
         }
       }
-      if (!res.ok) throw new Error(data?.error || "加载对话失败");
+      if (!res.ok) throw new Error(data?.error || t("加载对话失败", "Could not load the chat"));
       if (data.conversation) {
         const conversation = data.conversation;
         userInterruptedRef.current = false;
@@ -292,7 +296,7 @@ export default function ChatApp() {
       }
     } catch (e) {
       if (!controller.signal.aborted && !silent) {
-        toast.error(`加载对话失败：${e?.message}`);
+        toast.error(["加载对话失败：{error}", "Could not load the chat: {error}", { error: localizeMessage(e?.message) }]);
       }
     } finally {
       if (conversationLoadRef.current === controller) {
@@ -307,7 +311,7 @@ export default function ChatApp() {
   });
 
   useEffect(() => {
-    if (!user || !serverSettingsReady || hasRestoredConversationRef.current || conversations.length === 0) return;
+    if (!user || !isSettingsReady || hasRestoredConversationRef.current || conversations.length === 0) return;
     hasRestoredConversationRef.current = true;
     const savedConversationId = savedConversationRef.current;
     if (!savedConversationId) return;
@@ -315,7 +319,7 @@ export default function ChatApp() {
     if (!exists) return;
     const timer = setTimeout(() => restoreConversation(savedConversationId), 0);
     return () => clearTimeout(timer);
-  }, [conversations, serverSettingsReady, user]);
+  }, [conversations, isSettingsReady, user]);
 
   const deleteConversation = async (id, e) => {
     e?.stopPropagation?.();
@@ -329,7 +333,7 @@ export default function ChatApp() {
         setMessages([]);
       }
     } catch {
-      toast.error("删除对话失败，请重试");
+      toast.error(["删除对话失败，请重试", "Could not delete the chat. Please try again."]);
     }
   };
 
@@ -345,7 +349,7 @@ export default function ChatApp() {
         prev.map((c) => (c._id === id ? { ...c, title: newTitle } : c))
       );
     } catch {
-      toast.error("重命名失败，请重试");
+      toast.error(["重命名失败，请重试", "Could not rename the chat. Please try again."]);
     }
   };
 
@@ -364,7 +368,7 @@ export default function ChatApp() {
         return sortConversations(next);
       });
     } catch {
-      toast.error("操作失败，请重试");
+      toast.error(["操作失败，请重试", "The action failed. Please try again."]);
     }
   };
 
@@ -378,6 +382,8 @@ export default function ChatApp() {
           user={user}
           assistant={assistant}
           isSettingsReady={isSettingsReady}
+          settingsError={settingsError}
+          onRetrySettings={fetchSettings}
           nickname={nickname}
           sidebarOpen={sidebarOpen}
           conversations={conversations.filter(item => activeProjectId === "all" || (item.projectId || null) === activeProjectId)}
@@ -428,7 +434,7 @@ export default function ChatApp() {
           onStartEdit={actions.startEdit}
           userAvatar={avatar}
           composerProps={{
-            loading: busy,
+            loading: busy || !isSettingsReady,
             isStreaming,
             isWaitingForAI: busy && messages.length > 0,
             onSend: taskActions.send,

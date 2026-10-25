@@ -1,3 +1,6 @@
+import { getAgentMediaSettings, getMediaSettings, saveMediaSettings, clearSharedVoice } from '../../lib/server/media/settings.js';
+const { default: MediaSettings } = await import('../../models/MediaSettings.js');
+import { seedMediaSettings } from '../helpers/media-config.mjs';
 import test from 'node:test';
 import undici from 'undici';
 import timers from 'node:timers/promises';
@@ -14,7 +17,7 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 const model = 'gpt-image-2.5-sunburst';
 const options = { model, size: '2048x1152', quality: 'max' };
 let database, directory, userId, generateImage, editImage, Transaction, StoredFile, registerMediaTools;
-let Task, TaskEvent, Conversation, UserSettings, updateUserProfileSettings, getUserSettings, readStoredFileBuffer, backups;
+let Task, TaskEvent, Conversation, readStoredFileBuffer;
 
 test.before(async () => {
   database = await MongoMemoryServer.create();
@@ -24,6 +27,7 @@ test.before(async () => {
   process.env.MICU_OPENAI_IMAGE_API_KEY = 'test-image-key';
   const { default: dbConnect } = await import('../../lib/db.js');
   await dbConnect();
+  await seedMediaSettings({imageKey: 'test-image-key'});
   const { default: User } = await import('../../models/User.js');
   userId = String((await User.create({ email: 'image@example.test', password: 'test-only' }))._id);
   ({ generateImage } = await import('../../lib/media/server/operations/image.js'));
@@ -34,10 +38,7 @@ test.before(async () => {
   ({ default: Task } = await import('../../models/WorkbenchTask.js'));
   ({ default: TaskEvent } = await import('../../models/WorkbenchTaskEvent.js'));
   ({ default: Conversation } = await import('../../models/Conversation.js'));
-  ({ default: UserSettings } = await import('../../models/UserSettings.js'));
-  ({ updateUserProfileSettings, getUserSettings } = await import('../../lib/server/settings/service.js'));
   ({ readStoredFileBuffer } = await import('../../lib/server/storage/service.js'));
-  backups = await import('../../lib/server/backups/service.js');
 });
 test.after(async () => {
   await mongoose.disconnect();
@@ -140,7 +141,7 @@ test('任务能力按所选图片服务配置，历史仅尺寸设置提示重�
   assert.ok(configured.entries.some(entry => entry.definition.name === 'edit_image'));
   const legacy = await capabilities({ size: 'auto' });
   assert.equal(legacy.value.image.available, false);
-  assert.match(legacy.value.image.reason, /重新.*保存/);
+  assert.match(legacy.value.image.reason, /管理员/);
 });
 
 test('图片创作配置备份保留模型及画质，排除凭据', async () => {
@@ -149,8 +150,8 @@ test('图片创作配置备份保留模型及画质，排除凭据', async () =>
 });
 
 async function createImageTask(image) {
-  await updateUserProfileSettings(userId, { chatMediaSettings: { image } });
-  const preferences = await UserSettings.findOne({ userId }).lean();
+  await saveMediaSettings({ image: { ...image, enabled: true } });
+  const preferences = await getAgentMediaSettings();
   const conversation = await Conversation.create({
     userId, title: '图片创作验收', messages: [{ id: 'image-user', role: 'user', content: '生成并编辑图片' }, { id: 'image-assistant', role: 'model', content: '' }],
   });
@@ -158,7 +159,7 @@ async function createImageTask(image) {
   const stored = await Task.create({
     userId, conversationId: conversation._id, requestId, fingerprint: requestId,
     userMessageId: 'image-user', modelMessageId: 'image-assistant', model: 'deepseek-flash',
-    status: 'running', mediaSettings: preferences.chatMediaSettings,
+    status: 'running', mediaSettings: preferences,
   });
   const task = await Task.findById(stored._id).lean();
   const entries = [];
@@ -199,7 +200,7 @@ for (const savedOptions of [options, { model: 'gpt-image-2.5-flare', size: '1152
     assert.equal(edited.completed, true);
     assert.notEqual(edited.artifacts[0].fileId, generated.artifacts[0].fileId);
     const recorded = await Task.findById(task._id).lean();
-    assert.deepEqual(recorded.mediaSettings.image, savedOptions);
+    assert.deepEqual(recorded.mediaSettings.image, { ...savedOptions, quality: 'low', count: savedOptions.count || 1 });
     assert.deepEqual(recorded.artifacts.map(item => item.fileId), [generated.artifacts[0].fileId, edited.artifacts[0].fileId]);
     assert.deepEqual(recorded.mediaTasks.map(item => item.status), ['completed', 'completed']);
     assert.deepEqual(recorded.mediaTasks.map(item => item.billingStatus), ['settled', 'settled']);
@@ -231,46 +232,46 @@ for (const savedOptions of [options, { model: 'gpt-image-2.5-flare', size: '1152
   });
 }
 
-test('真实个人设置保存模型尺寸画质，拒绝无效参数，并通过加密备份恢复', async () => {
-  const savedOptions = { model: 'gpt-image-2.5-flare', size: '2048x2048', quality: 'low' };
-  const saved = await updateUserProfileSettings(userId, { chatMediaSettings: { image: savedOptions } });
-  assert.deepEqual(saved.chatMediaSettings.image, savedOptions);
-  assert.deepEqual((await getUserSettings(userId)).chatMediaSettings.image, savedOptions);
-  await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { image: { size: 'auto' } } }), /模型/);
-  await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { image: { ...savedOptions, size: '999x999' } } }), /尺寸/);
-  assert.deepEqual((await UserSettings.findOne({ userId }).lean()).chatMediaSettings.image, savedOptions);
-  const password = 'image-backup-test-2026';
-  const job = await backups.createBackup(userId, { selection: ['settings'], password });
-  assert.equal(job.status, 'completed');
-  const download = await backups.backupDownload(userId, String(job._id));
-  const upload = new File([await readFile(download.path)], 'image-settings.vxb');
-  const preview = await backups.inspectBackup(userId, upload, password);
-  assert.equal(preview.counts.settings, 1);
-  await updateUserProfileSettings(userId, { chatMediaSettings: { image: { model: 'gpt-image-2.5-sunburst', size: '1024x1024', quality: 'low' } } });
-  const restored = await backups.restoreBackup(userId, upload, password, { digest: preview.digest, applySettings: true });
-  assert.equal(restored.job.status, 'completed');
-  assert.deepEqual((await getUserSettings(userId)).chatMediaSettings.image, savedOptions);
+test('首次保存单个媒体分组时建立完整的平台初始配置', async () => {
+  await MediaSettings.deleteMany({});
+  await saveMediaSettings({ audio: { voiceId: '933563129e564b19a115bedd57b7406a', model: 's2.1-pro-free' } });
+  const settings = await getMediaSettings();
+  assert.equal(settings.image.model, model);
+  assert.equal(settings.image.enabled, false);
+  await saveMediaSettings({ image: { size: '2048x1152' } });
+  assert.equal((await getMediaSettings()).image.size, '2048x1152');
+  await seedMediaSettings();
 });
 
-test('已存的旧图片配置可随音频设置一起保存，新图片配置需指定模型', async () => {
-  await UserSettings.updateOne({ userId }, { $set: { chatMediaSettings: { image: { size: 'auto' } } } });
-  const audio = { provider: 'fish', voiceId: 'test-voice', format: 'mp3' };
-  await updateUserProfileSettings(userId, { chatMediaSettings: { image: { size: 'auto' }, audio } });
-  assert.deepEqual((await getUserSettings(userId)).chatMediaSettings, { image: { size: 'auto' }, audio });
-  await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { image: { size: '1024x1024' }, audio } }), /模型/);
-  assert.deepEqual((await getUserSettings(userId)).chatMediaSettings, { image: { size: 'auto' }, audio });
+test('管理员可发布规范化共享音色，删除默认音色后Agent撤下配音能力', async () => {
+  const voiceId = '933563129e564b19a115bedd57b7406a';
+  await saveMediaSettings({ audio: { model: 's2.1-pro-free', voiceId: `  ${voiceId}  `, enabled: true } });
+  assert.equal((await getAgentMediaSettings()).audio.voiceId, voiceId);
+  await clearSharedVoice('other-voice');
+  assert.equal((await getAgentMediaSettings()).audio.voiceId, voiceId);
+  await clearSharedVoice(voiceId);
+  assert.equal((await getAgentMediaSettings()).audio, undefined);
+  assert.equal((await getMediaSettings()).audio.hasApiKey, true);
+  await seedMediaSettings();
 });
 
-test('创作设置不再接受视频生成参数，已有记录不妨碍保存其他创作设置', async () => {
-  const image = { model: 'gpt-image-2.5-sunburst', size: '1024x1024', quality: 'low' };
-  await UserSettings.updateOne({ userId }, { $set: { chatMediaSettings: { image, video: { mode: 'text' } } } });
-  const settings = await getUserSettings(userId);
-  assert.deepEqual(settings.chatMediaSettings, { image });
-  await assert.rejects(updateUserProfileSettings(userId, { chatMediaSettings: { video: { mode: 'text' } } }), /创作设置无效/);
-  const audio = { provider: 'fish', voiceId: 'test-voice', format: 'mp3' };
-  const saved = await updateUserProfileSettings(userId, { chatMediaSettings: { ...settings.chatMediaSettings, audio } });
-  assert.deepEqual(saved.chatMediaSettings, { image, audio });
-  assert.deepEqual((await UserSettings.findOne({ userId }).lean()).chatMediaSettings, { image, audio });
+test('全局媒体配置加密保存，Agent 获取共享参数且不接触密钥', async () => {
+  const result = await saveMediaSettings({ image: { enabled: true, ...options, apiKey: 'global-image-secret' } });
+  assert.equal(result.image.hasApiKey, true);
+  assert.equal(JSON.stringify(result).includes('global-image-secret'), false);
+  const stored = await MediaSettings.findById('media').lean();
+  assert.equal(JSON.stringify(stored).includes('global-image-secret'), false);
+  const runtime = await getAgentMediaSettings();
+  assert.equal(runtime.image.model, model);
+  assert.equal(runtime.image.baseUrl, undefined);
+  assert.equal(runtime.image.encryptedApiKey, undefined);
+  await assert.rejects(saveMediaSettings({ image: { size: 'invalid' } }), /尺寸/);
+  await assert.rejects(saveMediaSettings({ image: { baseUrl: 'http://127.0.0.1' } }), /HTTPS/);
+  await assert.rejects(saveMediaSettings({ image: { baseUrl: 'https://example.com' } }), /重新填写密钥/);
+  await saveMediaSettings({ image: { enabled: false } });
+  assert.equal((await getAgentMediaSettings()).image, undefined);
+  assert.equal((await getMediaSettings()).image.enabled, false);
+  await seedMediaSettings();
 });
 
 test('四图并行按原顺序返回部分成功，整组只记一次费用', async t => {

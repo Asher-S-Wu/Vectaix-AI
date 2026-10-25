@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["ffmpeg-static", "@ffprobe-installer/ffprobe", "pdfjs-dist", "playwright-chromium", "undici", "@modelcontextprotocol/sdk", "exceljs"],
+  serverExternalPackages: ["skills", "railway", "ffmpeg-static", "@ffprobe-installer/ffprobe", "pdfjs-dist", "playwright-chromium", "undici", "@modelcontextprotocol/sdk", "exceljs"],
   async headers() {
     return [
       {

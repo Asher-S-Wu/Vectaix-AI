@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/client/i18n";
+
 
 import ImageResults from '@/app/components/media/ImageResults';
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -37,12 +39,10 @@ import {
   ToolRunCards,
 } from "./MessageListHelpers";
 import {
-  STARTER_PROMPTS,
+  getStarterPrompts,
   isPendingRunText,
   normalizeFallbackToolTimeline,
 } from "./messageListUtils";
-
-const EXPORT_FORMAT_LABELS = { markdown: "Markdown", pdf: "PDF", docx: "Word 文档" };
 
 const STARTER_ICONS = {
   sparkles: Sparkles,
@@ -77,6 +77,8 @@ export default function MessageList({
   assistant,
   onSendStarterPrompt,
 }) {
+  const { t, locale, formatNumber, localizeMessage } = useI18n();
+  const EXPORT_FORMAT_LABELS = { markdown: "Markdown", pdf: "PDF", docx: t("Word 文档", "Word document") };
   const editTextareaRef = useRef(null);
   const exportMenuRef = useRef(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -127,7 +129,7 @@ export default function MessageList({
   };
 
   const handleCopyClick = (index, msg) => {
-    onCopy(buildCopyText(msg));
+    onCopy(buildCopyText(msg, locale));
     setCopiedIndex(index);
     if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     copyTimerRef.current = setTimeout(() => setCopiedIndex(null), 1600);
@@ -188,10 +190,10 @@ export default function MessageList({
 
   const handleExportMessage = async (format, msg) => {
     try {
-      await exportMessageContent(format, buildCopyText(msg));
-      toast.success(`已导出 ${EXPORT_FORMAT_LABELS[format] || "文件"}`);
+      await exportMessageContent(format, buildCopyText(msg, locale));
+      toast.success(["已导出 {format}", "Exported as {format}", { format: format === "docx" ? ["Word 文档", "Word document"] : EXPORT_FORMAT_LABELS[format] || ["文件", "File"] }]);
     } catch (error) {
-      toast.error(error?.message || "导出失败");
+      toast.error(localizeMessage(error?.message) || ["导出失败", "Export failed"]);
     } finally {
       setOpenExportMenuIndex(null);
     }
@@ -201,7 +203,7 @@ export default function MessageList({
     <div
       ref={listRef}
       onScroll={onScroll}
-      className={`flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 py-4 space-y-4 scroll-smooth fade-scrollbar mobile-scroll ${fontSizeClass}`}
+      className={`flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 py-4 space-y-4 motion-safe:scroll-smooth motion-reduce:scroll-auto fade-scrollbar mobile-scroll ${fontSizeClass}`}
     >
       <ImageLightbox open={lightboxOpen} onClose={closeLightbox} src={lightboxSrc} />
 
@@ -209,9 +211,9 @@ export default function MessageList({
         open={deleteConfirm.open}
         onClose={() => setDeleteConfirm({ open: false, index: null, role: null })}
         onConfirm={handleConfirmDelete}
-        title="删除消息"
-        message={`确定删除${deleteConfirm.role === "user" ? "你发送的这条消息" : "这条 AI 回复"}吗？此操作无法撤销。`}
-        confirmText="删除"
+        title={t("删除消息", "Delete message")}
+        message={deleteConfirm.role === "user" ? t("删除你发送的这条消息？此操作无法撤销。", "Delete this message? This action is permanent.") : t("删除这条 AI 回复？此操作无法撤销。", "Delete this AI reply? This action is permanent.")}
+        confirmText={t("删除", "Delete")}
         danger
       />
 
@@ -219,64 +221,27 @@ export default function MessageList({
         loading ? (
           <div className="h-full flex flex-col items-center justify-center">
             <div className="flex items-center gap-1.5 px-6 py-4 glass-effect rounded-3xl shadow-sm">
-              <LoadingSweepText text="..." ariaText="加载中" className="loading-sweep-dots text-xl" />
+              <LoadingSweepText text="..." ariaText={t("加载中", "Loading")} className="loading-sweep-dots text-xl" />
             </div>
           </div>
         ) : (
-          <div className="min-h-full flex flex-col items-center justify-center space-y-10 text-center px-4 max-w-4xl mx-auto w-full relative">
-            <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-              <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-primary/10 blur-3xl" />
-            </div>
-
-            <div className="space-y-6 relative z-10">
-              <motion.div
-                initial={{ scale: 0.6, opacity: 0, rotate: -12 }}
-                animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                transition={{ type: "spring", damping: 14, stiffness: 180 }}
-                className="relative inline-flex items-center justify-center"
-              >
-                <div className="absolute inset-0 bg-primary/25 blur-3xl rounded-full scale-150" />
-                <div className="relative w-20 h-20 rounded-[22px] glass-effect border-primary/20 shadow-lift flex items-center justify-center">
-                  <BrandMark size={44} />
-                </div>
-              </motion.div>
-              <div className="space-y-3 relative z-10">
-                <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-zinc-900 via-zinc-700 to-primary dark:from-white dark:via-zinc-200 dark:to-primary bg-clip-text text-transparent tracking-tight">
-                  今天能帮你做点什么？
-                </h2>
-                <p className="text-zinc-400 dark:text-zinc-500 text-[15px] max-w-sm mx-auto leading-relaxed">
-                  说说你想完成的事，或从下面的灵感开始
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4 relative z-10">
-              {STARTER_PROMPTS.map((prompt, idx) => {
-                const StarterIcon = STARTER_ICONS[prompt.icon] || Sparkles;
-                return (
-                  <motion.button
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 + idx * 0.08, type: "spring", damping: 20 }}
-                    onClick={() => onSendStarterPrompt?.(prompt.description)}
-                    className="flex flex-col items-start p-4 rounded-2xl glass-effect border-zinc-200/40 hover:border-primary/40 hover:shadow-lift hover:-translate-y-0.5 transition-all duration-300 text-left group active:scale-[0.98]"
-                  >
-                    <span className="mb-2.5 flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                      <StarterIcon size={17} strokeWidth={2.2} />
-                    </span>
-                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">{prompt.title}</span>
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500 line-clamp-1">{prompt.description}</span>
-                  </motion.button>
-                );
+          <div className="huajuan-welcome">
+            <div className="welcome-brand"><BrandMark size={108} /><span className="welcome-note">{t("花卷", "Huajuan")}</span></div>
+            <h1>{t("你想完成什么？", "What would you like to work on?")}</h1>
+            <p className="welcome-description">{t("输入问题或上传文件，让花卷帮你查资料、分析数据、起草文稿。", "Ask a question or upload a file. Huajuan can research topics, analyze data, and draft documents.")}</p>
+            <div className="welcome-prompts">
+              {getStarterPrompts(locale).map(prompt => {
+                const StarterIcon = STARTER_ICONS[prompt.icon];
+                return <button type="button" key={prompt.title} onClick={() => onSendStarterPrompt?.(prompt.description)} className="welcome-prompt"><StarterIcon size={18} strokeWidth={1.6} /><span>{prompt.title}</span><span aria-hidden="true" className="welcome-prompt-plus">+</span></button>;
               })}
             </div>
+            <p className="welcome-footnote">{t("选一个任务开始，或在下方输入你的需求。", "Choose a task above, or describe what you need below.")}</p>
           </div>
         )
       ) : (
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => {
-          const fallbackThinkingTimeline = normalizeFallbackToolTimeline(msg.tools);
+          const fallbackThinkingTimeline = normalizeFallbackToolTimeline(msg.tools, locale);
           const displayParts = Array.isArray(msg.parts) && msg.role === "model"
             ? msg.parts.filter((part) => !(typeof part?.text === "string" && isPendingRunText(part.text)) && !part?.thought)
             : msg.parts;
@@ -314,9 +279,9 @@ export default function MessageList({
             >
               {msg.role === "model" && (msg.taskId || msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasToolRuns) && (
                 <div className="flex items-center gap-2 pl-1">
-                  {assistant?.avatarFileId ? <NextImage src={`/api/files/${assistant.avatarFileId}`} alt={assistant.name} width={24} height={24} unoptimized className="h-6 w-6 rounded-lg object-cover" /> : <AIAvatar size={24} />}
+                  {assistant?.avatarFileId ? <NextImage src={`/api/files/${assistant.avatarFileId}`} alt={assistant.name === "花卷" ? t("花卷", "Huajuan") : assistant.name} width={24} height={24} unoptimized className="h-6 w-6 rounded-lg object-cover" /> : <AIAvatar size={24} />}
                   <span className="text-[11px] text-zinc-400 font-bold tracking-wider">
-                    {assistant?.name}
+                    {assistant?.name === "花卷" ? t("花卷", "Huajuan") : assistant?.name}
                   </span>
                 </div>
               )}
@@ -325,13 +290,13 @@ export default function MessageList({
                 {msg.role === "user" && (
                   <div className="flex items-center gap-2 pr-1 mb-1 relative">
                     <span className="text-[11px] text-zinc-500 font-medium truncate max-w-[150px]">
-                      {userNickname || "你"}
+                      {userNickname || t("你", "You")}
                     </span>
                     {userAvatar ? (
                       <NextImage src={userAvatar} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-md object-cover ring-1 ring-zinc-200/50 dark:ring-zinc-700" />
                     ) : (
                       <div className="w-5 h-5 rounded-md bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-500">
-                        {userNickname?.[0] || "你"}
+                        {userNickname?.[0] || t("你", "Y")}
                       </div>
                     )}
                   </div>
@@ -360,7 +325,7 @@ export default function MessageList({
                               {image.preview ? (
                                 <NextImage
                                   src={image.preview}
-                                  alt={`第 ${imageIndex + 1} 张参考图片`}
+                                  alt={t("参考图片 {number}", "Reference image {number}", { number: formatNumber(imageIndex + 1) })}
                                   fill
                                   sizes="64px"
                                   unoptimized
@@ -371,8 +336,8 @@ export default function MessageList({
                                 type="button"
                                 onClick={() => onEditingImageRemove(image.id)}
                                 className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-white hover:bg-black/80"
-                                title={`移除第 ${imageIndex + 1} 张参考图片`}
-                                aria-label={`移除第 ${imageIndex + 1} 张参考图片`}
+                                title={t("移除参考图片 {number}", "Remove reference image {number}", { number: formatNumber(imageIndex + 1) })}
+                                aria-label={t("移除参考图片 {number}", "Remove reference image {number}", { number: formatNumber(imageIndex + 1) })}
                               >
                                 <X size={11} />
                               </button>
@@ -383,17 +348,18 @@ export default function MessageList({
                       <textarea
                         ref={editTextareaRef}
                         value={editingContent}
+                        aria-label={t("编辑消息", "Edit message")}
                         onChange={(e) => onEditingContentChange(e.target.value)}
                         className="block w-full max-h-[45vh] resize-none overflow-y-auto fade-scrollbar bg-transparent p-0 text-sm leading-6 text-zinc-800 dark:text-zinc-100 outline-none"
                       />
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors">取消</button>
+                      <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors">{t("取消", "Cancel")}</button>
                       <button
                         onClick={() => onSubmitEdit(i)}
                         className="btn-primary px-3 py-1.5 text-xs rounded-lg disabled:opacity-40"
                       >
-                        提交
+                        {t("提交", "Send")}
                       </button>
                     </div>
                   </div>
@@ -455,14 +421,14 @@ export default function MessageList({
 
                     {isFailedModelMessage && (
                       <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-sm">
-                        <span>生成失败，没有收到有效回复</span>
+                        <span>{t("回复生成失败，请重试。", "The reply failed to generate. Please try again.")}</span>
                         {canRegenerateMessage && (
                           <button
                             onClick={() => onRegenerateModelMessage?.(i)}
                             disabled={loading || hasStreamingContent}
                             className="shrink-0 px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            重新生成
+                            {t("重新生成", "Regenerate")}
                           </button>
                         )}
                       </div>
@@ -472,7 +438,7 @@ export default function MessageList({
                       <div className={`msg-actions flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0 group-focus-within:translate-y-0 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                         {msg.role === "model" && (hasParts || hasVisibleContent) && (
                           <div className="relative" ref={openExportMenuIndex === i ? exportMenuRef : null}>
-                            <button onClick={() => setOpenExportMenuIndex(prev => prev === i ? null : i)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="导出" aria-label="导出消息">
+                            <button onClick={() => setOpenExportMenuIndex(prev => prev === i ? null : i)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title={t("导出", "Export")} aria-label={t("导出消息", "Export message")}>
                               <Download size={16} />
                             </button>
                             <AnimatePresence>
@@ -491,24 +457,24 @@ export default function MessageList({
                             onClick={() => onRegenerateModelMessage?.(i)}
                             disabled={loading || hasStreamingContent}
                             className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-400"
-                            title="重新生成"
-                            aria-label="重新生成"
+                            title={t("重新生成", "Regenerate")}
+                            aria-label={t("重新生成", "Regenerate")}
                           >
                             <RefreshCw size={16} />
                           </button>
                         ) : null}
-                        {msg.role === "model" && buildCopyText(msg).trim() && <ReplyActions text={buildCopyText(msg)} />}
+                        {msg.role === "model" && buildCopyText(msg, locale).trim() && <ReplyActions text={buildCopyText(msg, locale)} />}
                         <button
                           onClick={() => handleCopyClick(i, msg)}
                           className={`p-2 rounded-lg transition-colors ${copiedIndex === i ? "text-emerald-500" : "text-zinc-400 hover:text-primary hover:bg-primary/5"}`}
-                          title="复制内容"
-                          aria-label="复制内容"
+                          title={t("复制内容", "Copy text")}
+                          aria-label={t("复制内容", "Copy text")}
                         >
                           {copiedIndex === i ? <Check size={16} /> : <Copy size={16} />}
                         </button>
-                        <button onClick={() => handleDeleteClick(i, msg.role)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="删除" aria-label="删除消息"><Trash2 size={16} /></button>
+                        <button onClick={() => handleDeleteClick(i, msg.role)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title={t("删除", "Delete")} aria-label={t("删除消息", "Delete message")}><Trash2 size={16} /></button>
                         {msg.role === "user" && (
-                          <button onClick={() => onStartEdit(i, msg)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="编辑" aria-label="编辑消息"><Edit3 size={16} /></button>
+                          <button onClick={() => onStartEdit(i, msg)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title={t("编辑", "Edit")} aria-label={t("编辑消息", "Edit message")}><Edit3 size={16} /></button>
                         )}
                       </div>
                     )}

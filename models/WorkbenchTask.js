@@ -24,6 +24,7 @@ const schema = new mongoose.Schema({
   finishedAt: Date,
   output: { type: String, default: "" },
   error: { type: String, default: "" },
+  plan: { type: [{ id: String, title: String, status: { type: String, enum: ['pending', 'in_progress', 'completed'] } }], default: [] },
   summary: { type: String, default: "" },
   eventSeq: { type: Number, default: 0 },
   costCny: { type: Number, default: 0 },

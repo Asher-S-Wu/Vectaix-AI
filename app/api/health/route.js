@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import { ensureStorageReady } from "@/lib/server/storage/service";
@@ -5,7 +6,7 @@ import { ensureStorageReady } from "@/lib/server/storage/service";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function GETHandler() {
   const checks = { database: "error", storage: "error" };
   try {
     await dbConnect();
@@ -23,3 +24,5 @@ export async function GET() {
   const ok = Object.values(checks).every((value) => value === "ok");
   return Response.json({ status: ok ? "ok" : "unhealthy", checks }, { status: ok ? 200 : 503 });
 }
+
+export const GET = localizedRoute(GETHandler);

@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import {
   invalidJsonResponse,
   parseJsonRequest,
@@ -17,7 +18,7 @@ async function requireUser(req) {
   return auth?.payload || null;
 }
 
-export async function GET(req) {
+async function GETHandler(req) {
   const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
@@ -25,7 +26,7 @@ export async function GET(req) {
   return Response.json({ settings });
 }
 
-export async function POST(req) {
+async function POSTHandler(req) {
   const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
@@ -40,7 +41,7 @@ export async function POST(req) {
   }
 }
 
-export async function DELETE(req) {
+async function DELETEHandler(req) {
   const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
@@ -56,7 +57,7 @@ export async function DELETE(req) {
   }
 }
 
-export async function PUT(req) {
+async function PUTHandler(req) {
   const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
@@ -71,7 +72,7 @@ export async function PUT(req) {
   }
 }
 
-export async function PATCH(req) {
+async function PATCHHandler(req) {
   const user = await requireUser(req);
   if (!user) return unauthorizedResponse();
 
@@ -86,3 +87,9 @@ export async function PATCH(req) {
     return Response.json({ error: error?.message || "更新失败" }, { status });
   }
 }
+
+export const GET = localizedRoute(GETHandler);
+export const POST = localizedRoute(POSTHandler);
+export const DELETE = localizedRoute(DELETEHandler);
+export const PUT = localizedRoute(PUTHandler);
+export const PATCH = localizedRoute(PATCHHandler);

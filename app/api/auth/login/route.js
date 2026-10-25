@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import dbConnect from '@/lib/db';
 import { getUserAccessFlags } from '@/lib/admin';
 import User from '@/models/User';
@@ -8,7 +9,7 @@ import { normalizeEmail } from '@/lib/server/auth/validation';
 
 const LOGIN_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
 
-export async function POST(req) {
+async function POSTHandler(req) {
     try {
         const clientIP = getClientIP(req);
         const rateLimitKey = `login:${clientIP}`;
@@ -78,3 +79,5 @@ export async function POST(req) {
         return Response.json({ error: '登录失败，请稍后再试' }, { status: 500 });
     }
 }
+
+export const POST = localizedRoute(POSTHandler);

@@ -21,9 +21,9 @@ function wav(seconds = 1) {
 
 async function withPage(ip, run) {
   const browser = await chromium.launch();
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce', extraHTTPHeaders: { 'x-forwarded-for': ip } });
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce', extraHTTPHeaders: { 'x-forwarded-for': ip } });
   try {
-    const login = await context.request.post(`${base}/api/auth/login`, { data: { email: 'member@example.test', password: 'Vectaix-Test-2026!' } });
+    const login = await context.request.post(`${base}/api/auth/login`, { data: { email: 'admin@example.test', password: 'Vectaix-Test-2026!' } });
     assert.equal(login.status(), 200);
     const page = await context.newPage();
     const errors = [];
@@ -44,7 +44,7 @@ async function chooseVoice(page, voice) {
   assert.equal(await option.getAttribute('aria-pressed'), 'true');
 }
 
-test('个人声音库支持搜索、音色记忆、参数保存、生成播放下载删除', { timeout: 180000 }, async () => {
+test('管理员声音库支持搜索、音色选择保持、全局参数保存、生成播放下载删除', { timeout: 180000 }, async () => {
   await withPage('192.0.2.240', async page => {
     let submitted, release, deleted = false, savedSettings;
     const generation = { id: 'fish-ui-generation', generationId: 'fish-ui-generation', model, voiceId: voiceB.voiceId, voiceName: voiceB.displayName, text: '我的声音配音验收', format: 'wav', sampleRate: 24000, speed: 1.4, volume: 3, audioUrl: '/api/files/fish-ui-audio', createdAt: '2026-10-23T00:00:00Z' };
@@ -60,21 +60,17 @@ test('个人声音库支持搜索、音色记忆、参数保存、生成播放�
       if (request.method() === 'DELETE') { deleted = true; return route.fulfill({ json: { success: true } }); }
       return route.fulfill({ json: { success: true, generations: [] } });
     });
-    await page.route('**/api/settings', route => {
+    await page.route('**/api/admin/media', route => {
       if (route.request().method() === 'PUT') savedSettings = route.request().postDataJSON();
-      return route.fulfill({ json: { success: true, settings: savedSettings || { chatMediaSettings: {} } } });
+      return route.fulfill({ json: { success: true, config: savedSettings || {} } });
     });
     await page.route('**/api/files/fish-ui-audio*', route => route.fulfill({ contentType: 'audio/wav', headers: new URL(route.request().url()).searchParams.has('download') ? { 'content-disposition': 'attachment; filename="fish-ui.wav"' } : {}, body: wav() }));
-    await page.goto(`${base}/media`);
-    await page.getByRole('heading', { name: '让想法变成作品' }).waitFor();
-    const nav = page.getByRole('navigation', { name: '媒体工作台' });
-    assert.equal(await page.locator('section[aria-labelledby="media-title"] a').count(), 2);
-    await page.locator('section[aria-labelledby="media-title"] a[href="/media/audio"]').click();
-    await page.waitForURL(`${base}/media/audio`);
+    await page.goto(`${base}/admin/media/audio`);
+    const nav = page.getByRole('navigation', { name: '媒体工作区' });
     assert.equal(await nav.getByRole('link').count(), 2);
     await page.getByRole('heading', { name: '语音合成', exact: true }).waitFor();
     assert.equal(await page.locator('h1').count(), 1);
-    assert.match(await page.title(), /Vectaix/i);
+    assert.match(await page.title(), /花卷/);
     await page.getByText('Fish Audio S2.1 Pro', { exact: true }).waitFor();
     await page.getByRole('button', { name: /^测试音色甲/ }).waitFor();
     await page.getByLabel('搜索音色', { exact: true }).fill('乙');
@@ -92,10 +88,10 @@ test('个人声音库支持搜索、音色记忆、参数保存、生成播放�
     await page.getByLabel('采样率', { exact: true }).selectOption('24000');
     await page.getByLabel('语速', { exact: true }).fill('1.4');
     await page.getByLabel('音量', { exact: true }).fill('3');
-    await page.getByRole('button', { name: '用于对话配音和朗读', exact: true }).click();
-    await page.getByText('对话配音和朗读已使用当前配置', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '设为全平台默认参数', exact: true }).click();
+    await page.getByText('已保存为全平台媒体默认参数', { exact: true }).waitFor();
     const parameters = { model, voiceId: voiceB.voiceId, format: 'wav', sampleRate: 24000, speed: 1.4, volume: 3, temperature: 0.7, topP: 0.7 };
-    assert.deepEqual(savedSettings.chatMediaSettings.audio, { provider: 'fish', ...parameters });
+    assert.deepEqual(savedSettings.audio, { provider: 'fish', ...parameters });
     try {
       const dispatched = page.waitForRequest(request => request.url().endsWith('/fish/generations') && request.method() === 'POST');
       await page.getByRole('button', { name: '生成语音', exact: true }).click();
@@ -144,7 +140,7 @@ test('Fish 声音复刻提交样本授权、刷新状态、试听并删除音色
       return route.fulfill({ json: { success: true, generations: [] } });
     });
     await page.addInitScript(() => localStorage.setItem('vectaix_ui_fishAudioVoice_v1', 'd'.repeat(32)));
-    await page.goto(`${base}/media/audio`);
+    await page.goto(`${base}/admin/media/audio`);
     await page.getByText('先复刻一个声音，即可在这里选择并生成配音。', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: '生成语音', exact: true }).isDisabled(), true);
     assert.equal(await page.evaluate(() => localStorage.getItem('vectaix_ui_fishAudioVoice_v1')), null);

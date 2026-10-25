@@ -69,8 +69,11 @@ export async function register() {
       cleanupOrphanedStorageFiles(),
     ]);
 
-    const { migrateUserCapabilities } = await import("@/lib/server/settings/migration");
+    const { migrateUserCapabilities, migrateServiceCredentials } = await import("@/lib/server/settings/migration");
+    await migrateServiceCredentials();
     await migrateUserCapabilities();
+    const { migrateGlobalSkills } = await import('@/lib/server/skills/service');
+    await migrateGlobalSkills();
 
     const { startWorkbenchRunner } = await import("@/lib/server/workbench/runner");
     await startWorkbenchRunner();

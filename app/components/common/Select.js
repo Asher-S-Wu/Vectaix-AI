@@ -3,6 +3,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useI18n } from "@/lib/client/i18n";
 import { Check, ChevronDown } from "lucide-react";
 
 const PANEL_MAX_HEIGHT = 240;
@@ -20,7 +21,9 @@ export default function Select({
   disabled = false,
   size = "md",
   ariaLabel,
+  'aria-describedby': ariaDescribedBy,
 }) {
+  const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const listboxId = useId();
   const triggerRef = useRef(null);
@@ -34,8 +37,8 @@ export default function Select({
   const selected = options.find((option) => option.id === value) || null;
   useEffect(() => {
     const input = inputRef.current;
-    input?.setCustomValidity(required && (!selected || value === "") ? "请选择一项" : "");
-  }, [required, selected, value]);
+    input?.setCustomValidity(required && (!selected || value === "") ? t("请选择一项", "Choose an option") : "");
+  }, [required, selected, value, t]);
   useEffect(() => {
     const form = inputRef.current?.form;
     const reset = () => { setLocalValue(defaultValue); setOpen(false); };
@@ -155,9 +158,10 @@ export default function Select({
         aria-expanded={open}
         aria-controls={open ? listboxId : undefined}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
         className={`focus-ring flex items-center justify-between gap-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${className || `${size === "lg" ? "h-11" : "h-10"} w-full rounded-xl border bg-white px-3 text-sm dark:bg-zinc-900 ${open ? "border-primary dark:border-primary" : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"}`}`}
       >
-        <span className="truncate">{selected?.label ?? "请选择"}</span>
+        <span className="truncate">{selected?.label ?? t("请选择", "Select")}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
       </button>
 

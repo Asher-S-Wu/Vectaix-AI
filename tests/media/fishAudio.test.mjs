@@ -1,3 +1,15 @@
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import mongoose from 'mongoose';
+const { default: MediaSettings } = await import('../../models/MediaSettings.js');
+import { seedMediaSettings } from '../helpers/media-config.mjs';
+let database;
+test.before(async () => {
+  database = await MongoMemoryServer.create();
+  process.env.MONGO_URI = database.getUri();
+  const { default: dbConnect } = await import('../../lib/db.js');
+  await dbConnect();
+});
+test.after(async () => { await mongoose.disconnect(); await database.stop(); });
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseFishSpeechInput } from "../../lib/media/shared/fishAudio.js";
@@ -6,7 +18,7 @@ import { buildFishSpeechPayload, createFishVoice, synthesizeFishSpeech } from ".
 const voiceId = "933563129e564b19a115bedd57b7406a";
 const input = { text: "[轻声]你好，Fish。", voiceId };
 
-test.beforeEach(() => { process.env.FISH_API_KEY = "test-fish-key"; });
+test.beforeEach(async () => { await seedMediaSettings(); });
 
 test("Fish 按官方字段传递自然语言表达、语速和音量", () => {
   const payload = buildFishSpeechPayload({ ...input, speed: 1.25, volume: -5, temperature: 0.4, topP: 0.8 });
@@ -72,7 +84,7 @@ test("已取消的请求和缺失密钥在发出网络请求前终止", async (t
   const controller = new AbortController();
   controller.abort();
   await assert.rejects(synthesizeFishSpeech(input, { signal: controller.signal }), { name: "AbortError" });
-  delete process.env.FISH_API_KEY;
+  await MediaSettings.updateOne({ _id: 'media' }, { $unset: { 'audio.encryptedApiKey': '' } });
   await assert.rejects(synthesizeFishSpeech(input), { status: 503, code: "NOT_CONFIGURED" });
   assert.equal(upstream.mock.callCount(), 0);
 });

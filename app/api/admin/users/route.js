@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import dbConnect from '@/lib/db';
 import { getUserAccessFlags, requireAdmin } from '@/lib/admin';
 import User from '@/models/User';
@@ -11,7 +12,7 @@ function escapeRegex(input) {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export async function GET(req) {
+async function GETHandler(req) {
   const admin = await requireAdmin(req);
   if (!admin) {
     return forbiddenResponse();
@@ -76,3 +77,5 @@ export async function GET(req) {
     totalPages: Math.ceil(total / limit),
   });
 }
+
+export const GET = localizedRoute(GETHandler);

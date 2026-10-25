@@ -34,8 +34,6 @@ const ConversationSchema = new mongoose.Schema({
   },
   settings: {
     webSearch: { type: mongoose.Schema.Types.Mixed, default: null },
-    memoryEnabled: { type: Boolean, default: true },
-    disabledSkillIds: { type: [String], default: [] },
   },
   pinned: {
     type: Boolean,

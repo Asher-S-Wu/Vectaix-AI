@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import Conversation from '@/models/Conversation';
 import { requireProject } from '@/lib/server/workbench/catalog';
 import { sanitizeImportedConversation } from '@/lib/server/conversations/sanitize';
@@ -13,7 +14,7 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(req) {
+async function GETHandler(req) {
     try {
         const auth = await requireUserRecord({ request: req, connectDb: true, select: null });
         const user = auth?.payload;
@@ -42,7 +43,7 @@ export async function GET(req) {
     }
 }
 
-export async function POST(req) {
+async function POSTHandler(req) {
     try {
         const oversizeResponse = assertRequestSize(req, TEXT_CHAT_MAX_REQUEST_BYTES);
         if (oversizeResponse) return oversizeResponse;
@@ -81,3 +82,6 @@ export async function POST(req) {
         return Response.json({ error: error?.message || '创建对话失败' }, { status: error.status || 400 });
     }
 }
+
+export const GET = localizedRoute(GETHandler);
+export const POST = localizedRoute(POSTHandler);

@@ -1,12 +1,18 @@
 "use client";
 
+import { useI18n } from "@/lib/client/i18n";
+
 import { motion, useReducedMotion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
 export default function AudioGeneratingBanner({
-  title = "正在合成并保存音频",
-  description = "长文本需要更多时间，请保持页面打开。",
+  title,
+  description,
 }) {
+  const { t } = useI18n();
+  title ??= t("正在合成并保存音频", "Generating and saving audio");
+  description ??= t("长文本需要更多时间，请保持页面打开。", "Longer text takes more time. Keep this page open.");
+
   const reduceMotion = useReducedMotion();
 
   return (
@@ -25,7 +31,7 @@ export default function AudioGeneratingBanner({
           <p className="mt-1 text-xs text-zinc-500">{description}</p>
         </div>
       </div>
-      <div className="mt-4 h-11 animate-pulse rounded-xl bg-primary/10 motion-reduce:animate-none" aria-hidden="true" />
+      <div className="mt-4 h-11 animate-pulse motion-reduce:animate-none rounded-xl bg-primary/10 motion-reduce:animate-none" aria-hidden="true" />
     </motion.section>
   );
 }

@@ -1,26 +1,31 @@
 "use client";
 
+import { useI18n } from "@/lib/client/i18n";
+
 import Image from "next/image";
 import TaskApprovals from "./TaskApprovals";
-import { Check, Download, FileText, LoaderCircle, OctagonX } from "lucide-react";
+import { Check, Circle, Download, FileText, LoaderCircle, OctagonX } from "lucide-react";
 
-const LABELS = { queued: "正在排队", running: "正在处理", waiting_media: "正在生成素材", waiting_approval: "等待你的确认", completed: "已完成", failed: "执行失败", stopped: "已停止", interrupted: "执行已中断" };
 const ACTIVE = new Set(["queued", "running", "waiting_media", "waiting_approval"]);
 
 export default function TaskDelivery({ message, task }) {
+  const { t, formatNumber, localizeMessage } = useI18n();
+  const LABELS = { queued: t("正在排队", "Queued"), running: t("正在处理", "Working"), waiting_media: t("正在生成素材", "Generating media"), waiting_approval: t("等待你的确认", "Waiting for your approval"), completed: t("已完成", "Completed"), failed: t("执行失败", "Failed"), stopped: t("已停止", "Stopped"), interrupted: t("执行已中断", "Interrupted") };
   const status = task?.status || message.taskStatus;
   const active = ACTIVE.has(status);
   const artifacts = task?.artifacts || message.artifacts || [];
   const error = task?.error;
+  const plan = task?.plan || message.plan || [];
   return (
     <div className="my-2 w-full max-w-2xl space-y-2">
       <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
         {active ? <LoaderCircle size={13} className="animate-spin" /> : status === "completed" ? <Check size={13} /> : <OctagonX size={13} />}
-        <span>{task?.stopRequested && active ? "正在停止" : LABELS[status]}</span>
+        <span>{task?.stopRequested && active ? t("正在停止", "Stopping") : LABELS[status]}</span>
       </div>
+      {plan.length > 0 && <details className="task-plan" open={active}><summary>{t("执行计划 · {done}/{total} 已完成", "Plan · {done}/{total} completed", { done: formatNumber(plan.filter(step => step.status === "completed").length), total: formatNumber(plan.length) })}</summary><ol>{plan.map(step => <li key={step.id} data-status={step.status}>{step.status === 'completed' ? <Check size={14} className="shrink-0" /> : step.status === 'in_progress' ? <LoaderCircle size={14} className="shrink-0 animate-spin" /> : <Circle size={13} className="shrink-0" />}<span>{step.title}</span></li>)}</ol></details>}
       {status === "waiting_approval" && <TaskApprovals taskId={String(message.taskId)} />}
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      {["failed", "interrupted", "stopped"].includes(status) && <p className="text-xs text-zinc-500">可以继续发送消息，或点击下方“重新生成”重试。</p>}
+      {error && <p className="text-sm text-red-500">{localizeMessage(error)}</p>}
+      {["failed", "interrupted", "stopped"].includes(status) && <p className="text-xs text-zinc-500">{t("可以继续发送消息，或点击下方“重新生成”重试。", "Send another message or select Regenerate below to try again.")}</p>}
       {artifacts.length > 0 && <div className="grid gap-2 sm:grid-cols-2">
         {artifacts.map(file => <div key={file.fileId} className="overflow-hidden rounded-xl border border-zinc-200/70 dark:border-zinc-700">
           {file.mimeType?.startsWith("image/") && <a href={file.url} target="_blank" rel="noreferrer"><Image src={file.url} alt={file.name} width={600} height={450} unoptimized className="h-auto w-full" /></a>}

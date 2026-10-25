@@ -1,10 +1,11 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import { workbenchRoute } from "@/lib/server/workbench/apiHelpers";
 import { deleteProjectDocument, readProjectDocument } from "@/lib/server/workbench/documents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(request, context) {
+async function GETHandler(request, context) {
   return workbenchRoute(request, async (userId) => {
     const { id, fileId } = await context.params;
     const query = new URL(request.url).searchParams;
@@ -12,10 +13,13 @@ export async function GET(request, context) {
   });
 }
 
-export async function DELETE(request, context) {
+async function DELETEHandler(request, context) {
   return workbenchRoute(request, async (userId) => {
     const { id, fileId } = await context.params;
     await deleteProjectDocument({ userId, projectId: id, fileId });
     return Response.json({ success: true });
   });
 }
+
+export const GET = localizedRoute(GETHandler);
+export const DELETE = localizedRoute(DELETEHandler);

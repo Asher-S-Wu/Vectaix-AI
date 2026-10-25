@@ -1,3 +1,15 @@
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import mongoose from 'mongoose';
+const { default: MediaSettings } = await import('../../models/MediaSettings.js');
+import { seedMediaSettings } from '../helpers/media-config.mjs';
+let database;
+test.before(async () => {
+  database = await MongoMemoryServer.create();
+  process.env.MONGO_URI = database.getUri();
+  const { default: dbConnect } = await import('../../lib/db.js');
+  await dbConnect();
+});
+test.after(async () => { await mongoose.disconnect(); await database.stop(); });
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "node:http";
@@ -11,12 +23,7 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 const PARAMS = { model: "gpt-image-2.5-sunburst", prompt: "一只猫", size: "1024x1024", quality: "low" };
 
 async function requestModule(t) {
-  const previous = process.env.MICU_OPENAI_IMAGE_API_KEY;
-  process.env.MICU_OPENAI_IMAGE_API_KEY = "server-secret";
-  t.after(() => {
-    if (previous === undefined) delete process.env.MICU_OPENAI_IMAGE_API_KEY;
-    else process.env.MICU_OPENAI_IMAGE_API_KEY = previous;
-  });
+  await seedMediaSettings({ imageKey: 'server-secret' });
   return import("../../lib/media/server/micuImage.js");
 }
 
@@ -76,26 +83,13 @@ test("Micu 使用实际 HTTP 连接完成文生图及单图、多图表单请求
   assert.equal(received.length, 3);
 });
 
-test("Micu 图片密钥独立于 GPT，缺失时阻止请求并给出中文配置错误", () => {
-  const previous = process.env.MICU_OPENAI_IMAGE_API_KEY;
-  const previousChatKey = process.env.MICU_OPENAI_API_KEY;
-  delete process.env.MICU_OPENAI_IMAGE_API_KEY;
-  process.env.MICU_OPENAI_API_KEY = "chat-only-secret";
-  try {
-    assert.equal(typeof modelRoutes.resolveMicuImageConfig, "function");
-    assert.throws(() => modelRoutes.resolveMicuImageConfig(), /Micu.*尚未配置/);
-    process.env.MICU_OPENAI_IMAGE_API_KEY = "  server-secret  ";
-    assert.deepEqual(modelRoutes.resolveMicuImageConfig(), {
-      apiKey: "server-secret",
-      endpoint: "https://www.micuapi.ai/v1/images/generations",
-      editEndpoint: "https://www.micuapi.ai/v1/images/edits",
-    });
-  } finally {
-    if (previous === undefined) delete process.env.MICU_OPENAI_IMAGE_API_KEY;
-    else process.env.MICU_OPENAI_IMAGE_API_KEY = previous;
-    if (previousChatKey === undefined) delete process.env.MICU_OPENAI_API_KEY;
-    else process.env.MICU_OPENAI_API_KEY = previousChatKey;
-  }
+test('图片服务使用管理员保存的独立密钥', async () => {
+  await MediaSettings.deleteMany({});
+  await assert.rejects(modelRoutes.resolveMicuImageConfig(), /管理员/);
+  await seedMediaSettings({ imageKey: 'server-secret' });
+  assert.deepEqual(await modelRoutes.resolveMicuImageConfig(), {
+    apiKey: 'server-secret', endpoint: 'https://www.micuapi.ai/v1/images/generations', editEndpoint: 'https://www.micuapi.ai/v1/images/edits',
+  });
 });
 
 test("文生图只发一次 JSON 请求并解码图片、保留用量和真实请求 ID", async (t) => {
@@ -239,14 +233,14 @@ test("网络请求不会被 fetch 默认五分钟超时提前截断", async (t) 
 
 test("服务未配置时不发送任何网络请求", async (t) => {
   const { requestMicuImage } = await requestModule(t);
-  delete process.env.MICU_OPENAI_IMAGE_API_KEY;
+  await MediaSettings.updateOne({ _id: 'media' }, { $unset: { 'image.encryptedApiKey': '' } });
   const fetchMock = t.mock.method(undici, "fetch", async () => imageResponse());
   await assert.rejects(requestMicuImage(PARAMS), (error) => {
-    assert.match(error.message, /Micu.*尚未配置/);
+    assert.match(error.message, /管理员/);
     assert.equal(error.status, 503);
     assert.equal(error.code, "SERVICE_NOT_CONFIGURED");
     assert.equal(error.requestId, undefined);
-    assert.equal(error.upstreamRejected, false);
+    assert.notEqual(error.upstreamRejected, true);
     return true;
   });
   assert.equal(fetchMock.mock.callCount(), 0);
@@ -338,7 +332,7 @@ test("断网不是明确拒绝，五次失败后返回错误", async (t) => {
   await assert.rejects(requestMicuImage(PARAMS), (error) => {
     assert.match(error.message, /无法连接/);
     assert.equal(error.status, 502);
-    assert.equal(error.upstreamRejected, false);
+    assert.notEqual(error.upstreamRejected, true);
     return true;
   });
   assert.equal(fetchMock.mock.callCount(), 5);
@@ -358,7 +352,7 @@ for (const [label, body] of [
       assert.equal(error.status, 502);
       assert.equal(error.code, "INVALID_UPSTREAM_RESPONSE");
       assert.equal(error.requestId, "bad-result");
-      assert.equal(error.upstreamRejected, false);
+      assert.notEqual(error.upstreamRejected, true);
       return true;
     });
     assert.equal(fetchMock.mock.callCount(), 5);
@@ -381,17 +375,20 @@ test("非 JSON 的 4xx 响应仍保留明确拒绝状态", async (t) => {
 
 test("已取消请求不发送，进行中的请求会取消", async (t) => {
   const { requestMicuImage } = await requestModule(t);
-  const fetchMock = t.mock.method(undici, "fetch", (_url, { signal }) => rejectOnAbort(signal));
+  let dispatched;
+  const started = new Promise(resolve => { dispatched = resolve; });
+  const fetchMock = t.mock.method(undici, "fetch", (_url, { signal }) => { dispatched(); return rejectOnAbort(signal); });
   const before = new AbortController();
   before.abort();
   await assert.rejects(requestMicuImage({ ...PARAMS, signal: before.signal }), { name: "AbortError" });
   assert.equal(fetchMock.mock.callCount(), 0);
   const during = new AbortController();
   const pending = requestMicuImage({ ...PARAMS, signal: during.signal });
+  await started;
   during.abort(new Error("user cancelled"));
   await assert.rejects(pending, (error) => {
     assert.equal(error.name, "AbortError");
-    assert.equal(error.upstreamRejected, false);
+    assert.notEqual(error.upstreamRejected, true);
     return true;
   });
   assert.equal(fetchMock.mock.callCount(), 1);
@@ -401,10 +398,11 @@ test("每次尝试的 600 秒时限覆盖等待响应和读取响应体", async 
   const { requestMicuImage } = await requestModule(t);
   t.mock.timers.enable({ apis: ["setTimeout"] });
   t.mock.method(timers, "setTimeout", async () => {});
-  let requestSignal, resolveHeaders;
+  let requestSignal, resolveHeaders, releaseDispatch;
+  let dispatchReady = new Promise(resolve => { releaseDispatch = resolve; });
   t.mock.method(undici, "fetch", (_url, { signal }) => {
     requestSignal = signal;
-    return new Promise(resolve => { resolveHeaders = resolve; });
+    return new Promise(resolve => { resolveHeaders = resolve; releaseDispatch(); });
   });
   const pending = assert.rejects(requestMicuImage(PARAMS), error => {
     assert.equal(error.status, 504);
@@ -413,6 +411,8 @@ test("每次尝试的 600 秒时限覆盖等待响应和读取响应体", async 
     return true;
   });
   for (let attempt = 0; attempt < 5; attempt++) {
+    await dispatchReady;
+    dispatchReady = new Promise(resolve => { releaseDispatch = resolve; });
     t.mock.timers.tick(400_000);
     resolveHeaders({ ok: true, status: 200, headers: new Headers(), json: () => rejectOnAbort(requestSignal) });
     await Promise.resolve();

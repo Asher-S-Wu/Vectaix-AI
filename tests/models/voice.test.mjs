@@ -19,7 +19,7 @@ test('朗读使用 Fish Free 已选音色和参数，保留零费用记录', asy
 });
 
 test('未选音色、文本超长和上游失败均显示明确错误', async () => {
-  await assert.rejects(dispatchSpeech({ text: '你好', audio: { provider: 'unknown' } }, {}), /选择/);
+  await assert.rejects(dispatchSpeech({ text: '你好', audio: { provider: 'unknown' } }, {}), /管理员/);
   await assert.rejects(dispatchSpeech({ text: '字'.repeat(15001) }, {}), /15000/);
   await assert.rejects(dispatchSpeech({ text: '你好', audio: { provider: 'fish', voiceId: 'selected' } }, {
     fish: async () => { throw new Error('upstream unavailable'); },

@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/lib/client/i18n";
 import { createContext, useCallback, useContext, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from "lucide-react";
@@ -35,6 +36,10 @@ const MAX_TOASTS = 3;
 let toastIdCounter = 0;
 
 function ToastItem({ toast, onDismiss }) {
+  const { t, localizeMessage } = useI18n();
+  const message = Array.isArray(toast.message)
+    ? t(toast.message[0], toast.message[1], Object.fromEntries(Object.entries(toast.message[2] || {}).map(([key, value]) => [key, Array.isArray(value) ? t(...value) : ['error', 'reason'].includes(key) ? localizeMessage(value) : value])))
+    : localizeMessage(toast.message);
   const config = TOAST_TYPES[toast.type] || TOAST_TYPES.info;
   const Icon = config.icon;
 
@@ -53,10 +58,11 @@ function ToastItem({ toast, onDismiss }) {
     >
       <Icon size={18} className={`flex-shrink-0 ${config.iconColor}`} />
       <span className="toast-text text-sm font-medium break-words line-clamp-2">
-        {toast.message}
+        {message}
       </span>
       <button
         onClick={() => onDismiss(toast.id)}
+        aria-label={t("关闭提示", "Dismiss notification")}
         className="toast-close flex-shrink-0 p-0.5 rounded-full transition-colors"
       >
         <X size={14} />

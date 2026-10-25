@@ -1,21 +1,25 @@
 "use client";
 
+import { useI18n } from "@/lib/client/i18n";
+
 import { useId } from "react";
 import { AnimatePresence } from "framer-motion";
 import { AudioLines, History, RefreshCw } from "lucide-react";
 import AudioFormError from "@/app/components/media/AudioFormError";
 
 function HistorySkeleton() {
+  const { t } = useI18n();
+
   return (
-    <div className="space-y-2" aria-label="正在读取语音记录" aria-busy="true">
+    <div className="space-y-2" aria-label={t("正在读取语音记录", "Loading audio history")} aria-busy="true">
       {[0, 1, 2, 3].map((item) => (
         <div key={item} className="flex items-center gap-3 rounded-xl border border-zinc-200/70 bg-white/80 px-3.5 py-3 dark:border-zinc-800/70 dark:bg-zinc-950/70">
-          <div className="h-9 w-9 animate-pulse rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
+          <div className="h-9 w-9 animate-pulse motion-reduce:animate-none rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
           <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="h-3.5 w-24 animate-pulse rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
-            <div className="h-3 w-1/2 animate-pulse rounded bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />
+            <div className="h-3.5 w-24 animate-pulse motion-reduce:animate-none rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
+            <div className="h-3 w-1/2 animate-pulse motion-reduce:animate-none rounded bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />
           </div>
-          <div className="h-4 w-4 animate-pulse rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
+          <div className="h-4 w-4 animate-pulse motion-reduce:animate-none rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
         </div>
       ))}
     </div>
@@ -23,18 +27,25 @@ function HistorySkeleton() {
 }
 
 export default function AudioHistorySection({
-  title = "语音记录",
-  description = "最多保留最近 100 条，点击单条记录展开播放。",
+  title,
+  description,
   totalCount,
   items,
   loading,
   error,
   onRefresh,
   renderItem,
-  emptyTitle = "还没有语音记录",
-  emptyDescription = "生成的语音会显示在这里，可播放或下载。",
-  onlyLatestHint = "当前只有上方这条新记录。",
+  emptyTitle,
+  emptyDescription,
+  onlyLatestHint,
 }) {
+  const { t, formatNumber } = useI18n();
+  title ??= t("语音记录", "Audio history");
+  description ??= t("最多保留最近 100 条，点击单条记录展开播放。", "The latest 100 recordings are kept. Open a recording to play it.");
+  emptyTitle ??= t("还没有语音记录", "No recordings yet");
+  emptyDescription ??= t("生成的语音会显示在这里，可播放或下载。", "Generated audio will appear here to play or download.");
+  onlyLatestHint ??= t("当前只有上方这条新记录。", "The new recording above is the only one so far.");
+
   const titleId = useId();
   const count = totalCount ?? items.length;
 
@@ -50,7 +61,7 @@ export default function AudioHistorySection({
             {title}
             {!loading && count > 0 ? (
               <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                {count}
+                {formatNumber(count)}
               </span>
             ) : null}
           </h2>
@@ -62,9 +73,7 @@ export default function AudioHistorySection({
           disabled={loading}
           className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm font-medium text-zinc-700 transition-[background-color,transform] hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} />
-          刷新
-        </button>
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} /> {t("刷新", "Refresh")} </button>
       </div>
 
       <div className="p-3 sm:p-4">

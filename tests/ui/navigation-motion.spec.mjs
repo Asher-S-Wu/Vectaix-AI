@@ -1,143 +1,94 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-chromium';
-
 const base = 'http://localhost:3100';
 
-test('工作区滑块先移动，侧栏跨页面滑出与滑入，减少动态效果时直接完成导航', { timeout: 120000 }, async () => {
+async function login(context, email) {
+  assert.equal((await context.request.post(`${base}/api/auth/login`, { data: { email, password: 'Vectaix-Test-2026!' } })).status(), 200);
+}
+
+test('普通用户使用 Agent，管理后台与媒体接口只对管理员开放', { timeout: 120000 }, async () => {
   const browser = await chromium.launch();
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': '192.0.2.220' } });
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': '192.0.2.220' } });
   try {
-    assert.equal((await context.request.post(`${base}/api/auth/login`, { data: { email: 'member@example.test', password: 'Vectaix-Test-2026!' } })).status(), 200);
+    await login(context, 'member@example.test');
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.addInitScript(() => {
-      window.motionCaptures = [];
-      const start = document.startViewTransition.bind(document);
-      document.startViewTransition = (...args) => {
-        const transition = start(...args);
-        transition.ready.then(() => {
-          window.motionCaptures.push({ kind: document.documentElement.dataset.navigationKind, names: document.getAnimations().map(animation => animation.effect?.pseudoElement).filter(Boolean) });
-        });
-        return transition;
-      };
-    });
     await page.goto(base);
-    const switcher = page.getByRole('navigation', { name: '功能切换', exact: true });
-    await switcher.getByRole('link', { name: 'Media', exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('[data-mode="media"]'));
-    await page.waitForURL(`${base}/media`);
-    await page.waitForFunction(() => window.motionCaptures.length === 1);
-    assert.ok((await page.evaluate(() => window.motionCaptures[0].names)).includes('::view-transition-old(agent-sidebar)'));
-    assert.ok((await page.evaluate(() => window.motionCaptures[0].names)).includes('::view-transition-group(workspace-thumb)'));
-    await page.waitForFunction(() => !document.documentElement.dataset.navigationKind);
-    await switcher.getByRole('link', { name: 'Agent', exact: true }).click();
-    await page.waitForURL(`${base}/`);
-    await page.waitForFunction(() => window.motionCaptures.length === 2);
-    await page.waitForFunction(() => document.documentElement.dataset.routeEntering === 'true');
-    assert.ok(await page.locator('.agent-sidebar').evaluate(element => element.getAnimations().some(animation => animation.animationName === 'sidebar-enter')));
-    await page.waitForFunction(() => !document.documentElement.dataset.navigationKind);
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await switcher.getByRole('link', { name: 'Media', exact: true }).click();
-    await page.waitForURL(`${base}/media`);
-    assert.equal(await page.evaluate(() => window.motionCaptures.length), 2);
+    await page.getByRole('heading', { name: '你想完成什么？' }).waitFor();
+    assert.equal(await page.getByRole('link', { name: '管理后台', exact: true }).count(), 0);
+    for (const route of ['/admin', '/admin/skills', '/admin/media', '/admin/media/image']) {
+      await page.goto(`${base}${route}`);
+      await page.waitForURL(`${base}/`);
+    }
+    for (const route of ['/api/admin/models', '/api/admin/skills', '/api/admin/media', '/api/media/audio/fish/voices']) assert.equal((await context.request.get(`${base}${route}`)).status(), 403);
+    for (const route of ['/media', '/api/memories', '/api/skills']) assert.equal((await context.request.get(`${base}${route}`)).status(), 404);
+    await page.goto(`${base}/settings`);
+    const navigation = page.getByRole('navigation', { name: '设置分类' });
+    assert.equal(await navigation.getByRole('button', { name: /记忆|技能/ }).count(), 0);
     assert.deepEqual(errors, []);
-  } finally {
-    await context.close();
-    await browser.close();
-  }
+  } finally { await context.close(); await browser.close(); }
 });
 
-test('媒体子模块、资料栏和手机设置切换保留过渡与可操作布局', { timeout: 120000 }, async () => {
+test('后台导航、资料栏与手机设置在减少动态效果时可以操作', { timeout: 120000 }, async () => {
   const browser = await chromium.launch();
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': '192.0.2.221' } });
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce', extraHTTPHeaders: { 'x-forwarded-for': '192.0.2.221' } });
   try {
-    assert.equal((await context.request.post(`${base}/api/auth/login`, { data: { email: 'member@example.test', password: 'Vectaix-Test-2026!' } })).status(), 200);
+    await login(context, 'admin@example.test');
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    const settled = () => page.waitForFunction(() => !document.documentElement.dataset.navigationKind);
-    await page.goto(`${base}/media/image`);
-    await page.getByRole('navigation', { name: '媒体工作台' }).getByRole('link', { name: '语音合成' }).click();
-    await page.waitForURL(`${base}/media/audio`);
-    await settled();
-    await page.evaluate(() => document.documentElement.classList.add('dark-mode'));
-    const colors = await page.locator('.workspace-switch-thumb').evaluate(element => ({ thumb: getComputedStyle(element).backgroundColor, track: getComputedStyle(element.parentElement).backgroundColor }));
-    assert.notEqual(colors.thumb, colors.track);
+    await page.goto(`${base}/admin/media/image`);
+    await page.getByRole('navigation', { name: '媒体工作区' }).getByRole('link', { name: '语音合成' }).click();
+    await page.waitForURL(`${base}/admin/media/audio`);
     await page.getByRole('tab', { name: '声音复刻' }).click();
     await page.getByRole('tabpanel', { name: '声音复刻' }).waitFor();
-    await page.getByRole('navigation', { name: '功能切换', exact: true }).getByRole('link', { name: 'Agent', exact: true }).click();
+    await page.getByRole('link', { name: '返回花卷' }).click();
     await page.waitForURL(`${base}/`);
-    await settled();
     await page.getByRole('button', { name: '查看资料与成果', exact: true }).click();
     await page.getByRole('complementary', { name: '对话资料与成果' }).waitFor();
-    await settled();
     await page.getByRole('tab', { name: '成果与引用', exact: true }).click();
     await page.keyboard.press('Escape');
     await page.getByRole('complementary', { name: '对话资料与成果' }).waitFor({ state: 'hidden' });
-    await settled();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${base}/settings?section=general`);
     await page.getByRole('navigation', { name: '设置分类' }).getByRole('button', { name: /助手/ }).click();
     await page.getByRole('heading', { name: '助手', exact: true }).waitFor();
-    await settled();
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.getByRole('button', { name: '全部设置', exact: true }).click();
     await page.getByRole('navigation', { name: '设置分类' }).waitFor();
-    await settled();
-    await page.getByRole('link', { name: '返回对话' }).click();
-    await page.waitForURL(`${base}/`);
-    await settled();
+    await page.getByRole('link', { name: '管理后台', exact: true }).click();
+    await page.waitForURL(`${base}/admin`);
+    await page.getByRole('heading', { name: '模型设置' }).waitFor();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     assert.deepEqual(errors, []);
-  } finally {
-    await context.close();
-    await browser.close();
-  }
+  } finally { await context.close(); await browser.close(); }
 });
 
-test('进入和退出的页面请求被延迟时，动画不冻结渲染等待网络', { timeout: 120000 }, async () => {
+test('导航请求延迟时展示进度且保持画面可刷新', { timeout: 120000 }, async () => {
   const browser = await chromium.launch();
+  const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': '192.0.2.230' } });
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
   try {
-    for (const [source, target, label] of [['/', '/media', 'Media'], ['/media', '/', 'Agent']]) {
-      const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': source === '/' ? '192.0.2.230' : '192.0.2.231' } });
-      let release;
-      const held = new Promise(resolve => { release = resolve; });
-      try {
-        assert.equal((await context.request.post(`${base}/api/auth/login`, { data: { email: 'member@example.test', password: 'Vectaix-Test-2026!' } })).status(), 200);
-        const page = await context.newPage();
-        await page.route('**/*', async route => {
-          if (new URL(route.request().url()).pathname === target && route.request().headers().rsc === '1') await held;
-          await route.continue();
-        });
-        await page.addInitScript(() => {
-          window.departureReady = false;
-          const start = document.startViewTransition.bind(document);
-          document.startViewTransition = (...args) => {
-            const transition = start(...args);
-            transition.ready.then(() => { window.departureReady = true; });
-            return transition;
-          };
-        });
-        await page.goto(`${base}${source}`);
-        await page.getByRole('navigation', { name: '功能切换', exact: true }).getByRole('link', { name: label, exact: true }).click();
-        await page.waitForFunction(() => window.departureReady, null, { timeout: 2000 });
-        assert.equal(new URL(page.url()).pathname, source);
-        await page.getByRole('status', { name: '正在切换页面' }).waitFor();
-        const frames = await page.evaluate(() => new Promise(resolve => {
-          let frames = 0;
-          const end = performance.now() + 250;
-          const tick = () => { frames++; if (performance.now() >= end) resolve(frames); else requestAnimationFrame(tick); };
-          requestAnimationFrame(tick);
-        }));
-        assert.ok(frames > 3, `等待网络时画面应继续刷新，实际 ${frames} 帧`);
-        release();
-        await page.waitForURL(`${base}${target}`);
-        await page.getByRole('status', { name: '正在切换页面' }).waitFor({ state: 'hidden' });
-      } finally {
-        release();
-        await context.close();
-      }
-    }
-  } finally { await browser.close(); }
+    await login(context, 'admin@example.test');
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      if (new URL(route.request().url()).pathname === '/admin' && route.request().headers().rsc === '1') await held;
+      await route.continue();
+    });
+    await page.goto(base);
+    await page.getByRole('link', { name: '管理后台', exact: true }).click();
+    await page.getByRole('status', { name: '正在切换页面' }).waitFor();
+    const frames = await page.evaluate(() => new Promise(resolve => {
+      let frames = 0; const end = performance.now() + 250;
+      const tick = () => { frames++; if (performance.now() >= end) resolve(frames); else requestAnimationFrame(tick); };
+      requestAnimationFrame(tick);
+    }));
+    assert.ok(frames > 3);
+    release();
+    await page.waitForURL(`${base}/admin`);
+    await page.getByRole('status', { name: '正在切换页面' }).waitFor({ state: 'hidden' });
+  } finally { release(); await context.close(); await browser.close(); }
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from '@/lib/client/i18n';
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Copy, KeyRound, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
@@ -8,6 +9,8 @@ import { useToast } from "../common/ToastProvider";
 import ConfirmModal from "../modals/ConfirmModal";
 
 export default function UserManagementModal({ open, onClose }) {
+  const { t, formatDate, formatNumber } = useI18n();
+
   const toast = useToast();
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -20,9 +23,9 @@ export default function UserManagementModal({ open, onClose }) {
   const [resetResult, setResetResult] = useState(null);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmTitle, setConfirmTitle] = useState("");
-  const [confirmMessage, setConfirmMessage] = useState("");
-  const [confirmButtonText, setConfirmButtonText] = useState("确定");
+  const [confirmTitle, setConfirmTitle] = useState(["", ""]);
+  const [confirmMessage, setConfirmMessage] = useState(["", ""]);
+  const [confirmButtonText, setConfirmButtonText] = useState(["确定", "Confirm"]);
   const [confirmDanger, setConfirmDanger] = useState(false);
   const confirmActionRef = useRef(null);
 
@@ -39,7 +42,7 @@ export default function UserManagementModal({ open, onClose }) {
       setPage(data.page || 1);
       setTotalPages(data.totalPages || 1);
     } catch (e) {
-      toast.error(e?.message || "加载用户列表失败");
+      toast.error(e?.message || ["加载用户列表失败", "Could not load users"]);
     } finally {
       setLoading(false);
     }
@@ -92,16 +95,16 @@ export default function UserManagementModal({ open, onClose }) {
           body: { action: "reset-password" },
         });
         setResetResult({ email: user.email, password: data.newPassword });
-        toast.success("密码已重置");
+        toast.success(["密码已重置", "Password reset"]);
       } catch (e) {
         toast.error(e?.message);
       } finally {
         setActionLoading(null);
       }
     };
-    setConfirmTitle("重置密码");
-    setConfirmMessage(`确定要重置「${user.email}」的密码吗？重置后将生成新的随机密码。`);
-    setConfirmButtonText("确认");
+    setConfirmTitle(["重置密码", "Reset password"]);
+    setConfirmMessage(["确定重置 {email} 的密码？重置后会生成一个随机密码。", "Reset the password for {email}? A new random password will be generated.", { email: user.email }]);
+    setConfirmButtonText(["确认", "Confirm"]);
     setConfirmDanger(false);
     setConfirmOpen(true);
   };
@@ -111,7 +114,7 @@ export default function UserManagementModal({ open, onClose }) {
       setActionLoading(user.id);
       try {
         await apiJson(`/api/admin/users/${user.id}`, { method: "DELETE" });
-        toast.success("用户已删除");
+        toast.success(["用户已删除", "User deleted"]);
         fetchUsers(page, search.trim());
       } catch (e) {
         toast.error(e?.message);
@@ -119,9 +122,9 @@ export default function UserManagementModal({ open, onClose }) {
         setActionLoading(null);
       }
     };
-    setConfirmTitle("删除用户");
-    setConfirmMessage(`确定要删除「${user.email}」吗？该用户的所有数据（对话、设置、文件）将被永久删除，此操作不可撤销。`);
-    setConfirmButtonText("删除");
+    setConfirmTitle(["删除用户", "Delete user"]);
+    setConfirmMessage(["确定删除 {email}？该用户的对话、设置和文件将永久删除。", "Delete {email}? Their chats, settings, and files will be permanently deleted.", { email: user.email }]);
+    setConfirmButtonText(["删除", "Delete"]);
     setConfirmDanger(true);
     setConfirmOpen(true);
   };
@@ -129,19 +132,10 @@ export default function UserManagementModal({ open, onClose }) {
   const copyToClipboard = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("已复制到剪贴板");
+      toast.success(["已复制到剪贴板", "Copied to clipboard"]);
     } catch {
-      toast.error("复制失败");
+      toast.error(["复制失败", "Could not copy"]);
     }
-  };
-
-  const formatDate = (d) => {
-    if (!d) return "-";
-    return new Date(d).toLocaleDateString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
   };
 
   return (
@@ -156,7 +150,7 @@ export default function UserManagementModal({ open, onClose }) {
             onClick={onClose}
             role="dialog"
             aria-modal="true"
-            aria-label="用户管理"
+            aria-label={t("用户管理", "User management")}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -168,11 +162,12 @@ export default function UserManagementModal({ open, onClose }) {
               <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
                 <div className="flex items-center gap-2">
                   <Users size={18} className="text-zinc-600 dark:text-zinc-400" />
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">用户管理</h2>
-                  <span className="text-xs text-zinc-400 ml-1">共 {total} 位用户</span>
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{t("用户管理", "User management")}</h2>
+                  <span className="text-xs text-zinc-400 ml-1">{t("共 {count} 位用户", "{count} users", { count: formatNumber(total) })}</span>
                 </div>
                 <button
                   onClick={onClose}
+                  aria-label={t("关闭", "Close")}
                   className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                 >
                   <X size={20} />
@@ -184,7 +179,7 @@ export default function UserManagementModal({ open, onClose }) {
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
                     type="text"
-                    placeholder="搜索邮箱…"
+                    placeholder={t("搜索邮箱…", "Search by email…")}
                     value={search}
                     onChange={(e) => onSearchChange(e.target.value)}
                     className="w-full bg-zinc-50 border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
@@ -202,7 +197,7 @@ export default function UserManagementModal({ open, onClose }) {
                   >
                     <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-lg p-3 flex items-center justify-between gap-2">
                       <div className="text-sm text-emerald-800 dark:text-emerald-300">
-                        <span className="font-medium">{resetResult.email}</span> 的新密码：
+                        <span className="font-medium">{t("{email} 的新密码：", "New password for {email}:", { email: resetResult.email })}</span>
                         <code className="bg-emerald-100 dark:bg-emerald-800/50 px-2 py-0.5 rounded text-emerald-900 dark:text-emerald-200 font-mono ml-1">
                           {resetResult.password}
                         </code>
@@ -211,14 +206,14 @@ export default function UserManagementModal({ open, onClose }) {
                         <button
                           onClick={() => copyToClipboard(resetResult.password)}
                           className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors"
-                          title="复制密码"
+                          title={t("复制密码", "Copy password")}
                         >
                           <Copy size={14} />
                         </button>
                         <button
                           onClick={() => setResetResult(null)}
                           className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors"
-                          title="关闭"
+                          title={t("关闭", "Close")}
                         >
                           <X size={14} />
                         </button>
@@ -235,7 +230,7 @@ export default function UserManagementModal({ open, onClose }) {
                   </div>
                 ) : users.length === 0 ? (
                   <div className="text-center py-12 text-sm text-zinc-400">
-                    {search ? "没有找到匹配的用户" : "暂无用户"}
+                    {search ? t("没有找到匹配的用户", "No matching users") : t("暂无用户", "No users yet")}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -251,12 +246,12 @@ export default function UserManagementModal({ open, onClose }) {
                               ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
                               : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
                               }`}>
-                              {u.isAdmin ? "超级管理员" : "普通用户"}
+                              {u.isAdmin ? t("超级管理员", "Super admin") : t("普通用户", "User")}
                             </span>
                           </div>
                           <div className="text-xs text-zinc-400 mt-0.5">
-                            注册于 {formatDate(u.createdAt)} · {u.conversationCount} 个对话
-                            <span className="block mt-1">累计花费 ¥{u.lifetimeCostCny.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
+                            {t("注册于 {date} · {count} 个对话", "Joined {date} · {count} chats", { date: u.createdAt ? formatDate(u.createdAt) : "—", count: formatNumber(u.conversationCount) })}
+                            <span className="block mt-1">{t("累计花费 {cost}", "Total spent: {cost}", { cost: formatNumber(u.lifetimeCostCny, { style: "currency", currency: "CNY", minimumFractionDigits: 2, maximumFractionDigits: 6 }) })}</span>
                           </div>
                         </div>
                         <div className="flex w-full flex-wrap items-center justify-end gap-1 sm:ml-3 sm:w-auto">
@@ -264,7 +259,7 @@ export default function UserManagementModal({ open, onClose }) {
                               onClick={() => requestResetPassword(u)}
                               disabled={actionLoading !== null}
                               className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 rounded-lg transition-colors disabled:opacity-50"
-                              title="重置密码"
+                              title={t("重置密码", "Reset password")}
                             >
                              <KeyRound size={15} />
                            </button> : null}
@@ -272,7 +267,7 @@ export default function UserManagementModal({ open, onClose }) {
                               onClick={() => requestDeleteUser(u)}
                               disabled={actionLoading !== null}
                               className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="删除用户"
+                              title={t("删除用户", "Delete user")}
                             >
                              <Trash2 size={15} />
                            </button> : null}
@@ -289,19 +284,15 @@ export default function UserManagementModal({ open, onClose }) {
                     onClick={() => goPage(page - 1)}
                     disabled={page <= 1 || loading}
                     className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors disabled:opacity-40"
-                  >
-                    上一页
-                  </button>
+                  >{t("上一页", "Previous")}</button>
                   <span className="text-xs text-zinc-500">
-                    {page} / {totalPages}
+                    {formatNumber(page)} / {formatNumber(totalPages)}
                   </span>
                   <button
                     onClick={() => goPage(page + 1)}
                     disabled={page >= totalPages || loading}
                     className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors disabled:opacity-40"
-                  >
-                    下一页
-                  </button>
+                  >{t("下一页", "Next")}</button>
                 </div>
               )}
             </motion.div>
@@ -323,10 +314,10 @@ export default function UserManagementModal({ open, onClose }) {
             setConfirmOpen(false);
           }
         }}
-        title={confirmTitle}
-        message={confirmMessage}
-        confirmText={confirmButtonText}
-        cancelText="取消"
+        title={t(...confirmTitle)}
+        message={t(...confirmMessage)}
+        confirmText={t(...confirmButtonText)}
+        cancelText={t("取消", "Cancel")}
         danger={confirmDanger}
       />
     </>

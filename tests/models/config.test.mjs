@@ -1,42 +1,73 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { access } from 'node:fs/promises';
-import { getPublicModels, getManagedModel, getModelConnection, getManagedChatRates } from '../../lib/server/models/service.js';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import mongoose from 'mongoose';
 
-test('模型目录、默认模型和价格无需数据库，由代码决定',async()=>{
- const catalog=await getPublicModels();
- assert.equal(catalog.models.length,1);
- assert.equal(catalog.defaultModelId,'deepseek-flash');
- const assistant=catalog.models[0];
- assert.equal(assistant.name,'助手');
- assert.equal(assistant.providerId,'deepseek');
- assert.equal(assistant.contextWindow,1048576);
- assert.equal(assistant.maxOutputTokens,393216);
- assert.deepEqual(assistant.nativeInputs,['text','image']);
- const model=await getManagedModel();
- model.requestOptions.reasoning.effort='low';
- model.pricing.inputPerMillion=999;
- assert.equal((await getManagedModel()).requestOptions.reasoning.effort,'max');
- assert.equal((await getManagedModel()).requestOptions.top_p,1);
- assert.equal((await getManagedModel()).defaultOutputTokens,393216);
- assert.equal((await getManagedChatRates())[model.id].inputPerMillion,0.3);
- await assert.rejects(getManagedModel('database-custom-model'),/模型不存在/);
+const mongo = await MongoMemoryServer.create();
+process.env.MONGO_URI = mongo.getUri();
+process.env.APP_SECRETS_KEY = Buffer.alloc(32, 8).toString('base64');
+const service = await import('../../lib/server/models/service.js');
+const { DEFAULT_MODEL_SETTINGS } = await import('../../lib/server/models/config.js');
+const { default: PlatformSettings } = await import('../../models/PlatformSettings.js');
+const userId = new mongoose.Types.ObjectId();
+const settings = { ...DEFAULT_MODEL_SETTINGS, baseUrl: 'https://models.example.com/v1', modelId: 'huajuan-agent', displayName: '花卷', apiKey: 'admin-secret-key', pricing: { inputPerMillion: 1, cachedInputPerMillion: .2, outputPerMillion: 3 } };
+test.after(async () => { await mongoose.disconnect(); await mongo.stop(); });
+
+test('未设置模型时目录为空，执行任务明确要求管理员设置', async () => {
+  assert.deepEqual(await service.getPublicModels(), { models: [], defaultModelId: null });
+  assert.deepEqual(await service.getManagedChatRates(), {});
+  await assert.rejects(service.getManagedModel(), error => error.status === 503);
+  await assert.rejects(service.getModelConnection(), error => error.status === 503);
 });
-test('连接固定官方服务，公开目录不泄漏密钥',async t=>{
- const previous=process.env.DEEPSEEK_API_KEY;
- t.after(()=>{if(previous===undefined)delete process.env.DEEPSEEK_API_KEY;else process.env.DEEPSEEK_API_KEY=previous;});
- process.env.DEEPSEEK_API_KEY='test-env-key';
- const connection=await getModelConnection('arbitrary-client-model');
- assert.equal(connection.provider.apiKey,'test-env-key');
- assert.equal(connection.model.id,'deepseek-flash');
- assert.equal(connection.provider.baseUrl,'https://api.deepseek.com');
- assert.equal(connection.provider.protocol,'responses');
- assert.ok(!JSON.stringify(await getPublicModels()).includes('test-env-key'));
- delete process.env.DEEPSEEK_API_KEY;
- await assert.rejects(getModelConnection(),/对话服务尚未配置/);
+
+test('管理员设置持久化并全局生效，密钥加密且从全部公开响应剥离', async () => {
+  const saved = await service.saveAdminModelSettings(settings, userId);
+  assert.equal(saved.config.hasApiKey, true);
+  const raw = await PlatformSettings.findById('platform').lean();
+  assert.ok(raw.modelConfig.encryptedApiKey.data);
+  assert.ok(!JSON.stringify(raw).includes(settings.apiKey));
+  const connection = await service.getModelConnection();
+  assert.equal(connection.provider.apiKey, settings.apiKey);
+  assert.equal(connection.model.id, settings.modelId);
+  assert.equal(connection.provider.protocol, 'responses');
+  assert.equal(connection.model.name, '花卷');
+  const publicModels = await service.getPublicModels();
+  assert.equal(publicModels.models.length, 1);
+  assert.equal(publicModels.models[0].baseUrl, undefined);
+  assert.equal(publicModels.models[0].requestOptions, undefined);
+  for (const response of [saved, publicModels, await service.getAdminModelSettings()]) assert.doesNotMatch(JSON.stringify(response), /admin-secret-key|encryptedApiKey|"iv"|"tag"/);
+  assert.equal((await service.getManagedChatRates())[settings.modelId].outputPerMillion, 3);
+  await assert.rejects(service.getManagedModel('other-model'), /已停用/);
 });
-test('管理员模型、服务商和积分费率管理接口已删除',async()=>{
- for(const path of ['app/api/admin/models/route.js','app/api/admin/providers/route.js','app/api/admin/billing-settings/route.js','app/api/admin/credit-transactions/route.js','app/components/settings/panels/ModelsPanel.js']) {
-  await assert.rejects(access(path),{code:'ENOENT'});
- }
+
+test('保持同一服务时空 key 保留原值，改地址时必须重新输入凭据', async () => {
+  await service.saveAdminModelSettings({ ...settings, apiKey: '', displayName: '新名字' }, userId);
+  assert.equal((await service.getModelConnection()).provider.apiKey, settings.apiKey);
+  await assert.rejects(service.saveAdminModelSettings({ ...settings, baseUrl: 'https://other.example.com/v1', apiKey: '' }, userId), /重新输入/);
+  await assert.rejects(service.discoverModels({ baseUrl: 'https://other.example.com/v1', protocol: 'responses' }), /先输入/);
+  await service.saveAdminModelSettings({ ...settings, apiKey: '', clearApiKey: true }, userId);
+  assert.equal((await service.getAdminModelSettings()).config.hasApiKey, false);
+  await assert.rejects(service.getModelConnection(), error => error.status === 503);
+});
+
+test('模型地址规范化和参数检查', () => {
+  assert.equal(service.normalizeModelBaseUrl('https://api.example.com'), 'https://api.example.com/v1');
+  assert.equal(service.normalizeModelBaseUrl('https://api.example.com/custom/chat/completions'), 'https://api.example.com/custom');
+  for (const baseUrl of ['file:///tmp/a', 'http://example.com', 'https://user:key@example.com', 'https://example.com?key=secret']) assert.throws(() => service.normalizeModelBaseUrl(baseUrl));
+  for (const patch of [{ protocol: 'auto' }, { modelId: '../bad model' }, { maxOutputTokens: 128000 }, { pricing: { inputPerMillion: -1 } }, { nativeInputs: ['audio'] }]) assert.throws(() => service.validateModelSettings({ ...settings, ...patch }));
+});
+
+test('按指定协议获取模型列表，Message完整分页且凭据仅发到指定地址', async () => {
+  const calls = [];
+  const result = await service.discoverModels({ baseUrl: 'https://models.example.com', protocol: 'messages', apiKey: 'discover-key' }, { fetchImpl: async (url, init) => {
+    calls.push({ url: String(url), headers: init.headers });
+    return Response.json(calls.length === 1 ? { data: [{ id: 'z', display_name: 'Z模型' }], has_more: true, last_id: 'z' } : { data: [{ id: 'a', display_name: 'A模型' }], has_more: false });
+  } });
+  assert.deepEqual(result.models, [{ id: 'a', name: 'A模型' }, { id: 'z', name: 'Z模型' }]);
+  assert.equal(calls[0].url, 'https://models.example.com/v1/models?limit=1000');
+  assert.equal(calls[1].url, 'https://models.example.com/v1/models?limit=1000&after_id=z');
+  assert.equal(calls[0].headers['x-api-key'], 'discover-key');
+  let count = 0;
+  await assert.rejects(service.discoverModels({ baseUrl: settings.baseUrl, protocol: 'chat', apiKey: 'private-key' }, { fetchImpl: async () => { count++; return Response.json({ error: 'private-key' }, { status: 401 }); } }), error => !error.message.includes('private-key') && /验证失败/.test(error.message));
+  assert.equal(count, 1);
 });

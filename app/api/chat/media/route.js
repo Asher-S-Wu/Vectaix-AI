@@ -1,3 +1,5 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
+import { getCurrentUserWithAccess } from '@/lib/admin';
 import dbConnect from "@/lib/db";
 import { billingResult, creditErrorResponse } from "@/lib/server/credits/api";
 import { CreditError } from "@/lib/server/credits/errors";
@@ -117,7 +119,9 @@ async function loadReferenceImages({ userId, fileIds, model }) {
   return images;
 }
 
-export async function POST(req) {
+async function POSTHandler(req) {
+  const access = await getCurrentUserWithAccess(req);
+  if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
   let writePermitTime = null;
   let mediaWriteLease = null;
   let mediaWriteLeaseTransferred = false;
@@ -215,7 +219,7 @@ export async function POST(req) {
     let mediaOptions = null;
     let referenceImages = [];
     const reserveImageCredits = async (inputImageCount, fingerprintInput) => {
-      resolveImageServiceConfig(model);
+      await resolveImageServiceConfig(model);
       const feature = getImageFeature(model, inputImageCount > 0);
       const creditOperation = requireMediaCreditOperation(req, {
         userId: auth.userId,
@@ -577,3 +581,5 @@ export async function POST(req) {
     }
   }
 }
+
+export const POST = localizedRoute(POSTHandler);

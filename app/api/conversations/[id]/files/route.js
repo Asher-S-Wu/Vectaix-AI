@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import Conversation from "@/models/Conversation";
 import { workbenchRoute, workbenchError, readBody, requireObjectId } from "@/lib/server/workbench/apiHelpers";
 import { listProjectFiles, uploadConversationDocument, deleteConversationDocument, MAX_DOCUMENT_BYTES } from "@/lib/server/workbench/documents";
@@ -13,7 +14,7 @@ async function scope(userId, context) {
   return { userId, conversationId: id, projectId: conversation.projectId ? String(conversation.projectId) : null };
 }
 
-export async function GET(request, context) {
+async function GETHandler(request, context) {
   return workbenchRoute(request, async (userId) => Response.json({ files: await listProjectFiles(await scope(userId, context)) }));
 }
 
@@ -43,7 +44,7 @@ async function boundedFormData(request) {
   } catch { throw workbenchError("文件上传表单格式不正确"); }
 }
 
-export async function POST(request, context) {
+async function POSTHandler(request, context) {
   return workbenchRoute(request, async (userId) => {
     const current = await scope(userId, context);
     const form = await boundedFormData(request);
@@ -53,7 +54,7 @@ export async function POST(request, context) {
   });
 }
 
-export async function DELETE(request, context) {
+async function DELETEHandler(request, context) {
   return workbenchRoute(request, async (userId) => {
     const current = await scope(userId, context);
     const { fileId } = await readBody(request);
@@ -62,3 +63,7 @@ export async function DELETE(request, context) {
     return Response.json({ success: true });
   });
 }
+
+export const GET = localizedRoute(GETHandler);
+export const POST = localizedRoute(POSTHandler);
+export const DELETE = localizedRoute(DELETEHandler);

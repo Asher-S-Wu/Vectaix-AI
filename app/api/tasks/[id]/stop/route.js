@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import WorkbenchTask from '@/models/WorkbenchTask';
 import { workbenchRoute } from '@/lib/server/workbench/apiHelpers';
 import { ownedTask } from '@/lib/server/workbench/tasks';
@@ -5,7 +6,7 @@ import { signalTaskStop, syncTaskConversation } from '@/lib/server/workbench/run
 import { appendTaskEvent } from '@/lib/server/workbench/events';
 import { ACTIVE_TASK_STATUSES } from '@/lib/server/workbench/config';
 export const runtime='nodejs';
-export async function POST(req,context) {
+async function POSTHandler(req,context) {
   return workbenchRoute(req,async(userId)=>{
     const task=await ownedTask(userId,(await context.params).id);
     if(ACTIVE_TASK_STATUSES.includes(task.status)) {
@@ -18,3 +19,5 @@ export async function POST(req,context) {
     return Response.json({task:await ownedTask(userId,String(task._id))});
   });
 }
+
+export const POST = localizedRoute(POSTHandler);

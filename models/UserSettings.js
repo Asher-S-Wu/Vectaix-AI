@@ -25,10 +25,7 @@ const UserSettingsSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
-    chatMediaSettings: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     systemPrompts: [SystemPromptSchema],
-    skillsInitialized: { type: Boolean, default: false },
-    memoryEnabled: { type: Boolean, default: true },
     assistant: { type: mongoose.Schema.Types.Mixed, default: () => ({ ...DEFAULT_ASSISTANT }) },
     appearance: { type: mongoose.Schema.Types.Mixed, default: () => ({ ...DEFAULT_APPEARANCE }) },
     permissions: { type: mongoose.Schema.Types.Mixed, default: () => ({ ...DEFAULT_PERMISSIONS }) },

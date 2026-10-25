@@ -30,8 +30,7 @@ test('archive paths and expansion limits reject unsafe entries', async () => {
 test('backup excludes credentials, permissions and provider execution state', () => {
   const result = safeSettings({ nickname: '用户', permissions: { browser: true }, providerKey: 'SECRET', assistant: { name: '助手', token: 'SECRET' }, systemPrompts: [{ name: 'a', content: 'b', secret: 'SECRET' }] });
   assert.equal(JSON.stringify(result).includes('SECRET'), false); assert.equal(result.permissions, undefined);
-  const media = safeSettings({ chatMediaSettings: { image: { model: 'gpt-image-2.5', size: '1024x1024' } } }).chatMediaSettings;
-  assert.deepEqual(media, { image: { model: 'gpt-image-2.5', size: '1024x1024' } });
+  assert.equal(safeSettings({ chatMediaSettings: { image: { model: 'gpt-image-2.5' } } }).chatMediaSettings, undefined);
   const conversation = safeConversation({ _id: 'id', messages: [{ role: 'model', content: 'hello', providerState: { secret: 'SECRET' }, tools: [{ cookie: 'SECRET' }] }], browserState: 'SECRET' });
   assert.equal(JSON.stringify(conversation).includes('SECRET'), false);
 });
@@ -54,11 +53,12 @@ test('disk extraction streams entries and rejects archive traversal and expansio
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
-test('partial selections reject missing project and file dependencies without expanding memory scope', async () => {
-  const { validateDependencies } = await import('../../lib/server/backups/snapshot.mjs');
-  const manifest = { selection: ['memories'], projects: [], conversations: [], files: [], skills: [], documents: [], settings: null, memories: [{ scope: 'project', projectId: 'abc' }] };
+test('partial selections reject missing project and file dependencies', async () => {
+  const { validateDependencies, selectSections } = await import('../../lib/server/backups/snapshot.mjs');
+  const manifest = { selection: ['conversations'], projects: [], conversations: [{projectId:'abc',messages:[]}], files: [], documents: [], settings: null };
   assert.throws(() => validateDependencies(manifest), /同时选择/);
-  assert.equal(manifest.memories[0].scope, 'project');
-  manifest.memories = [{ scope: 'personal', projectId: null, content: '参考 /api/files/fdf21534-b334-4d0e-b67a-339b80121056' }]; assert.throws(() => validateDependencies(manifest), /文件/);
-  manifest.memories = [{ scope: 'project', projectId: null }]; assert.throws(() => validateDependencies(manifest), /范围/);
+  manifest.conversations = [{messages:[{content:'参考 /api/files/fdf21534-b334-4d0e-b67a-339b80121056'}]}];
+  assert.throws(() => validateDependencies(manifest), /文件/);
+  assert.throws(() => selectSections(['skills']), /有效的备份/);
+  assert.throws(() => selectSections(['memories']), /有效的备份/);
 });

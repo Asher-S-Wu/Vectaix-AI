@@ -1,3 +1,4 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
 import dbConnect from '@/lib/db';
 import { isAdminEmail, requireAdmin } from '@/lib/admin';
 import User from '@/models/User';
@@ -12,7 +13,7 @@ import { CreditError } from '@/lib/server/credits/errors';
 
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(req, context) {
+async function PATCHHandler(req, context) {
     const admin = await requireAdmin(req);
     if (!admin) {
         return forbiddenResponse();
@@ -48,7 +49,7 @@ export async function PATCH(req, context) {
     return Response.json({ success: true, newPassword });
 }
 
-export async function DELETE(req, context) {
+async function DELETEHandler(req, context) {
     const admin = await requireAdmin(req);
     if (!admin) {
         return forbiddenResponse();
@@ -86,3 +87,6 @@ export async function DELETE(req, context) {
         );
     }
 }
+
+export const PATCH = localizedRoute(PATCHHandler);
+export const DELETE = localizedRoute(DELETEHandler);

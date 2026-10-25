@@ -1,3 +1,4 @@
+import { seedMediaSettings } from '../helpers/media-config.mjs';
 import test from 'node:test';
 import undici from 'undici';
 import timers from 'node:timers/promises';
@@ -32,6 +33,8 @@ test.before(async () => {
   ({ default: Transaction } = await import('../../models/CreditTransaction.js'));
   ({ POST } = await import('../../app/api/chat/media/route.js'));
   await dbConnect();
+  await seedMediaSettings({imageKey: 'test-only'});
+  process.env.ADMIN_EMAILS = 'image-chat@example.test';
   userId = String((await User.create({ email: 'image-chat@example.test', password: 'test-only' }))._id);
   token = randomBytes(32).toString('base64url');
   await Session.create({ userId, tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 600000) });

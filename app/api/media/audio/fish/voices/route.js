@@ -1,3 +1,5 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
+import { getCurrentUserWithAccess } from '@/lib/admin';
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { readMultipart } from "@/lib/server/files/uploads";
@@ -11,8 +13,10 @@ import FishVoice from "@/models/FishVoice";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(request) {
+async function GETHandler(request) {
   try {
+    const access = await getCurrentUserWithAccess(request);
+    if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const voices = await FishVoice.find({ userId: auth.payload.userId }).sort({ createdAt: -1 }).lean();
@@ -22,11 +26,13 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
+async function POSTHandler(request) {
   let lease;
   let creationLease;
   let createdVoiceId;
   try {
+    const access = await getCurrentUserWithAccess(request);
+    if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const userId = String(auth.payload.userId);
@@ -83,3 +89,6 @@ export async function POST(request) {
     if (lease) await endMediaWriteLease(lease).catch((error) => { console.error("[Fish Audio] release media lease:", error); });
   }
 }
+
+export const GET = localizedRoute(GETHandler);
+export const POST = localizedRoute(POSTHandler);

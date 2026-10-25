@@ -55,3 +55,15 @@ test('图片内容从文字预算中分离，工具图片计入输入预算', ()
   assert.ok(one >= 4096 && one < 4200);
   assert.ok(two - one >= 4096);
 });
+
+test('三种协议的图片均按媒体预算计算，base64体积不会作为文字计入', () => {
+  const payload = 'a'.repeat(1000000);
+  for (const image of [
+    { type: 'input_image', image_url: `data:image/png;base64,${payload}` },
+    { type: 'image_url', image_url: { url: `data:image/png;base64,${payload}` } },
+    { type: 'image', source: { type: 'base64', media_type: 'image/png', data: payload } },
+  ]) {
+    const estimate = estimateChatInputTokens({ inputPayload: { messages: [image, image] } });
+    assert.ok(estimate >= 8192 && estimate < 8300);
+  }
+});

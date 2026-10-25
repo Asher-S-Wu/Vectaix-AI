@@ -1,3 +1,5 @@
+import { localizedRoute } from '@/lib/server/localizedRoute';
+import { getCurrentUserWithAccess } from '@/lib/admin';
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { parseJsonRequest, requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { previewFishSpeech } from "@/lib/media/server/operations/fishSpeech";
@@ -6,8 +8,10 @@ import { fishErrorStatus, fishPublicMessage } from "@/lib/media/server/fishAudio
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(request) {
+async function POSTHandler(request) {
   try {
+    const access = await getCurrentUserWithAccess(request);
+    if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const userId = String(auth.payload.userId);
@@ -23,3 +27,5 @@ export async function POST(request) {
     return Response.json({ success: false, message: fishPublicMessage(error, "音色试听失败") }, { status: fishErrorStatus(error) });
   }
 }
+
+export const POST = localizedRoute(POSTHandler);
