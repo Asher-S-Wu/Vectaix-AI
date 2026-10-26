@@ -1,5 +1,4 @@
 import { localizedRoute } from '@/lib/server/localizedRoute';
-import { getCurrentUserWithAccess } from '@/lib/admin';
 import dbConnect from "@/lib/db";
 import { billingResult, creditErrorResponse } from "@/lib/server/credits/api";
 import { CreditError } from "@/lib/server/credits/errors";
@@ -120,8 +119,6 @@ async function loadReferenceImages({ userId, fileIds, model }) {
 }
 
 async function POSTHandler(req) {
-  const access = await getCurrentUserWithAccess(req);
-  if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
   let writePermitTime = null;
   let mediaWriteLease = null;
   let mediaWriteLeaseTransferred = false;

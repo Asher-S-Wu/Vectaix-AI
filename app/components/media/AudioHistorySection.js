@@ -35,13 +35,16 @@ export default function AudioHistorySection({
   error,
   onRefresh,
   renderItem,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
   emptyTitle,
   emptyDescription,
   onlyLatestHint,
 }) {
   const { t, formatNumber } = useI18n();
   title ??= t("语音记录", "Audio history");
-  description ??= t("最多保留最近 100 条，点击单条记录展开播放。", "The latest 100 recordings are kept. Open a recording to play it.");
+  description ??= t("记录保存在你的账号下，可播放、下载或删除。", "Recordings stay in your account. Play, download, or delete them here.");
   emptyTitle ??= t("还没有语音记录", "No recordings yet");
   emptyDescription ??= t("生成的语音会显示在这里，可播放或下载。", "Generated audio will appear here to play or download.");
   onlyLatestHint ??= t("当前只有上方这条新记录。", "The new recording above is the only one so far.");
@@ -100,6 +103,7 @@ export default function AudioHistorySection({
             </AnimatePresence>
           </div>
         )}
+        {hasMore && <button type="button" disabled={loading || loadingMore} onClick={onLoadMore} className="admin-button mt-4">{loadingMore ? t("正在读取…", "Loading…") : t("加载更多", "Load more")}</button>}
       </div>
     </section>
   );

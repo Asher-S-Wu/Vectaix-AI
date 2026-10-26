@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import User from '../../models/User.js';
-const base='http://localhost:3100',mongoUri='mongodb://127.0.0.1:27179/test';
+const base=process.env.UI_TEST_BASE_URL || 'http://localhost:3100',mongoUri='mongodb://127.0.0.1:27179/test';
 const email=`test-devices-${Date.now()}@example.test`,password='Device-Test-2026!';let browser,userId,conversationId;let sessionIndex=80;
 before(async()=>{
  await mongoose.connect(mongoUri);
@@ -18,7 +18,7 @@ after(async()=>{
  await browser?.close();for(const name of ['sessions','usersettings','passkeys','authchallenges','conversations','storedfiles','workspacedocuments'])await mongoose.connection.collection(name).deleteMany({userId});await User.deleteOne({_id:userId});await mongoose.disconnect();
 });
 async function session({mobile=false,init}={}){
- const context=await browser.newContext({locale:'zh-CN',viewport:mobile?{width:390,height:844}:{width:1280,height:900},extraHTTPHeaders:{'x-forwarded-for':`192.0.2.${sessionIndex++}`}});if(init)await context.addInitScript(init);
+ const context=await browser.newContext({locale:'zh-CN',ignoreHTTPSErrors:new URL(base).hostname==='localhost',viewport:mobile?{width:390,height:844}:{width:1280,height:900},extraHTTPHeaders:{'x-forwarded-for':`192.0.2.${sessionIndex++}`}});if(init)await context.addInitScript(init);
  const response=await context.request.post(base+'/api/auth/login',{data:{email,password}});assert.equal(response.status(),200,await response.text());
  const page=await context.newPage();return {context,page};
 }

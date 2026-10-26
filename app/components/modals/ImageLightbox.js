@@ -3,7 +3,7 @@
 import { useI18n } from '@/lib/client/i18n';
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, Loader2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 
 function isDownloadableUrl(src) {
@@ -32,12 +32,17 @@ export default function ImageLightbox({ open, onClose, src }) {
 
   const canDownload = isDownloadableUrl(src);
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(null);
+  const closeRef = useRef(null);
+  const dialogRef = useRef(null);
 
   const handleDownload = useCallback(async () => {
     if (!src || downloading) return;
     setDownloading(true);
+    setDownloadError(null);
     try {
       const res = await fetch(src);
+      if (!res.ok) throw new Error(t("下载失败（{status}），请重试。", "Download failed ({status}). Please try again.", { status: res.status }));
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -47,12 +52,12 @@ export default function ImageLightbox({ open, onClose, src }) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
-    } catch {
-      window.open(src, "_blank");
+    } catch (error) {
+      setDownloadError({ src, message: error.message });
     } finally {
       setDownloading(false);
     }
-  }, [src, downloading]);
+  }, [src, downloading, t]);
   const [loadedImage, setLoadedImage] = useState(null);
   const [viewportSize, setViewportSize] = useState(null);
 
@@ -92,21 +97,33 @@ export default function ImageLightbox({ open, onClose, src }) {
 
   useEffect(() => {
     if (!open) return;
+    const previousFocus = document.activeElement;
+    closeRef.current?.focus();
     const onKeyDown = (e) => {
-      if (e.key === "Escape") onClose?.();
+      if (e.key === "Escape") { e.stopPropagation(); onClose?.(); }
+      if (e.key === "Tab") {
+        const buttons = [...dialogRef.current.querySelectorAll('button:not(:disabled)')];
+        if (e.shiftKey && document.activeElement === buttons[0]) { e.preventDefault(); buttons.at(-1).focus(); }
+        else if (!e.shiftKey && document.activeElement === buttons.at(-1)) { e.preventDefault(); buttons[0].focus(); }
+      }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    const dialog = dialogRef.current;
+    dialog.addEventListener("keydown", onKeyDown);
+    return () => { dialog.removeEventListener("keydown", onKeyDown); if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus(); };
   }, [open, onClose]);
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("查看大图", "Full-size image")}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-3"
+          className="fixed inset-0 z-[80] flex items-center justify-center p-3"
           onClick={onClose}
         >
           <div className="absolute inset-0 bg-black/60" />
@@ -138,6 +155,7 @@ export default function ImageLightbox({ open, onClose, src }) {
                 </button>
               )}
               <button
+                ref={closeRef}
                 type="button"
                 onClick={onClose}
                 className="inline-flex items-center justify-center w-9 h-9 text-white/85 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg transition-colors"
@@ -159,6 +177,7 @@ export default function ImageLightbox({ open, onClose, src }) {
               />
             )}
           </motion.div>
+          {downloadError?.src === src && <p role="alert" className="pointer-events-none absolute inset-x-4 bottom-4 z-10 mx-auto max-w-xl rounded-lg bg-black/85 p-3 text-sm text-white">{downloadError.message}</p>}
         </motion.div>
       )}
     </AnimatePresence>

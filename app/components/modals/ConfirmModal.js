@@ -3,7 +3,7 @@
 import { useI18n } from '@/lib/client/i18n';
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 
 export default function ConfirmModal({
     open,
@@ -22,25 +22,28 @@ export default function ConfirmModal({
     cancelText ??= t('取消', 'Cancel');
 
     const [isProcessing, setIsProcessing] = useState(false);
+    const dialogRef = useRef(null);
+    const cancelRef = useRef(null);
 
-    const handleConfirm = useCallback(() => {
+    const handleConfirm = useCallback(async () => {
         if (isProcessing) return;
         setIsProcessing(true);
-        onConfirm();
+        try { await onConfirm(); }
+        finally { setIsProcessing(false); }
     }, [isProcessing, onConfirm]);
 
     const handleCancel = useCallback(() => {
         if (isProcessing) return;
-        setIsProcessing(true);
         onClose();
     }, [isProcessing, onClose]);
 
     useEffect(() => {
         if (!open) return;
-        const timer = setTimeout(() => {
-            setIsProcessing(false);
-        }, 0);
-        return () => clearTimeout(timer);
+        const previousFocus = document.activeElement;
+        cancelRef.current?.focus();
+        return () => {
+            if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+        };
     }, [open]);
 
     useEffect(() => {
@@ -48,28 +51,31 @@ export default function ConfirmModal({
 
         const onKeyDown = (e) => {
             if (isProcessing) return;
-            // 焦点在页面其他输入框（如聊天输入框）时不响应 Enter，避免误触确认
-            const target = e.target;
-            const isTyping = target instanceof HTMLElement
-                && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-            if (e.key === 'Enter') {
-                if (isTyping) return;
+            if (e.key === 'Escape') {
                 e.preventDefault();
-                handleConfirm();
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
+                e.stopPropagation();
                 handleCancel();
+            } else if (e.key === 'Tab') {
+                const buttons = [...dialogRef.current.querySelectorAll('button:not(:disabled)')];
+                const first = buttons[0], last = buttons.at(-1);
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault(); last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault(); first.focus();
+                }
             }
         };
 
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [open, isProcessing, handleConfirm, handleCancel]);
+        const dialog = dialogRef.current;
+        dialog.addEventListener('keydown', onKeyDown);
+        return () => dialog.removeEventListener('keydown', onKeyDown);
+    }, [open, isProcessing, handleCancel]);
 
     return (
         <AnimatePresence>
             {open && (
                 <motion.div
+                    ref={dialogRef}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -112,9 +118,9 @@ export default function ConfirmModal({
 
                             <div className="flex gap-3 w-full">
                                 <button
+                                    ref={cancelRef}
                                     onClick={handleCancel}
                                     disabled={isProcessing}
-                                    autoFocus
                                     className="flex-1 px-4 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {cancelText}

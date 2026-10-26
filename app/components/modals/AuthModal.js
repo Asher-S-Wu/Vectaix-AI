@@ -26,13 +26,13 @@ export default function AuthModal({
       initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: reduceMotion ? 0 : 0.25 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-secondary p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-app-secondary p-4"
     >
       <motion.div
         initial={reduceMotion ? false : { opacity: 0, scale: 0.92, y: 24 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", damping: 24, stiffness: 320 }}
-        className="auth-modal w-full max-w-md rounded-3xl bg-white border border-zinc-200/70 p-8 sm:p-10 relative overflow-hidden"
+        className="auth-modal my-auto w-full max-w-md shrink-0 rounded-3xl bg-white border border-zinc-200/70 p-8 sm:p-10 relative overflow-hidden"
       >
 
         <div role="group" aria-label={t("界面语言", "Interface language")} className="mb-4 flex justify-end gap-1 text-xs">{[{ id: "zh", label: "中文" }, { id: "en", label: "English" }].map(option => <button key={option.id} type="button" onClick={() => setLocale(option.id)} aria-pressed={locale === option.id} className={`rounded-lg px-2.5 py-1.5 transition-colors ${locale === option.id ? "bg-primary/10 text-primary" : "text-zinc-500 hover:bg-zinc-100"}`}>{option.label}</button>)}</div>

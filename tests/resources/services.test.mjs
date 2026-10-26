@@ -25,7 +25,7 @@ const { DEFAULT_MODEL_SETTINGS } = await import('../../lib/server/models/config.
 let database;
 test.before(async () => {
   database = await MongoMemoryServer.create(); await mongoose.connect(database.getUri()); global.mongoose.conn = mongoose;
-  await saveAdminModelSettings({ ...DEFAULT_MODEL_SETTINGS, baseUrl: 'https://example.com/v1', protocol: 'responses', modelId: 'test-model', displayName: '测试模型' }, userId);
+  await saveAdminModelSettings({ ...DEFAULT_MODEL_SETTINGS, baseUrl: 'https://example.com/v1', protocol: 'responses', modelId: 'test-model', displayName: '测试模型', apiKey: 'resource-test-only-key' }, userId);
 });
 test.after(async () => { await mongoose.disconnect(); await database?.stop(); await rm(directory, { recursive: true, force: true }); });
 const userId = String(new mongoose.Types.ObjectId()), other = String(new mongoose.Types.ObjectId());

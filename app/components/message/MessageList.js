@@ -84,10 +84,12 @@ export default function MessageList({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, index: null, role: null });
+  const [replaceConfirm, setReplaceConfirm] = useState(null);
   const [openExportMenuIndex, setOpenExportMenuIndex] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const copyTimerRef = useRef(null);
   const toast = useToast();
+  const firstMessageId = messages[0]?.id;
   const hasWaitingFirstChunk = messages.some((message) => message?.isWaitingFirstChunk);
   const hasStreamingContent = messages.some((message) => (message?.isStreaming && !message?.isWaitingFirstChunk) || message?.isSearching);
 
@@ -111,7 +113,7 @@ export default function MessageList({
   useEffect(() => {
     const timer = setTimeout(() => setOpenExportMenuIndex(null), 0);
     return () => clearTimeout(timer);
-  }, [messages.length]);
+  }, [messages.length, firstMessageId]);
 
   const openLightbox = (src) => {
     if (!src) return;
@@ -128,11 +130,29 @@ export default function MessageList({
     setDeleteConfirm({ open: true, index, role });
   };
 
-  const handleCopyClick = (index, msg) => {
-    onCopy(buildCopyText(msg, locale));
-    setCopiedIndex(index);
-    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    copyTimerRef.current = setTimeout(() => setCopiedIndex(null), 1600);
+  const handleCopyClick = async (index, msg) => {
+    try {
+      await onCopy(buildCopyText(msg, locale));
+      setCopiedIndex(index);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedIndex(null), 1600);
+    } catch { toast.error(["复制失败，请检查浏览器的剪贴板权限。", "Could not copy. Check your browser's clipboard permission."]); }
+  };
+
+  useEffect(() => () => clearTimeout(copyTimerRef.current), []);
+
+  const requestRegenerate = index => setReplaceConfirm({ messageId: messages[index].id, mode: "regenerate" });
+  const requestSubmitEdit = () => {
+    if (messages.length > editingMsgIndex + 1) setReplaceConfirm({ messageId: messages[editingMsgIndex].id, mode: "edit" });
+    else onSubmitEdit();
+  };
+  const confirmReplacement = async () => {
+    const index = messages.findIndex(message => message.id === replaceConfirm?.messageId);
+    if (index >= 0) {
+      if (replaceConfirm.mode === "edit") await onSubmitEdit();
+      else await onRegenerateModelMessage?.(index);
+    }
+    setReplaceConfirm(null);
   };
 
   const handleConfirmDelete = () => {
@@ -212,8 +232,17 @@ export default function MessageList({
         onClose={() => setDeleteConfirm({ open: false, index: null, role: null })}
         onConfirm={handleConfirmDelete}
         title={t("删除消息", "Delete message")}
-        message={deleteConfirm.role === "user" ? t("删除你发送的这条消息？此操作无法撤销。", "Delete this message? This action is permanent.") : t("删除这条 AI 回复？此操作无法撤销。", "Delete this AI reply? This action is permanent.")}
+        message={deleteConfirm.role === "user" ? t("删除这条消息、紧随其后的 AI 回复及对应任务成果？后续对话会保留。使用中的文件须先从相关消息移除引用。此操作无法撤销。", "Delete this message, its following AI reply, and its task results? Later messages will remain. Remove file references from other messages first. This action is permanent.") : t("删除这条 AI 回复及对应任务成果？使用中的文件须先从相关消息移除引用。此操作无法撤销。", "Delete this AI reply and its task results? Remove file references from other messages first. This action is permanent.")}
         confirmText={t("删除", "Delete")}
+        danger
+      />
+      <ConfirmModal
+        open={Boolean(replaceConfirm)}
+        onClose={() => setReplaceConfirm(null)}
+        onConfirm={confirmReplacement}
+        title={replaceConfirm?.mode === "edit" ? t("修改历史消息", "Edit an earlier message") : t("重新生成回复", "Regenerate reply")}
+        message={t("这条消息的原回复、后续对话、任务历史与成果将永久删除，再从这里重新生成。确认继续？", "This will permanently delete the original reply, all later messages, task history, and results, then generate again from this message. Continue?")}
+        confirmText={t("确认并重新生成", "Confirm and regenerate")}
         danger
       />
 
@@ -239,7 +268,7 @@ export default function MessageList({
           </div>
         )
       ) : (
-        <AnimatePresence initial={false}>
+        <AnimatePresence key={firstMessageId} initial={false}>
           {messages.map((msg, i) => {
           const fallbackThinkingTimeline = normalizeFallbackToolTimeline(msg.tools, locale);
           const displayParts = Array.isArray(msg.parts) && msg.role === "model"
@@ -321,7 +350,7 @@ export default function MessageList({
                       {editingImages.length > 0 && (
                         <div className="mb-3 flex flex-wrap items-center gap-2">
                           {editingImages.map((image, imageIndex) => (
-                            <div key={image.id} className="relative h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900">
+                            <div key={image.id} className={`relative overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 ${image.file ? "w-full max-w-sm p-2 pr-8" : "h-16 w-16"}`}>
                               {image.preview ? (
                                 <NextImage
                                   src={image.preview}
@@ -331,13 +360,13 @@ export default function MessageList({
                                   unoptimized
                                   className="object-cover"
                                 />
-                              ) : null}
+                              ) : image.file ? <AttachmentCard file={image.file} compact /> : null}
                               <button
                                 type="button"
                                 onClick={() => onEditingImageRemove(image.id)}
                                 className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-white hover:bg-black/80"
-                                title={t("移除参考图片 {number}", "Remove reference image {number}", { number: formatNumber(imageIndex + 1) })}
-                                aria-label={t("移除参考图片 {number}", "Remove reference image {number}", { number: formatNumber(imageIndex + 1) })}
+                                title={image.file ? t("移除 {name}", "Remove {name}", { name: image.file.name }) : t("移除参考图片 {number}", "Remove reference image {number}", { number: formatNumber(imageIndex + 1) })}
+                                aria-label={image.file ? t("移除 {name}", "Remove {name}", { name: image.file.name }) : t("移除参考图片 {number}", "Remove reference image {number}", { number: formatNumber(imageIndex + 1) })}
                               >
                                 <X size={11} />
                               </button>
@@ -356,7 +385,7 @@ export default function MessageList({
                     <div className="flex gap-2">
                       <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors">{t("取消", "Cancel")}</button>
                       <button
-                        onClick={() => onSubmitEdit(i)}
+                        onClick={requestSubmitEdit}
                         className="btn-primary px-3 py-1.5 text-xs rounded-lg disabled:opacity-40"
                       >
                         {t("提交", "Send")}
@@ -424,7 +453,7 @@ export default function MessageList({
                         <span>{t("回复生成失败，请重试。", "The reply failed to generate. Please try again.")}</span>
                         {canRegenerateMessage && (
                           <button
-                            onClick={() => onRegenerateModelMessage?.(i)}
+                            onClick={() => requestRegenerate(i)}
                             disabled={loading || hasStreamingContent}
                             className="shrink-0 px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
@@ -454,7 +483,7 @@ export default function MessageList({
                         )}
                         {canRegenerateMessage ? (
                           <button
-                            onClick={() => onRegenerateModelMessage?.(i)}
+                            onClick={() => requestRegenerate(i)}
                             disabled={loading || hasStreamingContent}
                             className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-400"
                             title={t("重新生成", "Regenerate")}

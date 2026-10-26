@@ -47,6 +47,8 @@ test('保持同一服务时空 key 保留原值，改地址时必须重新输入
   await assert.rejects(service.discoverModels({ baseUrl: 'https://other.example.com/v1', protocol: 'responses' }), /先输入/);
   await service.saveAdminModelSettings({ ...settings, apiKey: '', clearApiKey: true }, userId);
   assert.equal((await service.getAdminModelSettings()).config.hasApiKey, false);
+  assert.deepEqual(await service.getPublicModels(), { models: [], defaultModelId: null });
+  await assert.rejects(service.getManagedModel(), error => error.status === 503);
   await assert.rejects(service.getModelConnection(), error => error.status === 503);
 });
 

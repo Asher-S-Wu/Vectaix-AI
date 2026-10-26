@@ -105,3 +105,22 @@ test('上传文件的内部异常不返回给用户', async t => {
  assert.equal(response.status, 500);
  assert.deepEqual(await response.json(), { error: '文件上传失败' });
 });
+
+test('普通用户可访问自己的媒体功能，全局密钥与默认配置保持管理员权限', async () => {
+ const member = await login('media-member@example.com');
+ const settings = await import('../../app/api/admin/media/route.js');
+ for (const provider of ['fish', 'qwen']) {
+  const voices = await import(`../../app/api/media/audio/${provider}/voices/route.js`);
+  const generations = await import(`../../app/api/media/audio/${provider}/generations/route.js`);
+  const generation = await import(`../../app/api/media/audio/${provider}/generations/[id]/route.js`);
+  for (const route of [voices, generations]) {
+   const path = route === voices ? 'voices' : 'generations';
+   assert.equal((await call(null, route.GET, new Request(`http://test/api/media/audio/${provider}/${path}`))).status, 401);
+   assert.equal((await call(member, route.GET, new Request(`http://test/api/media/audio/${provider}/${path}`))).status, 200);
+  }
+  assert.equal((await call(member, generations.POST, new Request(`http://test/api/media/audio/${provider}/generations`, { method: 'POST', body: '{}' }))).status, 400);
+  assert.equal((await call(member, request => generation.DELETE(request, { params: Promise.resolve({ id: 'missing' }) }), new Request(`http://test/api/media/audio/${provider}/generations/missing`, { method: 'DELETE' }))).status, 404);
+ }
+ assert.equal((await call(member, settings.GET, new Request('http://test/api/admin/media'))).status, 403);
+ assert.equal((await call(member, settings.PUT, new Request('http://test/api/admin/media', { method: 'PUT', body: '{}' }))).status, 403);
+});

@@ -54,6 +54,7 @@ export default function ChatApp() {
   const [editingMsgIndex, setEditingMsgIndex] = useState(null);
   const [editingContent, setEditingContent] = useState("");
   const [editingImages, setEditingImages] = useState([]);
+  const [composerRevision, setComposerRevision] = useState(0);
 
   const conversationLoadRef = useRef(null);
   const conversationsRequestRef = useRef(null);
@@ -61,20 +62,12 @@ export default function ChatApp() {
   const hasRestoredConversationRef = useRef(false);
   const currentConversationIdRef = useRef(null);
   const isStreaming = messages.some((message) => message?.isStreaming === true);
-  const {
-    chatEndRef,
-    messageListRef,
-    userInterruptedRef,
-    showScrollButton,
-    handleMessageListScroll,
-    scrollToBottom,
-  } = useChatScroll({ messages, isStreaming });
   const stopOngoingChatWork = () => {
     conversationLoadRef.current?.abort();
     conversationLoadRef.current = null;
     taskActions.invalidateView();
     actions.cancelEdit();
-    userInterruptedRef.current = false;
+    resetScroll();
     setLoading(false);
   };
 
@@ -123,6 +116,11 @@ export default function ChatApp() {
     onAuthenticated: resetSessionView,
     onAuthExpired: handleSessionExpired,
   });
+
+  const {
+    chatEndRef, messageListRef, resetScroll, showScrollButton,
+    handleMessageListScroll, scrollToBottom,
+  } = useChatScroll({ messages, isStreaming, active: Boolean(user) && !showAuthModal });
 
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
@@ -180,6 +178,7 @@ export default function ChatApp() {
       if (currentConversationIdRef.current && !nextConversations.some((conv) => conv._id === currentConversationIdRef.current)) {
         setCurrentConversationId(null);
         setMessages([]);
+        setComposerRevision(value => value + 1);
       }
     } catch {
       if (controller.signal.aborted) return;
@@ -234,7 +233,7 @@ export default function ChatApp() {
   const submitEditedMessage = async () => {
     if (busy || editingMsgIndex === null) return;
     const message = messages[editingMsgIndex];
-    const attachments = [...getMessageAttachments(message).filter(file => !file.isImage), ...editingImages.map(image => ({ fileId: image.fileId }))];
+    const attachments = editingImages.map(file => ({ fileId: file.fileId }));
     if (await taskActions.send({ text: editingContent, attachments, replaceFromMessageId: message.id })) actions.cancelEdit();
   };
   const removeMessage = (index) => {
@@ -254,6 +253,7 @@ export default function ChatApp() {
     stopOngoingChatWork();
     setCurrentConversationId(null);
     setMessages([]);
+    setComposerRevision(value => value + 1);
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
@@ -261,12 +261,10 @@ export default function ChatApp() {
     const silent = options?.silent === true;
     conversationLoadRef.current?.abort();
     taskActions.invalidateView();
-    actions.cancelEdit();
     const controller = new AbortController();
     conversationLoadRef.current = controller;
     setLoading(true);
     if (!silent) {
-      setMessages([]);
       if (window.innerWidth < 768) setSidebarOpen(false);
     }
     try {
@@ -281,16 +279,20 @@ export default function ChatApp() {
       if (res.status === 404) {
         setConversations((prev) => prev.filter((conv) => conv._id !== id));
         if (currentConversationIdRef.current === id) {
+          actions.cancelEdit();
           setCurrentConversationId(null);
           setMessages([]);
+          setComposerRevision(value => value + 1);
         }
       }
       if (!res.ok) throw new Error(data?.error || t("加载对话失败", "Could not load the chat"));
       if (data.conversation) {
         const conversation = data.conversation;
-        userInterruptedRef.current = false;
+        actions.cancelEdit();
+        resetScroll();
         setMessages(decorateConversationMessages(conversation.messages));
         setCurrentConversationId(id);
+        if (!silent) setComposerRevision(value => value + 1);
 
         setWebSearch(normalizeWebSearchSettings(conversation.settings?.webSearch, { defaultEnabled: true }));
       }
@@ -331,6 +333,7 @@ export default function ChatApp() {
         stopOngoingChatWork();
         setCurrentConversationId(null);
         setMessages([]);
+        setComposerRevision(value => value + 1);
       }
     } catch {
       toast.error(["删除对话失败，请重试", "Could not delete the chat. Please try again."]);
@@ -378,7 +381,7 @@ export default function ChatApp() {
         <AuthModal authMode={authMode} email={email} password={password} confirmPassword={confirmPassword} onEmailChange={setEmail} onPasswordChange={setPassword} onConfirmPasswordChange={setConfirmPassword} onSubmit={handleAuth} onPasskey={handlePasskeyAuth} onToggleMode={() => setAuthMode((m) => (m === "login" ? "register" : "login"))} loading={authLoading} />
       ) : (
         <ChatLayout
-          resourcesPanel={<ChatResourcesPanel open={showResources} onClose={() => animateChange(() => setShowResources(false), "resources")} conversationId={currentConversationId} projectId={projectId} tasks={taskActions.tasks} />}
+          resourcesPanel={<ChatResourcesPanel open={showResources} onClose={() => animateChange(() => setShowResources(false), "resources")} conversationId={currentConversationId} projectId={projectId} tasks={taskActions.tasks} messages={messages} />}
           user={user}
           assistant={assistant}
           isSettingsReady={isSettingsReady}
@@ -434,9 +437,10 @@ export default function ChatApp() {
           onStartEdit={actions.startEdit}
           userAvatar={avatar}
           composerProps={{
+            scopeKey: composerRevision,
             loading: busy || !isSettingsReady,
             isStreaming,
-            isWaitingForAI: busy && messages.length > 0,
+            isWaitingForAI: false,
             onSend: taskActions.send,
             onStop: taskActions.stop,
           }}

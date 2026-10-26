@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useI18n } from "@/lib/client/i18n";
@@ -46,8 +46,7 @@ export default function Select({
     return () => form?.removeEventListener("reset", reset);
   }, [defaultValue]);
 
-  const openPanel = () => {
-    if (disabled) return;
+  const positionPanel = useCallback(() => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (rect) {
       const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_GAP;
@@ -66,6 +65,10 @@ export default function Select({
           : { bottom: window.innerHeight - rect.top + 6 }),
       });
     }
+  }, []);
+  const openPanel = () => {
+    if (disabled) return;
+    positionPanel();
     setOpen(true);
   };
 
@@ -90,7 +93,9 @@ export default function Select({
     };
     const handleScroll = (event) => {
       if (panelRef.current?.contains(event.target)) return;
-      setOpen(false);
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect || rect.bottom <= 0 || rect.top >= window.innerHeight) setOpen(false);
+      else positionPanel();
     };
     const handleResize = () => setOpen(false);
 
@@ -104,7 +109,7 @@ export default function Select({
       window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("resize", handleResize);
     };
-  }, [open]);
+  }, [open, positionPanel]);
 
   const handleTriggerKeyDown = (event) => {
     if (disabled) return;

@@ -30,21 +30,27 @@ export default function UserManagementModal({ open, onClose }) {
   const confirmActionRef = useRef(null);
 
   const searchTimerRef = useRef(null);
+  const requestRef = useRef(null);
+  const dialogRef = useRef(null);
 
   const fetchUsers = useCallback(async (p = 1, q = "") => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(p) });
       if (q) params.set("search", q);
-      const data = await apiJson(`/api/admin/users?${params}`);
+      const data = await apiJson(`/api/admin/users?${params}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       setUsers(data.users || []);
       setTotal(data.total || 0);
       setPage(data.page || 1);
       setTotalPages(data.totalPages || 1);
     } catch (e) {
-      toast.error(e?.message || ["加载用户列表失败", "Could not load users"]);
+      if (!controller.signal.aborted) toast.error(e?.message || ["加载用户列表失败", "Could not load users"]);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [toast]);
 
@@ -60,17 +66,31 @@ export default function UserManagementModal({ open, onClose }) {
     const timer = setTimeout(() => {
       initializeOpenModal();
     }, 0);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); clearTimeout(searchTimerRef.current); requestRef.current?.abort(); };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement;
+    dialogRef.current?.focus();
+    return () => previousFocus?.focus();
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event) => {
-      if (event.key === "Escape" && !confirmOpen) onClose();
+      if (confirmOpen) return;
+      if (event.key === "Escape") { event.preventDefault(); if (!actionLoading) onClose(); }
+      if (event.key !== 'Tab') return;
+      const controls = [...dialogRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled)')];
+      const first = controls[0], last = controls.at(-1);
+      if (!first) { event.preventDefault(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, confirmOpen, onClose]);
+  }, [open, confirmOpen, actionLoading, onClose]);
 
   const onSearchChange = (val) => {
     setSearch(val);
@@ -115,7 +135,8 @@ export default function UserManagementModal({ open, onClose }) {
       try {
         await apiJson(`/api/admin/users/${user.id}`, { method: "DELETE" });
         toast.success(["用户已删除", "User deleted"]);
-        fetchUsers(page, search.trim());
+        if (resetResult?.email === user.email) setResetResult(null);
+        await fetchUsers(users.length === 1 && page > 1 ? page - 1 : page, search.trim());
       } catch (e) {
         toast.error(e?.message);
       } finally {
@@ -147,16 +168,18 @@ export default function UserManagementModal({ open, onClose }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-            onClick={onClose}
+            onClick={() => { if (!actionLoading && !confirmOpen) onClose(); }}
             role="dialog"
             aria-modal="true"
             aria-label={t("用户管理", "User management")}
           >
             <motion.div
+              ref={dialogRef}
+              tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 relative max-h-[85vh] flex flex-col"
+              className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 relative max-h-[85dvh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
@@ -167,6 +190,7 @@ export default function UserManagementModal({ open, onClose }) {
                 </div>
                 <button
                   onClick={onClose}
+                  disabled={Boolean(actionLoading) || confirmOpen}
                   aria-label={t("关闭", "Close")}
                   className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                 >
@@ -179,10 +203,11 @@ export default function UserManagementModal({ open, onClose }) {
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
                     type="text"
+                    aria-label={t('搜索邮箱', 'Search by email')}
                     placeholder={t("搜索邮箱…", "Search by email…")}
                     value={search}
                     onChange={(e) => onSearchChange(e.target.value)}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   />
                 </div>
               </div>
@@ -196,7 +221,7 @@ export default function UserManagementModal({ open, onClose }) {
                     className="overflow-hidden px-6"
                   >
                     <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-lg p-3 flex items-center justify-between gap-2">
-                      <div className="text-sm text-emerald-800 dark:text-emerald-300">
+                      <div className="min-w-0 break-all text-sm text-emerald-800 dark:text-emerald-300">
                         <span className="font-medium">{t("{email} 的新密码：", "New password for {email}:", { email: resetResult.email })}</span>
                         <code className="bg-emerald-100 dark:bg-emerald-800/50 px-2 py-0.5 rounded text-emerald-900 dark:text-emerald-200 font-mono ml-1">
                           {resetResult.password}
@@ -237,7 +262,7 @@ export default function UserManagementModal({ open, onClose }) {
                     {users.map((u) => (
                       <div
                         key={u.id}
-                        className="flex flex-col gap-2 bg-zinc-50 rounded-xl p-3 border border-zinc-100 hover:border-zinc-200 transition-colors sm:flex-row sm:items-center sm:justify-between"
+                        className="flex flex-col gap-2 bg-zinc-50 dark:bg-zinc-950 rounded-xl p-3 border border-zinc-100 dark:border-zinc-800 hover:border-zinc-200 transition-colors sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 min-w-0">

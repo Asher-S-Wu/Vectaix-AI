@@ -7,7 +7,7 @@ async function login(context, email) {
   assert.equal((await context.request.post(`${base}/api/auth/login`, { data: { email, password: 'Vectaix-Test-2026!' } })).status(), 200);
 }
 
-test('普通用户使用 Agent，管理后台与媒体接口只对管理员开放', { timeout: 120000 }, async () => {
+test('普通用户可用对话与 Media，管理后台和全局配置仅对管理员开放', { timeout: 120000 }, async () => {
   const browser = await chromium.launch();
   const context = await browser.newContext({ locale: 'zh-CN', viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'x-forwarded-for': '192.0.2.220' } });
   try {
@@ -22,8 +22,9 @@ test('普通用户使用 Agent，管理后台与媒体接口只对管理员开�
       await page.goto(`${base}${route}`);
       await page.waitForURL(`${base}/`);
     }
-    for (const route of ['/api/admin/models', '/api/admin/skills', '/api/admin/media', '/api/media/audio/fish/voices']) assert.equal((await context.request.get(`${base}${route}`)).status(), 403);
-    for (const route of ['/media', '/api/memories', '/api/skills']) assert.equal((await context.request.get(`${base}${route}`)).status(), 404);
+    for (const route of ['/api/admin/models', '/api/admin/skills', '/api/admin/media']) assert.equal((await context.request.get(`${base}${route}`)).status(), 403);
+    for (const route of ['/media', '/media/image', '/media/audio', '/api/media/capabilities', '/api/media/audio/fish/voices']) assert.equal((await context.request.get(`${base}${route}`)).status(), 200);
+    for (const route of ['/api/memories', '/api/skills']) assert.equal((await context.request.get(`${base}${route}`)).status(), 404);
     await page.goto(`${base}/settings`);
     const navigation = page.getByRole('navigation', { name: '设置分类' });
     assert.equal(await navigation.getByRole('button', { name: /记忆|技能/ }).count(), 0);

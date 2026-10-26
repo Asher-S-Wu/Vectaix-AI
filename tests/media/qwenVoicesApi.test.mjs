@@ -36,7 +36,6 @@ test.after(async () => { await mongoose.disconnect(); await mongo.stop(); await 
 
 async function login(label) {
   const email = `${label}@qwen.test`;
-  process.env.ADMIN_EMAILS = [process.env.ADMIN_EMAILS, email].filter(Boolean).join(',');
   const user = await User.create({ email, password: 'test-only' });
   const token = randomBytes(32).toString('base64url');
   await Session.create({ userId: user._id, tokenHash: createHash('sha256').update(token).digest('hex'), expiresAt: new Date(Date.now() + 60000) });
@@ -63,7 +62,7 @@ function cloneRequest(sample = wav(), consent = 'true') {
 }
 function voiceRequest(id, method = 'GET') { return new Request(`https://app.test/api/media/audio/qwen/voices/${id}`, { method }); }
 
-test('Qwen voice routes require admin authentication and expose the built-in voice without an upstream call', async t => {
+test('Qwen voice routes require authentication and expose the built-in voice without an upstream call', async t => {
   const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('unexpected request'); });
   assert.equal((await call(null, voicesRoute.GET, new Request('https://app.test/api/media/audio/qwen/voices'))).status, 401);
   assert.equal((await call(null, voicesRoute.POST, cloneRequest())).status, 401);
@@ -135,4 +134,20 @@ test('Deleting an account removes its upstream Qwen voice and local voice and ge
   assert.deepEqual(await deleteUserAndData(owner.userId), { success: true });
   assert.equal(await Voice.countDocuments({ userId: owner.userId }), 0);
   assert.equal(await User.exists({ _id: owner.userId }), null);
+});
+
+test('Qwen 共享克隆音色独立于聊天默认模型，并阻止普通用户删除', async t => {
+  const owner = await login('shared-qwen-owner'), member = await login('shared-qwen-member');
+  const voiceId = `${model}-vectaix-${randomBytes(16).toString('hex')}`;
+  const voice = await Voice.create({ userId: owner.userId, voiceId, displayName: '共享 Qwen 声音', status: 'trained', consentConfirmedAt: new Date(), sampleFileName: 'sample.wav', lastStatusCheckedAt: new Date() });
+  const { default: Settings } = await import('../../models/MediaSettings.js');
+  await Settings.updateOne({ _id: 'media' }, { $set: { audioProvider: 'fish', 'qwenAudio.enabled': true, 'qwenAudio.voiceId': voiceId } });
+  const data = await (await call(member.token, voicesRoute.GET, new Request('https://app.test/api/media/audio/qwen/voices'))).json();
+  const shared = data.voices.find(item => item.voiceId === voiceId);
+  assert.equal(shared.shared, true);
+  assert.equal(shared.sampleFileName, undefined);
+  assert.equal((await call(member.token, voiceRoute.DELETE, voiceRequest(voice.profileId, 'DELETE'), voice.profileId)).status, 404);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ output: { status: 'OK', target_model: model } }));
+  const { resolveQwenVoice } = await import('../../lib/media/server/operations/qwenSpeech.js');
+  assert.equal((await resolveQwenVoice({ userId: member.userId, voiceId })).voiceName, '共享 Qwen 声音');
 });

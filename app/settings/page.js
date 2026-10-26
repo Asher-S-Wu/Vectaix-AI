@@ -12,5 +12,6 @@ export default async function SettingsPage({ searchParams }) {
   const user = await getCurrentUserWithAccess();
   if (!user) redirect('/');
   const params = await searchParams;
-  return <SettingsCenter user={user} initialSection={params.section || 'general'} conversationId={params.conversationId || null} projectId={params.projectId || null} />;
+  const returnTo = ['/', '/media', '/media/image', '/media/audio'].includes(params.returnTo) ? params.returnTo : '/';
+  return <SettingsCenter user={user} initialSection={params.section || 'general'} conversationId={params.conversationId || null} projectId={params.projectId || null} returnTo={returnTo} />;
 }

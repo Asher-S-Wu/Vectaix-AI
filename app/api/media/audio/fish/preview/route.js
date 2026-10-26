@@ -1,5 +1,4 @@
 import { localizedRoute } from '@/lib/server/localizedRoute';
-import { getCurrentUserWithAccess } from '@/lib/admin';
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { parseJsonRequest, requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { previewFishSpeech } from "@/lib/media/server/operations/fishSpeech";
@@ -10,8 +9,6 @@ export const dynamic = "force-dynamic";
 
 async function POSTHandler(request) {
   try {
-    const access = await getCurrentUserWithAccess(request);
-    if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const userId = String(auth.payload.userId);

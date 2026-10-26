@@ -1,5 +1,4 @@
 import { localizedRoute } from '@/lib/server/localizedRoute';
-import { getCurrentUserWithAccess } from '@/lib/admin';
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { readMultipart } from "@/lib/server/files/uploads";
@@ -9,18 +8,21 @@ import { inspectAudioMetadata } from "@/lib/media/server/audioSampleInspection";
 import { acquireVoiceCreationLease, assertMediaWriteLeaseActive, beginMediaWriteLease, endMediaWriteLease, releaseVoiceCreationLease } from "@/lib/media/server/userOperationLeases";
 import { FISH_VOICE_MAX_COUNT, FISH_VOICE_SAMPLE_MAX_BYTES, FISH_VOICE_SAMPLE_MAX_SECONDS, FISH_VOICE_SAMPLE_MIN_SECONDS } from "@/lib/media/shared/fishAudio";
 import FishVoice from "@/models/FishVoice";
+import { getSharedAudioVoice } from '@/lib/server/media/settings';
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function GETHandler(request) {
   try {
-    const access = await getCurrentUserWithAccess(request);
-    if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const voices = await FishVoice.find({ userId: auth.payload.userId }).sort({ createdAt: -1 }).lean();
-    return Response.json({ success: true, voices: voices.map(serializeVoice) });
+    const sharedId = await getSharedAudioVoice('fish');
+    const shared = sharedId && !voices.some(voice => voice.voiceId === sharedId)
+      ? [{ profileId: `shared:${sharedId}`, voiceId: sharedId, displayName: 'Fish Audio', status: 'trained', languages: [], shared: true }]
+      : [];
+    return Response.json({ success: true, voices: [...voices.map(serializeVoice), ...shared] });
   } catch (error) {
     return Response.json({ success: false, message: fishPublicMessage(error, "读取声音库失败") }, { status: fishErrorStatus(error) });
   }
@@ -31,8 +33,6 @@ async function POSTHandler(request) {
   let creationLease;
   let createdVoiceId;
   try {
-    const access = await getCurrentUserWithAccess(request);
-    if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const userId = String(auth.payload.userId);

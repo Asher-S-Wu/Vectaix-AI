@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {useI18n} from '@/lib/client/i18n';
+import {apiJson} from '@/lib/client/apiClient';
 function ReviewValue({value}) {
  const {t} = useI18n();
 const fieldLabels = new Map(Object.entries({
@@ -36,11 +37,49 @@ const browserActions = { navigate: t("打开网页", "Open a web page"), new_tab
   <div className="max-h-72 overflow-auto rounded-lg bg-white/60 p-3 text-xs dark:bg-slate-900/40"><ReviewValue value={details}/></div>
  </div>;
 }
-export default function TaskApprovals({taskId,onChanged}){
+export default function TaskApprovals({taskId,onChanged}) {
  const {t,localizeMessage} = useI18n();
- const [items,setItems]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState('');
- useEffect(()=>{if(!taskId)return;let alive=true;const load=async()=>{try{const r=await fetch(`/api/tasks/${taskId}/approvals`);const data=await r.json();if(alive&&r.ok)setItems(data.approvals);}catch{}};load();const timer=setInterval(load,1500);return()=>{alive=false;clearInterval(timer);};},[taskId]);
- const decide=async(id,decision)=>{setBusy(id);setError('');try{const r=await fetch(`/api/tasks/${taskId}/approvals/${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision})});const data=await r.json();if(!r.ok)throw new Error(data.error);setItems(values=>values.map(x=>x._id===id?data.approval:x));onChanged?.();}catch(e){setError(e.message);}finally{setBusy('');}};
- const pending=items.filter(x=>x.status==='pending');if(!pending.length&&!error)return null;
- return <div className="my-3 space-y-3">{error&&<p role="alert" className="text-sm text-red-500">{localizeMessage(error)}</p>}{pending.map(item=><div key={item._id} className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4"><p className="font-medium text-sm">{t("需要你确认：{tool}", "Approval needed: {tool}", {tool: localizeMessage(item.tool)})}</p><p className="mt-1 text-xs text-slate-500">{t("请在请求发起后 5 分钟内确认，本次授权仅执行一次。", "Respond within 5 minutes of the request. Approval applies to this action once.")}</p><ApprovalDetails item={item}/><div className="mt-3 flex gap-2"><button disabled={busy===item._id} onClick={()=>decide(item._id,'approved')} className="rounded-lg bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white px-4 py-2 text-sm">{t("允许这一次", "Allow once")}</button><button disabled={busy===item._id} onClick={()=>decide(item._id,'rejected')} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">{t("拒绝", "Decline")}</button></div></div>)}</div>;
+ const [items,setItems] = useState([]);
+ const [loadError,setLoadError] = useState('');
+ const [error,setError] = useState('');
+ const [busy,setBusy] = useState('');
+ const [revision,setRevision] = useState(0);
+ useEffect(() => {
+  if (!taskId) return;
+  const controller = new AbortController();
+  let timer;
+  const load = async () => {
+   try {
+    const data = await apiJson(`/api/tasks/${taskId}/approvals`, {signal:controller.signal});
+    if (controller.signal.aborted) return;
+    setItems(data.approvals);
+    setLoadError('');
+    timer = setTimeout(load,1500);
+   } catch (failure) { if (!controller.signal.aborted) setLoadError(failure.message); }
+  };
+  void load();
+  return () => { controller.abort(); clearTimeout(timer); };
+ },[taskId,revision]);
+ const decide = async (id,decision) => {
+  if (busy) return;
+  setBusy(id); setError('');
+  try {
+   const data = await apiJson(`/api/tasks/${taskId}/approvals/${id}`, {method:'POST',body:{decision}});
+   setItems(values => values.map(item => item._id === id ? data.approval : item));
+   onChanged?.();
+  } catch(failure) { setError(failure.message); }
+  finally { setBusy(''); }
+ };
+ const pending = items.filter(item => item.status === 'pending');
+ if (!pending.length && !error && !loadError) return null;
+ return <div className="my-3 space-y-3">
+  {loadError && <div className="space-y-2"><p role="alert" className="text-sm text-red-500">{localizeMessage(loadError)}</p><button type="button" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" onClick={() => setRevision(value => value + 1)}>{t("重新加载确认请求", "Reload approval request")}</button></div>}
+  {error && <p role="alert" className="text-sm text-red-500">{localizeMessage(error)}</p>}
+  {pending.map(item => <div key={item._id} className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4">
+   <p className="font-medium text-sm">{t("需要你确认：{tool}", "Approval needed: {tool}", {tool:localizeMessage(item.tool)})}</p>
+   <p className="mt-1 text-xs text-slate-500">{t("请在请求发起后 5 分钟内确认，本次授权仅执行一次。", "Respond within 5 minutes of the request. Approval applies to this action once.")}</p>
+   <ApprovalDetails item={item}/>
+   <div className="mt-3 flex gap-2"><button disabled={Boolean(busy) || Boolean(loadError)} onClick={() => decide(item._id,'approved')} className="rounded-lg bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white px-4 py-2 text-sm disabled:opacity-50">{t("允许这一次", "Allow once")}</button><button disabled={Boolean(busy) || Boolean(loadError)} onClick={() => decide(item._id,'rejected')} className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-50">{t("拒绝", "Decline")}</button></div>
+  </div>)}
+ </div>;
 }

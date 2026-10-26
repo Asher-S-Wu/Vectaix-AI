@@ -42,7 +42,6 @@ test.after(async () => {
 });
 
 async function login(label) {
-  process.env.ADMIN_EMAILS = [process.env.ADMIN_EMAILS, `${label}@fish-voices.test`].filter(Boolean).join(',');
   const user = await User.create({ email: `${label}@fish-voices.test`, password: "test-only" });
   const token = randomBytes(32).toString("base64url");
   await Session.create({
@@ -173,12 +172,15 @@ test("音色列表、刷新和删除均按登录用户隔离，知晓他人 prof
   const ownData = await ownList.json();
   assert.deepEqual(Object.keys(ownData).sort(), ["success", "voices"]);
   assert.equal(ownData.success, true);
-  assert.deepEqual(ownData.voices.map((item) => [item.profileId, item.status]), [[recentVoice.profileId, "trained"], [voice.profileId, "created"]]);
+  assert.deepEqual(ownData.voices.filter(item => !item.shared).map((item) => [item.profileId, item.status]), [[recentVoice.profileId, "trained"], [voice.profileId, "created"]]);
   const queriedList = await call(owner.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/fish/voices?query=other&page=-1&language=invalid!"));
   assert.equal(queriedList.status, 200);
   assert.deepEqual(await queriedList.json(), ownData);
   const otherList = await call(outsider.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/fish/voices"));
-  assert.deepEqual(await otherList.json(), { success: true, voices: [] });
+  const otherData = await otherList.json();
+  assert.equal(otherData.voices.length, 1);
+  assert.equal(otherData.voices[0].shared, true);
+  assert.equal(otherData.voices[0].voiceId, '933563129e564b19a115bedd57b7406a');
   for (const method of ["GET", "DELETE"]) {
     const response = await call(outsider.token, voiceRoute[method], voiceRequest(voice.profileId, method), voice.profileId);
     assert.equal(response.status, 404);
@@ -257,4 +259,18 @@ test("账号删除遇到 Fish 故障时保留音色和删除围栏，远程已�
   assert.deepEqual(await deleteUserAndData(member.userId), { success: true });
   assert.equal(await Voice.exists({ _id: voice._id }), null);
   assert.equal(await User.exists({ _id: member.userId }), null);
+});
+
+test('聊天默认使用 Qwen 时，普通用户仍能选择并使用启用的 Fish 共享音色', async t => {
+  const member = await login('shared-fish');
+  const { default: Settings } = await import('../../models/MediaSettings.js');
+  await Settings.updateOne({ _id: 'media' }, { $set: { audioProvider: 'qwen' } });
+  const sharedId = '933563129e564b19a115bedd57b7406a';
+  const data = await (await call(member.token, voicesRoute.GET, new Request('https://app.test/api/media/audio/fish/voices'))).json();
+  const shared = data.voices.find(voice => voice.voiceId === sharedId);
+  assert.equal(shared.shared, true);
+  assert.equal((await call(member.token, voiceRoute.DELETE, voiceRequest(shared.profileId, 'DELETE'), shared.profileId)).status, 404);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ _id: sharedId, type: 'tts', state: 'trained', title: '共享 Fish 声音', languages: ['zh'] }));
+  const { resolveFishVoice } = await import('../../lib/media/server/operations/fishSpeech.js');
+  assert.equal((await resolveFishVoice({ userId: member.userId, voiceId: sharedId })).voiceName, '共享 Fish 声音');
 });

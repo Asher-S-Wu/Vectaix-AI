@@ -81,3 +81,14 @@ test('imported task files are registered and readable by the current conversatio
  const current=await WorkbenchTask.findById(task._id).lean();assert.equal(current.artifacts[0].fileId,file.fileId);
  const document=await readProjectDocument({userId:String(task.userId),conversationId:String(task.conversationId),fileId:file.fileId});assert.match(JSON.stringify(document.chunks),/Imported external/);
 });
+
+test('downloaded and remote-imported images are registered with their real media type',async()=>{
+ const userId=id();const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lCEAAAAASUVORK5CYII=','base64');
+ const file=await createStoredFile({userId,input:png,originalName:'external.png',mimeType:'application/octet-stream',extension:'png',category:'document',kind:'library',ownerType:'library'});
+ const registered=await registerIntegrationFile({userId,file});
+ assert.equal(registered.category,'image');assert.equal(registered.mimeType,'image/png');
+ const {default:StoredFile}=await import('../models/StoredFile');
+ const saved=await StoredFile.findOne({userId,fileId:file.fileId});assert.equal(saved.category,'image');assert.equal(saved.mimeType,'image/png');
+ const invalid=await createStoredFile({userId,input:Buffer.from('not a png'),originalName:'invalid.png',mimeType:'application/octet-stream',extension:'png',category:'document',kind:'library',ownerType:'library'});
+ await assert.rejects(()=>registerIntegrationFile({userId,file:invalid}),/文件内容与扩展名/);
+});

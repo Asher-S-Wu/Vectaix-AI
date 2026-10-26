@@ -1,13 +1,6 @@
 import { localizedRoute } from '@/lib/server/localizedRoute';
-import { withProjectLock } from "@/lib/server/workbench/projectLock";
-import WorkspaceProject from "@/models/WorkspaceProject";
-import WorkspaceDocument from "@/models/WorkspaceDocument";
-import WorkbenchTask from "@/models/WorkbenchTask";
-import WorkbenchTaskEvent from "@/models/WorkbenchTaskEvent";
-import Conversation from "@/models/Conversation";
-import { deleteStoredFilesByOwner } from "@/lib/server/storage/service";
-import { requireProject } from "@/lib/server/workbench/catalog";
-import { workbenchRoute, readBody, textField, workbenchError } from "@/lib/server/workbench/apiHelpers";
+import { requireProject, deleteProjectForUser } from "@/lib/server/workbench/catalog";
+import { workbenchRoute, readBody, textField } from "@/lib/server/workbench/apiHelpers";
 
 function GETHandler(req, context) {
   return workbenchRoute(req, async (userId) => Response.json({ project: await requireProject(userId, (await context.params).id) }));
@@ -26,26 +19,7 @@ function PUTHandler(req, context) {
 }
 
 function DELETEHandler(req, context) {
-  return workbenchRoute(req, async (userId) => {
-    const id = (await context.params).id;
-    return withProjectLock(userId, "task-creation", () => withProjectLock(userId, id, async () => {
-    const project = await requireProject(userId, id);
-    const projectId = project._id;
-    if (await WorkbenchTask.exists({ userId, projectId, status: { $in: ["queued", "running", "waiting_media", "waiting_approval"] } })) {
-      throw workbenchError("项目仍有进行中的任务，请先停止任务", 409);
-    }
-    const tasks = await WorkbenchTask.find({ userId, projectId, conversationId: null }).select("_id").lean();
-    await deleteStoredFilesByOwner({ userId, ownerType: "project", ownerId: String(projectId) });
-    for (const task of tasks) await deleteStoredFilesByOwner({ userId, ownerType: "task", ownerId: String(task._id) });
-    await WorkbenchTaskEvent.deleteMany({ userId, taskId: { $in: tasks.map((task) => task._id) } });
-    await WorkbenchTask.deleteMany({ userId, _id: { $in: tasks.map(task => task._id) } });
-    await WorkbenchTask.updateMany({ userId, projectId }, { $set: { projectId: null } });
-    await WorkspaceDocument.updateMany({ userId, projectId }, { $set: { projectId: null } });
-    await Conversation.updateMany({ userId, projectId }, { $set: { projectId: null } });
-    await WorkspaceProject.deleteOne({ _id: projectId, userId });
-    return Response.json({ success: true });
-    }));
-  });
+  return workbenchRoute(req, async userId => Response.json(await deleteProjectForUser(userId, (await context.params).id)));
 }
 
 export const GET = localizedRoute(GETHandler);

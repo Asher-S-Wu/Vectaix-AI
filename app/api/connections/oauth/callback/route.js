@@ -8,6 +8,7 @@ import Session from '@/models/Session';
 import { getRequestLocale } from '@/lib/server/i18n';
 import { localeTag, translate } from '@/lib/shared/i18n.mjs';
 import {finishOAuth} from '@/lib/server/integrations/mcp';
+import {assertExternalToolsEnabled} from '@/lib/server/integrations/connections';
 export const runtime='nodejs';
 async function GETHandler(req){
  try{
@@ -24,6 +25,7 @@ async function GETHandler(req){
    User.exists({_id:connection.userId,deletionInProgress:{$ne:true}}),
   ]);
   if(!session||!user)return Response.json({error:'授权请求已失效'},{status:400});
+  await assertExternalToolsEnabled(connection.userId);
   const c=await UserConnection.findOneAndUpdate({_id:connection._id,userId:connection.userId,...pending},{$unset:{oauthPending:1}},{new:false}).select('+secret').lean();
   if(!c)return Response.json({error:'授权请求已失效'},{status:400});
   jar.set(cookieName,'',{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',maxAge:0,path:'/api/connections/oauth/callback'});
@@ -32,7 +34,7 @@ async function GETHandler(req){
   const title = translate(locale, '授权完成', 'Connected');
   const message = translate(locale, '授权已完成，可以关闭此页面，回到连接设置测试连接。', 'Authorization is complete. Close this page and return to Settings to test the connection.');
   return new Response(`<!doctype html><html lang="${localeTag(locale)}"><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>${title}</title><body style="font-family:system-ui;padding:48px">${message}</body></html>`,{headers:{'Content-Type':'text/html; charset=utf-8','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'"}});
- }catch{return Response.json({error:'授权未完成，请回到设置重新发起授权'},{status:400});}
+ }catch(error){return Response.json({error:error.status ? error.message : '授权未完成，请回到设置重新发起授权'},{status:error.status || 400});}
 }
 
 export const GET = localizedRoute(GETHandler);

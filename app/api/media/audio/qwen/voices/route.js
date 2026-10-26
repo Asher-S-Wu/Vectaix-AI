@@ -1,5 +1,4 @@
 import { localizedRoute } from '@/lib/server/localizedRoute';
-import { getCurrentUserWithAccess } from '@/lib/admin';
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { readMultipart } from "@/lib/server/files/uploads";
@@ -9,18 +8,21 @@ import { inspectAudioMetadata } from "@/lib/media/server/audioSampleInspection";
 import { acquireVoiceCreationLease, assertMediaWriteLeaseActive, beginMediaWriteLease, endMediaWriteLease, releaseVoiceCreationLease } from "@/lib/media/server/userOperationLeases";
 import { QWEN_BUILTIN_VOICES, QWEN_VOICE_SAMPLE_MAX_BYTES, QWEN_VOICE_MAX_COUNT } from "@/lib/media/shared/qwenAudio";
 import QwenVoice from "@/models/QwenVoice";
+import { getSharedAudioVoice } from '@/lib/server/media/settings';
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function GETHandler(request) {
   try {
-    const access = await getCurrentUserWithAccess(request);
-    if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const voices = await QwenVoice.find({ userId: auth.payload.userId }).sort({ createdAt: -1 }).lean();
-    return Response.json({ success: true, voices: [...QWEN_BUILTIN_VOICES, ...voices.map(serializeVoice)] });
+    const sharedId = await getSharedAudioVoice('qwen');
+    const shared = sharedId && !QWEN_BUILTIN_VOICES.some(voice => voice.voiceId === sharedId) && !voices.some(voice => voice.voiceId === sharedId)
+      ? await QwenVoice.findOne({ voiceId: sharedId }).lean()
+      : null;
+    return Response.json({ success: true, voices: [...QWEN_BUILTIN_VOICES, ...voices.map(serializeVoice), ...(shared ? [{ profileId: `shared:${sharedId}`, voiceId: shared.voiceId, displayName: shared.displayName, status: shared.status, languages: shared.languages, shared: true }] : [])] });
   } catch (error) {
     return Response.json({ success: false, message: qwenPublicMessage(error, "读取声音库失败") }, { status: qwenErrorStatus(error) });
   }
@@ -31,8 +33,6 @@ async function POSTHandler(request) {
   let creationLease;
   let createdVoiceId;
   try {
-    const access = await getCurrentUserWithAccess(request);
-    if (!access?.isAdmin) return Response.json({ error: '需要管理员权限' }, { status: access ? 403 : 401 });
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const userId = String(auth.payload.userId);

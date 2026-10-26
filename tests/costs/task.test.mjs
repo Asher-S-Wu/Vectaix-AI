@@ -19,7 +19,7 @@ const {default:dbConnect}=await import('../../lib/db.js');
 await dbConnect();
 const { saveAdminModelSettings } = await import('../../lib/server/models/service.js');
 const { DEFAULT_MODEL_SETTINGS } = await import('../../lib/server/models/config.js');
-await saveAdminModelSettings({ ...DEFAULT_MODEL_SETTINGS, baseUrl: 'https://models.example.com/v1', modelId: 'deepseek-flash', contextWindow: 1048576, maxOutputTokens: 393216, pricing: { inputPerMillion: .3, cachedInputPerMillion: .006, outputPerMillion: 1.2 } }, new mongoose.Types.ObjectId());
+await saveAdminModelSettings({ ...DEFAULT_MODEL_SETTINGS, baseUrl: 'https://models.example.com/v1', modelId: 'deepseek-flash', apiKey: 'cost-test-only-key', contextWindow: 1048576, maxOutputTokens: 393216, pricing: { inputPerMillion: .3, cachedInputPerMillion: .006, outputPerMillion: 1.2 } }, new mongoose.Types.ObjectId());
 await ensureCreditTransactionIndexes();
 test.after(async () => { await mongoose.disconnect(); await mongo.stop(); });
 
@@ -75,7 +75,7 @@ test('主助手与子助手复用计费时每次请求独立入账，并固定�
   const user = await User.create({ email: 'delegate-cost@example.com', password: 'test-only' });
   const conversation = await Conversation.create({ userId: user._id, messages: [{ id: 'delegate-message', role: 'model', content: '' }] });
   const task = await Task.create({ userId: user._id, requestId: 'delegate-cost', fingerprint: 'delegate-cost-fingerprint', conversationId: conversation._id, userMessageId: 'user', modelMessageId: 'delegate-message', model: capturedModel.id, status: 'running' });
-  await saveAdminModelSettings({ ...DEFAULT_MODEL_SETTINGS, baseUrl: 'https://other.example.com/v1', protocol: 'chat', modelId: 'new-model', pricing: { inputPerMillion: 100, cachedInputPerMillion: 50, outputPerMillion: 200 } }, user._id);
+  await saveAdminModelSettings({ ...DEFAULT_MODEL_SETTINGS, baseUrl: 'https://other.example.com/v1', protocol: 'chat', modelId: 'new-model', apiKey: 'other-cost-test-only-key', pricing: { inputPerMillion: 100, cachedInputPerMillion: 50, outputPerMillion: 200 } }, user._id);
   const billing = await createTaskBilling(task, new AbortController().signal, { modelConfig: capturedModel });
   const passes = [0, 0, 1, 1];
   for (const [sequence, pass] of passes.entries()) {

@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/client/i18n";
 import Select from '@/app/components/common/Select';
 import { useState, useRef, useEffect } from "react";
 import NextImage from "next/image";
-import { Folder, FolderInput, LogOut, Settings2, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { Folder, FolderInput, LogOut, Settings2, Pencil, Pin, Plus, Trash2, X, Images } from "lucide-react";
 import ConfirmModal from "../modals/ConfirmModal";
 import BrandMark from "../common/BrandMark";
 import Link from "./NavigationMotion";
@@ -112,12 +112,6 @@ export default function Sidebar({
   };
 
   const handleConversationClick = (conv) => {
-    // Touch devices: first tap reveals the action bar, second tap opens the chat
-    const isTouch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
-    if (isTouch && activeActionsId !== conv._id && editingId !== conv._id) {
-      revealActions(conv._id);
-      return;
-    }
     onLoadConversation(conv._id);
   };
 
@@ -162,7 +156,8 @@ export default function Sidebar({
           </button>
         </div>
 
-        {user?.isAdmin && <Link href="/admin" className="mx-3 mb-2 flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-zinc-500 hover:bg-primary/10 hover:text-primary"><Settings2 size={17} />{t("管理后台", "Admin")}</Link>}
+        <Link href="/media" onNavigate={onClose} className="mx-3 mb-1 flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-zinc-600 hover:bg-primary/10 hover:text-primary dark:text-zinc-300"><Images size={17} />{t("Media 创作", "Media studio")}</Link>
+        {user?.isAdmin && <Link href="/admin" className="mx-3 mb-2 flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-zinc-500 hover:bg-primary/10 hover:text-primary"><Settings2 size={17} />{t("管理后台", "Admin")}</Link>}
         <div className="px-3 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50">
           <div className="flex items-center justify-between mb-2 px-1"><span className="text-xs font-medium text-zinc-500 flex items-center gap-1.5"><Folder size={13} />{t("项目", "Projects")}</span><button type="button" onClick={onManageProjects} className="text-xs text-primary hover:underline">{t("管理项目", "Manage projects")}</button></div>
           <Select ariaLabel={t("筛选项目对话", "Filter chats by project")} value={activeProjectId === null ? "" : activeProjectId} onChange={event => onSelectProject(event === "" ? null : event)} className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm px-3 py-2 text-zinc-700 dark:text-zinc-200" options={[{
@@ -241,7 +236,7 @@ export default function Sidebar({
                     <span className={`shrink-0 transition-transform duration-200 ${currentConversationId === conv._id ? "scale-110" : "group-hover:scale-105 opacity-70 group-hover:opacity-100"}`}>
                       <BrandMark size={38} />
                     </span>
-                    <span className="truncate pr-28">{conv.title}</span>
+                    <span className="truncate pr-2 group-hover:pr-28 group-focus-within:pr-28">{conv.title}</span>
                   </button>
 
                   <div className={`absolute right-2 top-1.5 flex items-center gap-0.5 transition-all duration-200 ${activeActionsId === conv._id ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-x-0 group-focus-within:pointer-events-auto"}`}>

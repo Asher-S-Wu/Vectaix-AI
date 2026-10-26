@@ -21,7 +21,7 @@ const clients = { fish: createAudioClient("fish"), qwen: createAudioClient("qwen
 const inputClass = "w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-700 dark:bg-zinc-950";
 const buttonClass = "rounded-xl border border-zinc-200 px-3 py-2 text-sm disabled:opacity-50 dark:border-zinc-700";
 
-export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
+export default function AudioWorkspace({ provider = "fish", onBusyChange, canManageDefaults = false, serviceEnabled = true }) {
   const qwen = provider === "qwen";
   const api = clients[provider];
   const VOICE_KEY = `vectaix_ui_${provider}AudioVoice_v1`;
@@ -48,6 +48,8 @@ export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
   const [volume, setVolume] = useState(qwen ? 50 : 0);
   const [generations, setGenerations] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyCursor, setHistoryCursor] = useState(null);
+  const [moreLoading, setMoreLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [error, setError] = useState("");
   const [operation, setOperation] = useState("");
@@ -73,7 +75,7 @@ export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
     setHistoryLoading(true); setHistoryError("");
     try {
       const data = await api.listGenerations();
-      if (request === historyRequest.current) setGenerations(data.generations);
+      if (request === historyRequest.current) { setGenerations(data.generations); setHistoryCursor(data.nextCursor); }
     } catch (error) { if (request === historyRequest.current) setHistoryError(error.message); }
     finally { if (request === historyRequest.current) setHistoryLoading(false); }
   }, [api]);
@@ -82,7 +84,7 @@ export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
     let active = true;
     const request = historyRequest.current;
     api.listGenerations().then(data => {
-      if (active && request === historyRequest.current) setGenerations(data.generations);
+      if (active && request === historyRequest.current) { setGenerations(data.generations); setHistoryCursor(data.nextCursor); }
     }).catch(error => {
       if (active && request === historyRequest.current) setHistoryError(error.message);
     }).finally(() => {
@@ -107,6 +109,16 @@ export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
   }, [api, VOICE_KEY]);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
+  async function loadMoreHistory() {
+    const request = ++historyRequest.current;
+    setMoreLoading(true); setHistoryError('');
+    try {
+      const data = await api.listGenerations({ cursor: historyCursor });
+      if (request === historyRequest.current) { setGenerations(current => [...current, ...data.generations]); setHistoryCursor(data.nextCursor); }
+    } catch (error) { if (request === historyRequest.current) setHistoryError(error.message); }
+    finally { setMoreLoading(false); }
+  }
+
   async function run(name, action) {
     if (operationLock.current || chatBusy) return;
     operationLock.current = true; setOperation(name); setError("");
@@ -124,7 +136,7 @@ export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
       const data = await api.createGeneration({ ...options, text: text.trim() });
       historyRequest.current += 1; setHistoryLoading(false);
       pendingAutoPlay.current = data.generation.id;
-      setGenerations(current => [data.generation, ...current.filter(item => item.id !== data.generation.id)].slice(0, 100));
+      setGenerations(current => [data.generation, ...current.filter(item => item.id !== data.generation.id)]);
     });
   }
   function clone(event) {
@@ -162,10 +174,11 @@ export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
       <button type="button" disabled={busy || !ready} aria-pressed={voiceId === voice.voiceId} onClick={() => selectVoice(voice)} className="w-full text-left disabled:opacity-50">
         <span className="block truncate text-sm font-medium">{name}</span>
         <span className="mt-1 block line-clamp-2 text-xs text-zinc-500">{statusLabels[voice.status]}</span>
+        {voice.shared && <span className="mt-1 block text-xs text-primary">{t('管理员共享音色', 'Voice shared by the administrator')}</span>}
       </button>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" className={buttonClass} disabled={busy || !ready} aria-label={t("试听 {name}", "Preview {name}", { name })} onClick={() => void run("preview", async () => setPreviewUrl(await api.previewVoice(voice.voiceId)))}><Play className="mr-1 inline h-3 w-3" />{t("试听", "Preview")}</button>
-        {!voice.builtin && <><button type="button" disabled={busy} className={buttonClass} onClick={() => void run("refresh", async () => {
+        <button type="button" className={buttonClass} disabled={busy || !ready || !serviceEnabled} aria-label={t("试听 {name}", "Preview {name}", { name })} onClick={() => void run("preview", async () => setPreviewUrl(await api.previewVoice(voice.voiceId)))}><Play className="mr-1 inline h-3 w-3" />{t("试听", "Preview")}</button>
+        {!voice.builtin && !voice.shared && <><button type="button" disabled={busy} className={buttonClass} onClick={() => void run("refresh", async () => {
           const result = await api.refreshVoice(voice.profileId);
           setVoices(current => current.map(item => item.profileId === voice.profileId ? result.voice : item));
           if (voiceId === voice.voiceId && result.voice.status !== "trained") { setVoiceId(""); setSelectedName(""); writeLocalSetting(VOICE_KEY, null); }
@@ -193,8 +206,8 @@ export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
             <AudioSliderField id="fish-speed" label={t("语速", "Speed")} icon={Gauge} valueLabel={`${formatNumber(speed, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}×`} value={speed} min={0.5} max={2} step={0.1} disabled={busy} onChange={event => setSpeed(Number(event.target.value))} />
             <AudioSliderField id="fish-volume" label={t("音量", "Volume")} icon={Volume2} valueLabel={`${formatNumber(volume)}${qwen ? "%" : " dB"}`} value={volume} min={qwen ? 0 : -20} max={qwen ? 100 : 20} step={1} disabled={busy} onChange={event => setVolume(Number(event.target.value))} />
           </div>
-          <button type="submit" disabled={busy || !text.trim() || !voiceId} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 dark:text-sky-950">{operation === "generate" ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <AudioLines className="h-4 w-4" />}{operation === "generate" ? t("正在生成", "Generating") : t("生成语音", "Generate speech")}</button>
-          <ApplyGlobalMediaButton section={qwen ? "qwenAudio" : "audio"} value={parameters} disabled={busy || !voiceId} onBusyChange={setChatBusy} />
+          <button type="submit" disabled={!serviceEnabled || busy || !text.trim() || !voiceId} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 dark:text-sky-950">{operation === "generate" ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <AudioLines className="h-4 w-4" />}{operation === "generate" ? t("正在生成", "Generating") : t("生成语音", "Generate speech")}</button>
+          {canManageDefaults && <ApplyGlobalMediaButton section={qwen ? "qwenAudio" : "audio"} value={parameters} disabled={busy || !voiceId} onBusyChange={setChatBusy} />}
         </form>
         <section aria-label={t("声音库", "Voice library")} className="glass-effect space-y-4 rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60">
           <h2 className="font-semibold">{t("声音库", "Voice library")}</h2>
@@ -210,14 +223,14 @@ export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
           <div><label htmlFor="fish-voice-name" className="mb-2 block text-sm">{t("音色名称", "Voice name")}</label><input id="fish-voice-name" required maxLength={60} value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={busy} className={inputClass} /></div>
           <div><label htmlFor="fish-sample" className="mb-2 block text-sm">{t("声音样本", "Voice sample")}</label><input id="fish-sample" type="file" required accept=".wav,.mp3,.m4a,audio/wav,audio/mpeg,audio/mp4" disabled={busy} className={inputClass} onChange={event => setSample(event.target.files[0] || null)} /></div>
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} disabled={busy} required className="mt-1" />{t("我拥有这段录音的使用权，并已获得声音本人的授权。", "I have the right to use this recording and the speaker’s permission.")}</label>
-          <button type="submit" disabled={busy || !sample || !consent || !displayName.trim()} className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-white disabled:opacity-50">{operation === "clone" ? t("正在提交…", "Submitting…") : t("创建音色", "Create voice")}</button>
+          <button type="submit" disabled={!serviceEnabled || busy || !sample || !consent || !displayName.trim()} className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-white disabled:opacity-50">{operation === "clone" ? t("正在提交…", "Submitting…") : t("创建音色", "Create voice")}</button>
         </form>
         <AudioFormError message={voiceError} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{voices.map(voiceCard)}</div>
       </div>}
     </section>
     {operation === "generate" && <AudioGeneratingBanner />}
-    <AudioHistorySection description={t("最多保留最近 100 条，可直接播放或下载。", "The latest 100 recordings are kept. Play or download them here.")} items={generations} loading={historyLoading} error={historyError} onRefresh={loadHistory} renderItem={generation => <article key={generation.id} className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+    <AudioHistorySection description={t("记录保存在你的账号下，可播放、下载或删除。", "Recordings stay in your account. Play, download, or delete them here.")} items={generations} loading={historyLoading} error={historyError} onRefresh={loadHistory} hasMore={Boolean(historyCursor)} loadingMore={moreLoading} onLoadMore={loadMoreHistory} renderItem={generation => <article key={generation.id} className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
       <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-medium">{generation.voiceName}</h3><span className="text-xs text-zinc-500">{formatDate(generation.createdAt, { dateStyle: "medium", timeStyle: "short" })}</span></div>
       <p className="line-clamp-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{generation.text}</p>
       <audio ref={audioRef} data-generation-id={generation.id} controls preload="none" src={generation.audioUrl} className="w-full" aria-label={t("{name} 生成的语音", "Speech generated with {name}", { name: generation.voiceName })} />

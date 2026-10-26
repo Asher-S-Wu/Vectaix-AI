@@ -12,7 +12,11 @@ import { formatAttachmentMeta } from "@/lib/shared/messageAttachments";
 
 const attachmentAccept = getAttachmentAcceptForModel({ supportsImages: true, supportsDocuments: true });
 
-export default function Composer({ loading, isStreaming, isWaitingForAI, onSend, onStop }) {
+export default function Composer({ scopeKey, ...props }) {
+  return <ComposerDraft key={scopeKey} {...props} />;
+}
+
+function ComposerDraft({ loading, isStreaming, isWaitingForAI, onSend, onStop }) {
   const { t, locale, formatNumber, localizeMessage } = useI18n();
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState([]);
@@ -44,6 +48,8 @@ export default function Composer({ loading, isStreaming, isWaitingForAI, onSend,
       viewport?.removeEventListener("resize", setAppHeight);
       viewport?.removeEventListener("scroll", setAppHeight);
       window.removeEventListener("resize", setAppHeight);
+      document.documentElement.style.removeProperty("--app-height");
+      document.documentElement.style.removeProperty("--app-offset-top");
     };
   }, [isFocused]);
 

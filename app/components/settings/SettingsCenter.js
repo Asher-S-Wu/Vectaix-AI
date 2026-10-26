@@ -16,7 +16,7 @@ import UsagePanel from './panels/UsagePanel';
 
 const panels = { general: GeneralPanel, assistant: AssistantPanel, connections: ConnectionsPanel, browser: BrowserPanel, files: FilesPanel, backups: BackupsPanel, permissions: PermissionsPanel, usage: UsagePanel };
 
-export default function SettingsCenter({ user, initialSection, conversationId, projectId }) {
+export default function SettingsCenter({ user, initialSection, conversationId, projectId, returnTo = '/' }) {
   const { t } = useI18n();
   const sections = [
     ['general', t("通用", "General"), Settings2, t("账号、外观与对话偏好", "Account, appearance, and chat preferences")],
@@ -39,7 +39,7 @@ export default function SettingsCenter({ user, initialSection, conversationId, p
     <TaskNotifications userId={user.userId} />
     <div className="mx-auto flex h-full max-w-[1440px]">
       <aside style={{ viewTransitionName: "settings-sidebar" }} className={`${mobileDetail ? 'hidden md:flex' : 'flex'} w-full flex-col border-r border-zinc-200 bg-white md:w-64 md:shrink-0 dark:border-zinc-800 dark:bg-zinc-900/40`}>
-        <div className="px-6 pb-6 pt-7"><Link href="/" className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-primary"><ArrowLeft size={16} />{t("返回对话", "Back to chat")}</Link><h1 className="mt-7 text-2xl font-semibold tracking-tight">{t("设置", "Settings")}</h1><p className="mt-2 truncate text-xs text-zinc-500">{user.email}</p></div>
+        <div className="px-6 pb-6 pt-7"><Link href={returnTo} className="inline-flex min-h-11 items-center gap-2 text-sm text-zinc-500 hover:text-primary"><ArrowLeft size={16} />{returnTo.startsWith('/media') ? t('返回 Media', 'Back to Media') : t("返回对话", "Back to chat")}</Link><h1 className="mt-5 text-2xl font-semibold tracking-tight">{t("设置", "Settings")}</h1><p className="mt-2 truncate text-xs text-zinc-500">{user.email}</p></div>
         <nav aria-label={t("设置分类", "Settings categories")} className="flex-1 space-y-1 overflow-y-auto px-3 pb-6">{available.map(([id, label, Icon, description, admin]) => <button key={id} type="button" onClick={() => select(id)} aria-current={section === id ? 'page' : undefined} className={`relative isolate flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors ${section === id ? 'font-semibold text-primary' : 'text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}>{section === id && <span aria-hidden="true" style={{ viewTransitionName: "settings-active-tab" }} className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-primary/10" />}<Icon size={18} strokeWidth={1.7} /><span className="flex-1">{label}<span className="mt-1 block text-xs font-normal text-zinc-400 md:hidden">{description}</span></span>{admin && <span className="text-[10px]">{t("管理", "Manage")}</span>}<ChevronRight className="md:hidden" size={16} /></button>)}</nav>{user.isAdmin && <Link href="/admin" className="mx-6 mb-6 inline-flex items-center gap-2 text-sm text-primary"><ShieldCheck size={16} />{t("管理后台", "Admin")}</Link>}
       </aside>
       <main style={{ viewTransitionName: "settings-content" }} className={`${mobileDetail ? 'block' : 'hidden md:block'} min-w-0 flex-1 overflow-y-auto`}>

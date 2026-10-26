@@ -47,14 +47,24 @@ test('首次访问自动识别中英文，手选语言刷新后保持，登录�
 
 test('英文覆盖所有设置与管理页面，保留中文用户内容，桌面和手机布局完整', { timeout: 240000 }, async () => {
   await mkdir(screenshots, { recursive: true });
-  await withPage({ locale: 'en-US', colorScheme: 'light', reducedMotion: 'reduce' }, async page => {
+  await withPage({ locale: 'en-US', colorScheme: 'light', reducedMotion: 'reduce' }, async (page, context) => {
+    const filename = `保留中文用户文件-${Date.now()}.txt`;
+    const upload = await context.request.post(`${base}/api/library/upload`, { multipart: { files: { name: filename, mimeType: 'text/plain', buffer: Buffer.from('user-authored content') } } });
+    assert.equal(upload.status(), 200);
+    const file = (await upload.json()).files[0];
+    const library = await (await context.request.get(`${base}/api/library`)).json();
+    const userNames = [...new Set([...library.files, ...library.folders].map(item => item.name))];
+    try {
     const routes = ['/', '/admin', '/admin/skills', '/admin/media', '/admin/media/image', '/admin/media/audio', '/admin/users', ...['general', 'assistant', 'connections', 'browser', 'files', 'backups', 'permissions', 'usage'].map(section => `/settings?section=${section}`)];
     for (const route of routes) {
       await page.goto(base + route);
       await page.locator('main').first().waitFor();
       await page.waitForLoadState('networkidle');
       const han = await page.locator('body').innerText();
-      assert.equal(/[\p{Script=Han}]/u.test(han.replaceAll('中文', '').replaceAll('花卷', '')), false, `${route}: ${han}`);
+      const displaysFileNames = ['/settings?section=files', '/settings?section=usage'].includes(route);
+      const interfaceText = displaysFileNames ? userNames.reduce((text, name) => text.replaceAll(name, ''), han) : han;
+      assert.equal(/[\p{Script=Han}]/u.test(interfaceText.replaceAll('中文', '').replaceAll('花卷', '')), false, `${route}: ${han}`);
+      if (route === '/settings?section=files') assert.ok(await page.getByText(filename, { exact: true }).count() > 0, '界面语言切换后保留用户的中文文件名');
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), route);
     }
     await page.goto(base);
@@ -72,6 +82,9 @@ test('英文覆盖所有设置与管理页面，保留中文用户内容，桌�
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `mobile ${route}`);
     }
     await page.screenshot({ path: `${screenshots}/settings-en-mobile.png` });
+    } finally {
+      assert.equal((await context.request.delete(`${base}/api/library`, { data: { fileIds: [file.fileId] } })).status(), 200);
+    }
   }, true);
 });
 
