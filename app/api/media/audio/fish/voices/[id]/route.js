@@ -3,7 +3,7 @@ import { getCurrentUserWithAccess } from '@/lib/admin';
 import { clearSharedVoice } from '@/lib/server/media/settings';
 import { requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { deleteFishVoice, fishErrorStatus, fishPublicMessage, getFishVoice } from "@/lib/media/server/fishAudio";
-import { serializeFishVoice } from "@/lib/media/server/fishAudioRecords";
+import { serializeVoice } from "@/lib/media/server/audioRecords";
 import { assertMediaWriteLeaseActive, beginMediaWriteLease, endMediaWriteLease } from "@/lib/media/server/userOperationLeases";
 import FishVoice from "@/models/FishVoice";
 
@@ -40,7 +40,7 @@ async function operate(request, context, remove) {
     record.languages = Array.isArray(upstream.languages) ? upstream.languages : [];
     record.lastStatusCheckedAt = new Date();
     await record.save();
-    return Response.json({ success: true, voice: serializeFishVoice(record) });
+    return Response.json({ success: true, voice: serializeVoice(record) });
   } catch (error) {
     return Response.json({ success: false, message: fishPublicMessage(error, remove ? "删除复刻音色失败" : "刷新音色状态失败") }, { status: fishErrorStatus(error) });
   } finally {

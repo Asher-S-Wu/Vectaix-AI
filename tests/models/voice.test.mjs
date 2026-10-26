@@ -25,3 +25,17 @@ test('未选音色、文本超长和上游失败均显示明确错误', async ()
     fish: async () => { throw new Error('upstream unavailable'); },
   }), /upstream unavailable/);
 });
+
+test('Qwen 朗读使用独立服务及所选音色，接受超过 Fish 长度上限的文本', async () => {
+  const audio = { provider: 'qwen', model: 'qwen-audio-3.1-tts-plus', voiceId: 'longanhuan_v3.1', sampleRate: 24000, volume: 50 };
+  const text = '字'.repeat(16000);
+  const result = await dispatchSpeech({ text, audio, userId: 'user', clientOperationId: 'qwen-id' }, {
+    qwen: async input => {
+      assert.deepEqual(input.body, { ...audio, text });
+      assert.equal(input.clientOperationId, 'qwen-id');
+      return { status: 201, data: { success: true, generation: { audioUrl: '/api/files/qwen-audio' } } };
+    },
+  });
+  assert.equal(result.data.audioUrl, '/api/files/qwen-audio');
+  await assert.rejects(dispatchSpeech({ text: '字'.repeat(20001), audio }, {}), { status: 400 });
+});

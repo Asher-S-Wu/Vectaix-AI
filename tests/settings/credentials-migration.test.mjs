@@ -43,6 +43,8 @@ test('已有模型和媒体环境密钥自动导入后台，重启保留后续�
 
   const media = await MediaSettings.findById('media').lean();
   const visibleMedia = await getMediaSettings();
+  assert.equal(visibleMedia.qwenAudio.baseUrl, 'https://ws-2t7yj3g991jc5yo6.ap-southeast-1.maas.aliyuncs.com');
+  assert.equal(visibleMedia.qwenAudio.enabled, false);
   for (const [kind, key] of [['image', process.env.MICU_OPENAI_IMAGE_API_KEY], ['audio', process.env.FISH_API_KEY]]) {
     assert.equal(decryptSecret(media[kind].encryptedApiKey, `media:${kind}`), key);
     assert.equal(visibleMedia[kind].hasApiKey, true);

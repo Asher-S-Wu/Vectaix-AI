@@ -13,14 +13,23 @@ import ApplyGlobalMediaButton from "./ApplyGlobalMediaButton";
 import MediaConfirmDialog from "./MediaConfirmDialog";
 import { readLocalSetting, writeLocalSetting } from "@/lib/client/localSettings";
 import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
-import { createFishGeneration, createFishVoice, deleteFishGeneration, deleteFishVoice, listFishGenerations, listFishVoices, previewFishVoice, refreshFishVoice } from "@/lib/media/client/fishAudio";
+import { createAudioClient } from "@/lib/media/client/audio";
+import { QWEN_AUDIO_MODEL, QWEN_AUDIO_MODEL_LABEL, QWEN_AUDIO_TEXT_MAX_LENGTH, QWEN_AUDIO_SAMPLE_RATES } from "@/lib/media/shared/qwenAudio";
 import { FISH_AUDIO_MODEL, FISH_AUDIO_MODEL_LABEL, FISH_AUDIO_TEXT_MAX_LENGTH, FISH_AUDIO_SAMPLE_RATES } from "@/lib/media/shared/fishAudio";
 
-const VOICE_KEY = "vectaix_ui_fishAudioVoice_v1";
+const clients = { fish: createAudioClient("fish"), qwen: createAudioClient("qwen") };
 const inputClass = "w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-700 dark:bg-zinc-950";
 const buttonClass = "rounded-xl border border-zinc-200 px-3 py-2 text-sm disabled:opacity-50 dark:border-zinc-700";
 
-export default function FishAudioWorkspace() {
+export default function AudioWorkspace({ provider = "fish", onBusyChange }) {
+  const qwen = provider === "qwen";
+  const api = clients[provider];
+  const VOICE_KEY = `vectaix_ui_${provider}AudioVoice_v1`;
+  const model = qwen ? QWEN_AUDIO_MODEL : FISH_AUDIO_MODEL;
+  const modelLabel = qwen ? QWEN_AUDIO_MODEL_LABEL : FISH_AUDIO_MODEL_LABEL;
+  const maxTextLength = qwen ? QWEN_AUDIO_TEXT_MAX_LENGTH : FISH_AUDIO_TEXT_MAX_LENGTH;
+  const sampleRates = qwen ? { mp3: QWEN_AUDIO_SAMPLE_RATES, wav: QWEN_AUDIO_SAMPLE_RATES } : FISH_AUDIO_SAMPLE_RATES;
+  const defaultSampleRate = qwen ? 24000 : 44100;
   const { t, formatDate, formatNumber } = useI18n();
 
   const tabs = [{ id: "synthesis", label: t("文字配音", "Text to speech"), icon: AudioLines }, { id: "voices", label: t("声音复刻", "Voice cloning"), icon: Mic2 }];
@@ -34,9 +43,9 @@ export default function FishAudioWorkspace() {
   const [voicesLoading, setVoicesLoading] = useState(true);
   const [voiceError, setVoiceError] = useState("");
   const [format, setFormat] = useState("mp3");
-  const [sampleRate, setSampleRate] = useState(44100);
+  const [sampleRate, setSampleRate] = useState(defaultSampleRate);
   const [speed, setSpeed] = useState(1);
-  const [volume, setVolume] = useState(0);
+  const [volume, setVolume] = useState(qwen ? 50 : 0);
   const [generations, setGenerations] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
@@ -52,23 +61,27 @@ export default function FishAudioWorkspace() {
   const historyRequest = useRef(0);
   const operationLock = useRef(false);
   const busy = Boolean(operation) || chatBusy;
+  useEffect(() => {
+    onBusyChange?.(busy);
+    return () => onBusyChange?.(false);
+  }, [busy, onBusyChange]);
   const filteredVoices = voices.filter(voice => voice.displayName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
-  const parameters = { provider: "fish", model: FISH_AUDIO_MODEL, voiceId, format, sampleRate, speed, volume, temperature: 0.7, topP: 0.7 };
+  const parameters = { provider, model, voiceId, format, sampleRate, speed, volume, ...(qwen ? {} : { temperature: 0.7, topP: 0.7 }) };
 
   const loadHistory = useCallback(async () => {
     const request = ++historyRequest.current;
     setHistoryLoading(true); setHistoryError("");
     try {
-      const data = await listFishGenerations();
+      const data = await api.listGenerations();
       if (request === historyRequest.current) setGenerations(data.generations);
     } catch (error) { if (request === historyRequest.current) setHistoryError(error.message); }
     finally { if (request === historyRequest.current) setHistoryLoading(false); }
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     let active = true;
     const request = historyRequest.current;
-    listFishGenerations().then(data => {
+    api.listGenerations().then(data => {
       if (active && request === historyRequest.current) setGenerations(data.generations);
     }).catch(error => {
       if (active && request === historyRequest.current) setHistoryError(error.message);
@@ -76,10 +89,10 @@ export default function FishAudioWorkspace() {
       if (active && request === historyRequest.current) setHistoryLoading(false);
     });
     return () => { active = false; };
-  }, []);
+  }, [api]);
   useEffect(() => {
     const controller = new AbortController();
-    listFishVoices({ signal: controller.signal }).then(data => {
+    api.listVoices({ signal: controller.signal }).then(data => {
       if (controller.signal.aborted) return;
       setVoices(data.voices);
       const saved = readLocalSetting(VOICE_KEY);
@@ -91,7 +104,7 @@ export default function FishAudioWorkspace() {
     }).catch(error => { if (error.name !== "AbortError") setVoiceError(error.message); })
       .finally(() => { if (!controller.signal.aborted) setVoicesLoading(false); });
     return () => controller.abort();
-  }, []);
+  }, [api, VOICE_KEY]);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   async function run(name, action) {
@@ -108,7 +121,7 @@ export default function FishAudioWorkspace() {
     event.preventDefault();
     void run("generate", async () => {
       const { provider: _provider, ...options } = parameters;
-      const data = await createFishGeneration({ ...options, text: text.trim() });
+      const data = await api.createGeneration({ ...options, text: text.trim() });
       historyRequest.current += 1; setHistoryLoading(false);
       pendingAutoPlay.current = data.generation.id;
       setGenerations(current => [data.generation, ...current.filter(item => item.id !== data.generation.id)].slice(0, 100));
@@ -119,7 +132,7 @@ export default function FishAudioWorkspace() {
     const form = event.currentTarget;
     void run("clone", async () => {
       const data = new FormData(); data.set("displayName", displayName.trim()); data.set("sample", sample); data.set("consentConfirmed", String(consent));
-      const result = await createFishVoice(data);
+      const result = await api.createVoice(data);
       setVoices(current => [result.voice, ...current]);
       setDisplayName(""); setSample(null); setConsent(false); form.reset();
     });
@@ -128,11 +141,11 @@ export default function FishAudioWorkspace() {
     const target = deleteTarget; setDeleteTarget(null);
     void run("delete", async () => {
       if (target.type === "voice") {
-        await deleteFishVoice(target.item.profileId);
+        await api.deleteVoice(target.item.profileId);
         setVoices(current => current.filter(item => item.profileId !== target.item.profileId));
         if (voiceId === target.item.voiceId) { setVoiceId(""); setSelectedName(""); writeLocalSetting(VOICE_KEY, null); }
       } else {
-        await deleteFishGeneration(target.item.id);
+        await api.deleteGeneration(target.item.id);
         historyRequest.current += 1; setHistoryLoading(false);
         setGenerations(current => current.filter(item => item.id !== target.item.id));
       }
@@ -151,13 +164,13 @@ export default function FishAudioWorkspace() {
         <span className="mt-1 block line-clamp-2 text-xs text-zinc-500">{statusLabels[voice.status]}</span>
       </button>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" className={buttonClass} disabled={busy || !ready} aria-label={t("试听 {name}", "Preview {name}", { name })} onClick={() => void run("preview", async () => setPreviewUrl(await previewFishVoice(voice.voiceId)))}><Play className="mr-1 inline h-3 w-3" />{t("试听", "Preview")}</button>
-        <button type="button" disabled={busy} className={buttonClass} onClick={() => void run("refresh", async () => {
-          const result = await refreshFishVoice(voice.profileId);
+        <button type="button" className={buttonClass} disabled={busy || !ready} aria-label={t("试听 {name}", "Preview {name}", { name })} onClick={() => void run("preview", async () => setPreviewUrl(await api.previewVoice(voice.voiceId)))}><Play className="mr-1 inline h-3 w-3" />{t("试听", "Preview")}</button>
+        {!voice.builtin && <><button type="button" disabled={busy} className={buttonClass} onClick={() => void run("refresh", async () => {
+          const result = await api.refreshVoice(voice.profileId);
           setVoices(current => current.map(item => item.profileId === voice.profileId ? result.voice : item));
           if (voiceId === voice.voiceId && result.voice.status !== "trained") { setVoiceId(""); setSelectedName(""); writeLocalSetting(VOICE_KEY, null); }
         })}>{t("刷新状态", "Refresh status")}</button>
-        <button type="button" disabled={busy} className={buttonClass} onClick={() => setDeleteTarget({ type: "voice", item: voice })}>{t("删除音色", "Delete voice")}</button>
+        <button type="button" disabled={busy} className={buttonClass} onClick={() => setDeleteTarget({ type: "voice", item: voice })}>{t("删除音色", "Delete voice")}</button></>}
       </div>
     </div>;
   }
@@ -169,19 +182,19 @@ export default function FishAudioWorkspace() {
     <section id={`fish-audio-panel-${tab}`} role="tabpanel" aria-labelledby={`fish-audio-tab-${tab}`}>
       {tab === "synthesis" ? <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.75fr)]">
         <form onSubmit={generate} className="glass-effect space-y-5 rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{t("配音文本", "Speech text")}</h2><span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">{FISH_AUDIO_MODEL_LABEL}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{t("配音文本", "Speech text")}</h2><span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">{modelLabel}</span></div>
           <label htmlFor="fish-text" className="sr-only">{t("配音文本", "Speech text")}</label>
-          <textarea id="fish-text" value={text} onChange={event => setText(event.target.value)} maxLength={FISH_AUDIO_TEXT_MAX_LENGTH} required rows={9} disabled={busy} placeholder={t("输入想说的话，例如：[轻声] 你好，欢迎来到今天的故事。", "Enter your text, for example: [softly] Hello, and welcome to today’s story.")} className={`${inputClass} resize-y leading-7`} />
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500"><span>{t("语言自动识别，可用 [轻声]、[兴奋] 描述表达方式。", "Language is detected automatically. Use tags such as [softly] or [excited] to guide delivery.")}</span><span>{formatNumber(text.length)} / {formatNumber(FISH_AUDIO_TEXT_MAX_LENGTH)}</span></div>
+          <textarea id="fish-text" value={text} onChange={event => setText(event.target.value)} maxLength={maxTextLength} required rows={9} disabled={busy} placeholder={qwen ? t("输入想说的话，例如：你好，欢迎来到今天的故事。", "Enter your text, for example: Hello, and welcome to today’s story.") : t("输入想说的话，例如：[轻声] 你好，欢迎来到今天的故事。", "Enter your text, for example: [softly] Hello, and welcome to today’s story.")} className={`${inputClass} resize-y leading-7`} />
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500"><span>{qwen ? t("支持多语言，可选择系统音色或自己的复刻音色。", "Supports multiple languages with built-in or cloned voices.") : t("语言自动识别，可用 [轻声]、[兴奋] 描述表达方式。", "Language is detected automatically. Use tags such as [softly] or [excited] to guide delivery.")}</span><span>{formatNumber(text.length)} / {formatNumber(maxTextLength)}</span></div>
           <p className="text-sm">{t("当前音色：", "Selected voice:")}<strong>{selectedName || t("请从声音库选择", "Choose a voice from the library")}</strong></p>
           <div className="grid grid-cols-2 gap-3">
-            <div><label htmlFor="fish-format" className="mb-2 block text-xs">{t("音频格式", "Audio format")}</label><select id="fish-format" value={format} disabled={busy} onChange={event => { setFormat(event.target.value); setSampleRate(44100); }} className={inputClass}><option value="mp3">MP3</option><option value="wav">WAV</option></select></div>
-            <div><label htmlFor="fish-sample-rate" className="mb-2 block text-xs">{t("采样率", "Sample rate")}</label><select id="fish-sample-rate" value={sampleRate} disabled={busy} onChange={event => setSampleRate(Number(event.target.value))} className={inputClass}>{FISH_AUDIO_SAMPLE_RATES[format].map(rate => <option value={rate} key={rate}>{formatNumber(rate / 1000)} kHz</option>)}</select></div>
+            <div><label htmlFor="fish-format" className="mb-2 block text-xs">{t("音频格式", "Audio format")}</label><select id="fish-format" value={format} disabled={busy} onChange={event => { setFormat(event.target.value); setSampleRate(defaultSampleRate); }} className={inputClass}><option value="mp3">MP3</option><option value="wav">WAV</option></select></div>
+            <div><label htmlFor="fish-sample-rate" className="mb-2 block text-xs">{t("采样率", "Sample rate")}</label><select id="fish-sample-rate" value={sampleRate} disabled={busy} onChange={event => setSampleRate(Number(event.target.value))} className={inputClass}>{sampleRates[format].map(rate => <option value={rate} key={rate}>{formatNumber(rate / 1000)} kHz</option>)}</select></div>
             <AudioSliderField id="fish-speed" label={t("语速", "Speed")} icon={Gauge} valueLabel={`${formatNumber(speed, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}×`} value={speed} min={0.5} max={2} step={0.1} disabled={busy} onChange={event => setSpeed(Number(event.target.value))} />
-            <AudioSliderField id="fish-volume" label={t("音量", "Volume")} icon={Volume2} valueLabel={`${formatNumber(volume)} dB`} value={volume} min={-20} max={20} step={1} disabled={busy} onChange={event => setVolume(Number(event.target.value))} />
+            <AudioSliderField id="fish-volume" label={t("音量", "Volume")} icon={Volume2} valueLabel={`${formatNumber(volume)}${qwen ? "%" : " dB"}`} value={volume} min={qwen ? 0 : -20} max={qwen ? 100 : 20} step={1} disabled={busy} onChange={event => setVolume(Number(event.target.value))} />
           </div>
           <button type="submit" disabled={busy || !text.trim() || !voiceId} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 dark:text-sky-950">{operation === "generate" ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <AudioLines className="h-4 w-4" />}{operation === "generate" ? t("正在生成", "Generating") : t("生成语音", "Generate speech")}</button>
-          <ApplyGlobalMediaButton section="audio" value={parameters} disabled={busy || !voiceId} onBusyChange={setChatBusy} />
+          <ApplyGlobalMediaButton section={qwen ? "qwenAudio" : "audio"} value={parameters} disabled={busy || !voiceId} onBusyChange={setChatBusy} />
         </form>
         <section aria-label={t("声音库", "Voice library")} className="glass-effect space-y-4 rounded-2xl border border-zinc-200/60 p-5 dark:border-zinc-800/60">
           <h2 className="font-semibold">{t("声音库", "Voice library")}</h2>
@@ -193,7 +206,7 @@ export default function FishAudioWorkspace() {
         </section>
       </div> : <div className="space-y-5">
         <form onSubmit={clone} className="glass-effect space-y-4 rounded-2xl border border-zinc-200/60 p-6 dark:border-zinc-800/60">
-          <h2 className="font-semibold">{t("复刻自己的声音", "Clone your voice")}</h2><p className="text-sm text-zinc-500">{t("上传清晰的单人录音，时长 10 秒至 5 分钟，支持 WAV、MP3、M4A，大小最多 20MB。", "Upload a clear recording of one speaker, from 10 seconds to 5 minutes long. WAV, MP3, and M4A files are accepted, up to 20 MB.")}</p>
+          <h2 className="font-semibold">{t("复刻自己的声音", "Clone your voice")}</h2><p className="text-sm text-zinc-500">{qwen ? t("上传清晰的单人录音，时长 5 至 60 秒，建议 10 至 20 秒；采样率至少 16 kHz，支持 WAV、MP3、M4A，最多 10MB。", "Upload a clear recording of one speaker, 5–60 seconds long (10–20 recommended), at least 16 kHz. WAV, MP3, or M4A, up to 10 MB.") : t("上传清晰的单人录音，时长 10 秒至 5 分钟，支持 WAV、MP3、M4A，大小最多 20MB。", "Upload a clear recording of one speaker, from 10 seconds to 5 minutes long. WAV, MP3, and M4A files are accepted, up to 20 MB.")}</p>
           <div><label htmlFor="fish-voice-name" className="mb-2 block text-sm">{t("音色名称", "Voice name")}</label><input id="fish-voice-name" required maxLength={60} value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={busy} className={inputClass} /></div>
           <div><label htmlFor="fish-sample" className="mb-2 block text-sm">{t("声音样本", "Voice sample")}</label><input id="fish-sample" type="file" required accept=".wav,.mp3,.m4a,audio/wav,audio/mpeg,audio/mp4" disabled={busy} className={inputClass} onChange={event => setSample(event.target.files[0] || null)} /></div>
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} disabled={busy} required className="mt-1" />{t("我拥有这段录音的使用权，并已获得声音本人的授权。", "I have the right to use this recording and the speaker’s permission.")}</label>

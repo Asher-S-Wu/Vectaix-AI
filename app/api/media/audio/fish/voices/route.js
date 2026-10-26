@@ -4,7 +4,7 @@ import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { readMultipart } from "@/lib/server/files/uploads";
 import { createFishVoice, deleteFishVoice, fishErrorStatus, fishPublicMessage } from "@/lib/media/server/fishAudio";
-import { serializeFishVoice } from "@/lib/media/server/fishAudioRecords";
+import { serializeVoice } from "@/lib/media/server/audioRecords";
 import { inspectAudioMetadata } from "@/lib/media/server/audioSampleInspection";
 import { acquireVoiceCreationLease, assertMediaWriteLeaseActive, beginMediaWriteLease, endMediaWriteLease, releaseVoiceCreationLease } from "@/lib/media/server/userOperationLeases";
 import { FISH_VOICE_MAX_COUNT, FISH_VOICE_SAMPLE_MAX_BYTES, FISH_VOICE_SAMPLE_MAX_SECONDS, FISH_VOICE_SAMPLE_MIN_SECONDS } from "@/lib/media/shared/fishAudio";
@@ -20,7 +20,7 @@ async function GETHandler(request) {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const voices = await FishVoice.find({ userId: auth.payload.userId }).sort({ createdAt: -1 }).lean();
-    return Response.json({ success: true, voices: voices.map(serializeFishVoice) });
+    return Response.json({ success: true, voices: voices.map(serializeVoice) });
   } catch (error) {
     return Response.json({ success: false, message: fishPublicMessage(error, "读取声音库失败") }, { status: fishErrorStatus(error) });
   }
@@ -78,7 +78,7 @@ async function POSTHandler(request) {
       lastStatusCheckedAt: new Date(),
     });
     createdVoiceId = "";
-    return Response.json({ success: true, voice: serializeFishVoice(record) }, { status: 201 });
+    return Response.json({ success: true, voice: serializeVoice(record) }, { status: 201 });
   } catch (error) {
     if (createdVoiceId) await deleteFishVoice(createdVoiceId).catch((cleanupError) => {
       console.error("[Fish Audio] cleanup unpersisted voice:", cleanupError);

@@ -15,7 +15,7 @@ export default function ApplyGlobalMediaButton({ section, value, disabled=false,
   async function save() {
     setBusy(true);onBusyChange?.(true);setSavedSelection('');setError('');
     try {
-      await apiJson('/api/admin/media',{method:'PUT',body:{[section]:value}});
+      await apiJson('/api/admin/media',{method:'PUT',body:{[section]:value,...(['audio','qwenAudio'].includes(section)?{audioProvider:value.provider}:{})}});
       setSavedSelection(selection);
     } catch(error) {setError(error.message);} finally {setBusy(false);onBusyChange?.(false);}
   }

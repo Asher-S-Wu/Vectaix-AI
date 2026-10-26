@@ -3,7 +3,7 @@ import { getCurrentUserWithAccess } from '@/lib/admin';
 import { getClientIP, rateLimit } from "@/lib/rateLimit";
 import { parseJsonRequest, requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
 import { generateFishSpeech } from "@/lib/media/server/operations/fishSpeech";
-import { serializeFishAudioGeneration } from "@/lib/media/server/fishAudioRecords";
+import { serializeAudioGeneration } from "@/lib/media/server/audioRecords";
 import { fishErrorStatus, fishPublicMessage } from "@/lib/media/server/fishAudio";
 import FishAudioGeneration from "@/models/FishAudioGeneration";
 
@@ -17,7 +17,7 @@ async function GETHandler(request) {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const records = await FishAudioGeneration.find({ userId: auth.payload.userId }).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
-    return Response.json({ success: true, generations: records.map(serializeFishAudioGeneration) });
+    return Response.json({ success: true, generations: records.map(serializeAudioGeneration) });
   } catch (error) {
     return Response.json({ success: false, message: fishPublicMessage(error, "读取语音记录失败") }, { status: fishErrorStatus(error) });
   }
