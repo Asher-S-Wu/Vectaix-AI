@@ -1,10 +1,10 @@
 import { localizedRoute } from '@/lib/server/localizedRoute';
 import { clearSharedVoice } from '@/lib/server/media/settings';
 import { requireUserRecord, unauthorizedResponse } from "@/lib/server/api/routeHelpers";
-import { deleteQwenVoice, qwenErrorStatus, qwenPublicMessage, getQwenVoice } from "@/lib/media/server/qwenAudio";
+import { deleteElevenLabsVoice, elevenlabsErrorStatus, elevenlabsPublicMessage, getElevenLabsVoice, elevenlabsVoiceStatus, elevenlabsVoiceLanguages } from "@/lib/media/server/elevenlabsAudio";
 import { serializeVoice } from "@/lib/media/server/audioRecords";
 import { assertMediaWriteLeaseActive, beginMediaWriteLease, endMediaWriteLease } from "@/lib/media/server/userOperationLeases";
-import QwenVoice from "@/models/QwenVoice";
+import ElevenLabsVoice from "@/models/ElevenLabsVoice";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,27 +17,31 @@ async function operate(request, context, remove) {
     const userId = String(auth.payload.userId);
     const { id } = await context.params;
     lease = await beginMediaWriteLease(userId);
-    const record = await QwenVoice.findOne({ userId, profileId: id });
+    const record = await ElevenLabsVoice.findOne({ userId, profileId: id });
     if (!record) return Response.json({ success: false, message: "复刻音色不存在" }, { status: 404 });
     await assertMediaWriteLeaseActive(lease);
     if (remove) {
-      await deleteQwenVoice(record.voiceId, { signal: request.signal });
+      try {
+        await deleteElevenLabsVoice(record.voiceId, { signal: request.signal });
+      } catch (error) {
+        if (error?.code !== "UPSTREAM_404") throw error;
+      }
       await assertMediaWriteLeaseActive(lease);
       await clearSharedVoice(record.voiceId);
-      await QwenVoice.deleteOne({ userId, _id: record._id });
+      await ElevenLabsVoice.deleteOne({ userId, _id: record._id });
       return Response.json({ success: true, deleted: true });
     }
-    const upstream = await getQwenVoice(record.voiceId, { signal: request.signal });
+    const upstream = await getElevenLabsVoice(record.voiceId, { signal: request.signal });
     await assertMediaWriteLeaseActive(lease);
-    record.status = upstream.state;
-    record.languages = Array.isArray(upstream.languages) ? upstream.languages : [];
+    record.status = elevenlabsVoiceStatus(upstream);
+    record.languages = elevenlabsVoiceLanguages(upstream);
     record.lastStatusCheckedAt = new Date();
     await record.save();
     return Response.json({ success: true, voice: serializeVoice(record) });
   } catch (error) {
-    return Response.json({ success: false, message: qwenPublicMessage(error, remove ? "删除复刻音色失败" : "刷新音色状态失败") }, { status: qwenErrorStatus(error) });
+    return Response.json({ success: false, message: elevenlabsPublicMessage(error, remove ? "删除复刻音色失败" : "刷新音色状态失败") }, { status: elevenlabsErrorStatus(error) });
   } finally {
-    if (lease) await endMediaWriteLease(lease).catch((error) => { console.error("[Qwen Audio] release media lease:", error); });
+    if (lease) await endMediaWriteLease(lease).catch((error) => { console.error("[ElevenLabs] release media lease:", error); });
   }
 }
 

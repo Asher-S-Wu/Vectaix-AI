@@ -35,6 +35,17 @@ export function proxy(request) {
     return new NextResponse(null, { status: 404 });
   }
 
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return new NextResponse(null, {
+      status: 405,
+      headers: { Allow: "GET, HEAD" },
+    });
+  }
+
   const nonce = generateNonce();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-csp-nonce", nonce);
@@ -63,6 +74,6 @@ export function proxy(request) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest.webmanifest).*)",
+    "/((?!_next/static(?:/|$)|_next/image(?:/|$)|favicon\\.ico$|icon$|apple-icon$|manifest\\.webmanifest$).*)",
   ],
 };

@@ -20,7 +20,7 @@ async function session(ip, run) {
 test('普通用户从首页进入 Media，完成图片生成、刷新查看、删除并从文件设置返回', { timeout: 120000 }, async () => {
   await session('192.0.2.210', async page => {
     let images = [], generated;
-    await page.route('**/api/media/capabilities', route => route.fulfill({ json: { image: true, fish: true, qwen: true, defaultAudioProvider: 'qwen' } }));
+    await page.route('**/api/media/capabilities', route => route.fulfill({ json: { image: true, elevenlabs: true } }));
     await page.route('**/api/media/image/history', route => route.fulfill({ json: { images, nextCursor: null } }));
     await page.route('**/api/media/image/history/user-image', route => { images = []; return route.fulfill({ json: { success: true } }); });
     await page.route('**/api/media/image', route => {
@@ -63,24 +63,19 @@ test('普通用户从首页进入 Media，完成图片生成、刷新查看、�
   });
 });
 
-test('普通用户的语音工作区可选 Qwen 和系统音色，且无全平台管理操作', { timeout: 120000 }, async () => {
+test('普通用户的 ElevenLabs 工作区可选择系统音色，且无全平台管理操作', { timeout: 120000 }, async () => {
   await session('192.0.2.211', async (page, context) => {
-    await page.route('**/api/media/capabilities', route => route.fulfill({ json: { image: false, fish: false, qwen: true, defaultAudioProvider: 'qwen' } }));
+    await page.route('**/api/media/capabilities', route => route.fulfill({ json: { image: false, elevenlabs: true } }));
+    await page.route('**/api/media/audio/elevenlabs/voices', route => route.fulfill({ json: { success: true, voices: [{ profileId: 'builtin:George', voiceId: 'JBFqnCBsd6RMkjVDRZzb', displayName: 'George', status: 'trained', builtin: true }] } }));
     await page.goto(`${base}/media/audio`);
-    await page.getByRole('button', { name: /^龙安欢/ }).waitFor();
-    assert.equal(await page.getByLabel('语音模型', { exact: true }).inputValue(), 'qwen');
-    await page.getByRole('button', { name: /^龙安欢/ }).click();
+    await page.getByRole('button', { name: /^George/ }).waitFor();
+    await page.getByRole('button', { name: /^George/ }).click();
     await page.getByLabel('配音文本', { exact: true }).fill('这是我的配音');
     assert.equal(await page.getByRole('button', { name: '生成语音', exact: true }).isEnabled(), true);
     assert.equal(await page.getByRole('button', { name: '设为全平台默认参数', exact: true }).count(), 0);
-    assert.equal((await context.request.get(`${base}/api/media/audio/qwen/voices`)).status(), 200);
-    assert.equal((await context.request.get(`${base}/api/media/audio/fish/generations`)).status(), 200);
+    assert.equal((await context.request.get(`${base}/api/media/audio/elevenlabs/voices`)).status(), 200);
+    assert.equal((await context.request.get(`${base}/api/media/audio/elevenlabs/generations`)).status(), 200);
     assert.equal((await context.request.get(`${base}/api/admin/media`)).status(), 403);
-    await page.getByLabel('语音模型', { exact: true }).selectOption('fish');
-    await page.getByText('这项服务尚未开通。', { exact: false }).waitFor();
-    assert.equal(await page.getByRole('button', { name: '生成语音', exact: true }).isDisabled(), true);
-    await page.getByRole('tab', { name: '声音复刻', exact: true }).click();
-    assert.equal(await page.getByRole('button', { name: '创建音色', exact: true }).isDisabled(), true);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ colorScheme: 'dark' });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

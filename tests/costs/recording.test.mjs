@@ -9,7 +9,7 @@ const { default: dbConnect } = await import('../../lib/db.js');
 const { default: User } = await import('../../models/User.js');
 const { default: Transaction, ensureCreditTransactionIndexes } = await import('../../models/CreditTransaction.js');
 const { reserveCredits, settleCredits, releaseCredits, getCreditOperation } = await import('../../lib/server/credits/service.js');
-const { calculateFishTtsCost, createPricingSnapshot } = await import('../../lib/server/credits/pricing.js');
+const { calculateElevenLabsTtsCost, createPricingSnapshot } = await import('../../lib/server/credits/pricing.js');
 const { DEFAULT_BILLING_SETTINGS } = await import('../../lib/server/credits/constants.js');
 await dbConnect();
 await ensureCreditTransactionIndexes();
@@ -46,10 +46,10 @@ test('失败请求记录为零花费，操作不能被其他用户或不同请�
   await assert.rejects(settleCredits({ operationId: 'failure' }), /实际人民币/);
 });
 
-test('Fish Free 按零费用记录，价格快照保留原汇率', () => {
-  const cost = calculateFishTtsCost({ bytes: 3 }, DEFAULT_BILLING_SETTINGS);
-  assert.equal(cost.costCny, 0);
-  assert.equal(cost.costUsd, 0);
+test('ElevenLabs 按上游字符数记录费用，价格快照保留原汇率', () => {
+  const cost = calculateElevenLabsTtsCost({ characters: 1000 }, DEFAULT_BILLING_SETTINGS);
+  assert.equal(cost.costCny, 0.08 * 6.72);
+  assert.equal(cost.costUsd, 0.08);
   assert.equal(Object.hasOwn(cost, 'points'), false);
   const snapshot = createPricingSnapshot(DEFAULT_BILLING_SETTINGS);
   assert.equal(snapshot.usdToCny, 6.72);

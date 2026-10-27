@@ -5,5 +5,5 @@ import { useMediaAccess } from '@/app/components/media/MediaShell';
 
 export default function AudioPage() {
   const { capabilities } = useMediaAccess();
-  return <SpeechWorkspace availability={capabilities} initialProvider={capabilities.defaultAudioProvider} />;
+  return <SpeechWorkspace availability={capabilities} />;
 }

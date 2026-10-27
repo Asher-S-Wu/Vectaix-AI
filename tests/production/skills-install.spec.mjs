@@ -46,7 +46,7 @@ test('production API installs a GitHub skill with the real Skills CLI', { timeou
         APP_SECRETS_KEY: crypto.randomBytes(32).toString('base64'),
         DEEPSEEK_API_KEY: '',
         MICU_OPENAI_IMAGE_API_KEY: '',
-        FISH_API_KEY: '',
+        ELEVENLABS_API_KEY: '',
         PUBLIC_APP_URL: base,
         NEXT_PUBLIC_APP_URL: base,
       },

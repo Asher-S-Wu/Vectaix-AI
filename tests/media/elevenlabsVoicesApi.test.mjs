@@ -16,22 +16,22 @@ let workAsyncStorage, workUnitAsyncStorage, RequestCookies;
 
 test.before(async () => {
   database = await MongoMemoryServer.create();
-  directory = await mkdtemp(path.join(os.tmpdir(), "vectaix-fish-voices-"));
+  directory = await mkdtemp(path.join(os.tmpdir(), "vectaix-elevenlabs-voices-"));
   process.env.MONGO_URI = database.getUri();
   process.env.STORAGE_ROOT = directory;
-  process.env.FISH_API_KEY = "test-fish-voices-key";
+  process.env.ELEVENLABS_API_KEY = "test-elevenlabs-voices-key";
   process.env.APP_SECRETS_KEY = Buffer.alloc(32, 12).toString("base64");
   ({ workAsyncStorage } = await import("next/dist/server/app-render/work-async-storage.external.js"));
   ({ workUnitAsyncStorage } = await import("next/dist/server/app-render/work-unit-async-storage.external.js"));
   ({ RequestCookies } = await import("next/dist/server/web/spec-extension/cookies.js"));
   const { default: dbConnect } = await import("../../lib/db.js");
   await dbConnect();
-  await seedMediaSettings({audioKey: 'test-fish-voices-key'});
+  await seedMediaSettings({audioKey: 'test-elevenlabs-voices-key'});
   ({ default: User } = await import("../../models/User.js"));
   ({ default: Session } = await import("../../models/Session.js"));
-  ({ default: Voice } = await import("../../models/FishVoice.js"));
-  voicesRoute = await import("../../app/api/media/audio/fish/voices/route.js");
-  voiceRoute = await import("../../app/api/media/audio/fish/voices/[id]/route.js");
+  ({ default: Voice } = await import("../../models/ElevenLabsVoice.js"));
+  voicesRoute = await import("../../app/api/media/audio/elevenlabs/voices/route.js");
+  voiceRoute = await import("../../app/api/media/audio/elevenlabs/voices/[id]/route.js");
   ({ deleteUserAndData } = await import("../../lib/server/users/deleteUser.js"));
 });
 
@@ -42,7 +42,7 @@ test.after(async () => {
 });
 
 async function login(label) {
-  const user = await User.create({ email: `${label}@fish-voices.test`, password: "test-only" });
+  const user = await User.create({ email: `${label}@elevenlabs-voices.test`, password: "test-only" });
   const token = randomBytes(32).toString("base64url");
   await Session.create({
     userId: user._id,
@@ -54,7 +54,7 @@ async function login(label) {
 
 function call(token, handler, request, profileId) {
   const headers = new Headers(token ? { cookie: `token=${token}` } : {});
-  return workAsyncStorage.run({ route: "/api/media/audio/fish/voices" }, () => workUnitAsyncStorage.run({
+  return workAsyncStorage.run({ route: "/api/media/audio/elevenlabs/voices" }, () => workUnitAsyncStorage.run({
     type: "request", phase: "render", cookies: new RequestCookies(headers),
   }, () => handler(request, { params: Promise.resolve({ id: profileId }) })));
 }
@@ -86,14 +86,14 @@ function cloneRequest({ sample = wavSample(), consent = "true", name = "我的�
   form.set("displayName", name);
   form.set("consentConfirmed", consent);
   form.set("sample", new File([sample], "recording.wav", { type: "audio/wav" }));
-  return new Request("https://app.test/api/media/audio/fish/voices", { method: "POST", body: form });
+  return new Request("https://app.test/api/media/audio/elevenlabs/voices", { method: "POST", body: form });
 }
 
 function voiceRequest(id, method = "GET") {
-  return new Request(`https://app.test/api/media/audio/fish/voices/${id}`, { method });
+  return new Request(`https://app.test/api/media/audio/elevenlabs/voices/${id}`, { method });
 }
 
-async function seedVoice(userId, status = "created", createdAt = new Date()) {
+async function seedVoice(userId, status = "verification_required", createdAt = new Date()) {
   return Voice.create({
     userId,
     voiceId: randomBytes(16).toString("hex"),
@@ -107,10 +107,10 @@ async function seedVoice(userId, status = "created", createdAt = new Date()) {
   });
 }
 
-test("未登录用户无法查看、新建、刷新或删除音色，所有请求均在调用 Fish 前终止", async (t) => {
-  const fetch = t.mock.method(globalThis, "fetch", () => { throw new Error("unexpected Fish request"); });
+test("未登录用户无法查看、新建、刷新或删除音色，所有请求均在调用 ElevenLabs 前终止", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", () => { throw new Error("unexpected ElevenLabs request"); });
   const cases = [
-    [voicesRoute.GET, new Request("https://app.test/api/media/audio/fish/voices")],
+    [voicesRoute.GET, new Request("https://app.test/api/media/audio/elevenlabs/voices")],
     [voicesRoute.POST, cloneRequest()],
     [voiceRoute.GET, voiceRequest("profile")],
     [voiceRoute.DELETE, voiceRequest("profile", "DELETE")],
@@ -124,16 +124,12 @@ test("真实 WAV 文件通过校验后以私有 multipart 发送，音色和授�
   const voiceId = randomBytes(16).toString("hex");
   const sample = wavSample();
   t.mock.method(globalThis, "fetch", async (url, options) => {
-    assert.equal(url, "https://api.fish.audio/model");
+    assert.equal(url, "https://api.elevenlabs.io/v1/voices/add");
     assert.equal(options.method, "POST");
-    assert.equal(options.headers.Authorization, "Bearer test-fish-voices-key");
+    assert.equal(options.headers["xi-api-key"], "test-elevenlabs-voices-key");
     assert.equal(options.headers["Content-Type"], undefined);
-    assert.equal(options.body.get("type"), "tts");
-    assert.equal(options.body.get("train_mode"), "fast");
-    assert.equal(options.body.get("visibility"), "private");
-    assert.equal(options.body.get("generate_sample"), "false");
-    assert.deepEqual(Buffer.from(await options.body.get("voices").arrayBuffer()), sample);
-    return Response.json({ _id: voiceId, type: "tts", state: "created", visibility: "private", languages: ["zh"] }, { status: 201 });
+    assert.deepEqual(Buffer.from(await options.body.get("files").arrayBuffer()), sample);
+    return Response.json({ voice_id: voiceId, requires_verification: true }, { status: 201 });
   });
   const response = await call(member.token, voicesRoute.POST, cloneRequest({ sample }));
   assert.equal(response.status, 201);
@@ -141,7 +137,7 @@ test("真实 WAV 文件通过校验后以私有 multipart 发送，音色和授�
   const saved = await Voice.findOne({ profileId: data.voice.profileId }).lean();
   assert.equal(String(saved.userId), member.userId);
   assert.equal(saved.voiceId, voiceId);
-  assert.equal(saved.status, "created");
+  assert.equal(saved.status, "verification_required");
   assert.equal(saved.displayName, "我的测试声音");
   assert.equal(saved.sampleFileName, "recording.wav");
   assert.ok(saved.consentConfirmedAt instanceof Date);
@@ -152,7 +148,7 @@ test("真实 WAV 文件通过校验后以私有 multipart 发送，音色和授�
 
 test("损坏样本、过短音频和未确认授权返回 400，未产生远程调用或音色记录", async (t) => {
   const member = await login("clone-invalid");
-  const fetch = t.mock.method(globalThis, "fetch", () => { throw new Error("unexpected Fish request"); });
+  const fetch = t.mock.method(globalThis, "fetch", () => { throw new Error("unexpected ElevenLabs request"); });
   for (const input of [{ sample: Buffer.from("broken wav") }, { sample: wavSample(1) }, { consent: "false" }]) {
     const response = await call(member.token, voicesRoute.POST, cloneRequest(input));
     assert.equal(response.status, 400);
@@ -164,19 +160,19 @@ test("损坏样本、过短音频和未确认授权返回 400，未产生远程�
 test("音色列表、刷新和删除均按登录用户隔离，知晓他人 profileId 也无法操作", async (t) => {
   const owner = await login("voice-owner");
   const outsider = await login("voice-outsider");
-  const voice = await seedVoice(owner.userId, "created", new Date(0));
+  const voice = await seedVoice(owner.userId, "verification_required", new Date(0));
   const recentVoice = await seedVoice(owner.userId, "trained");
-  const fetch = t.mock.method(globalThis, "fetch", () => { throw new Error("unexpected Fish request"); });
-  const ownList = await call(owner.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/fish/voices"));
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ voices: [], has_more: false }));
+  const ownList = await call(owner.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/elevenlabs/voices"));
   assert.equal(ownList.status, 200);
   const ownData = await ownList.json();
   assert.deepEqual(Object.keys(ownData).sort(), ["success", "voices"]);
   assert.equal(ownData.success, true);
-  assert.deepEqual(ownData.voices.filter(item => !item.shared).map((item) => [item.profileId, item.status]), [[recentVoice.profileId, "trained"], [voice.profileId, "created"]]);
-  const queriedList = await call(owner.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/fish/voices?query=other&page=-1&language=invalid!"));
+  assert.deepEqual(ownData.voices.filter(item => !item.shared).map((item) => [item.profileId, item.status]), [[recentVoice.profileId, "trained"], [voice.profileId, "verification_required"]]);
+  const queriedList = await call(owner.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/elevenlabs/voices?query=other&page=-1&language=invalid!"));
   assert.equal(queriedList.status, 200);
   assert.deepEqual(await queriedList.json(), ownData);
-  const otherList = await call(outsider.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/fish/voices"));
+  const otherList = await call(outsider.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/elevenlabs/voices"));
   const otherData = await otherList.json();
   assert.equal(otherData.voices.length, 1);
   assert.equal(otherData.voices[0].shared, true);
@@ -185,7 +181,7 @@ test("音色列表、刷新和删除均按登录用户隔离，知晓他人 prof
     const response = await call(outsider.token, voiceRoute[method], voiceRequest(voice.profileId, method), voice.profileId);
     assert.equal(response.status, 404);
   }
-  assert.equal(fetch.mock.callCount(), 0);
+  assert.equal(fetch.mock.callCount(), 3);
   assert.ok(await Voice.exists({ _id: voice._id }));
 });
 
@@ -195,9 +191,9 @@ test("刷新更新真实本地状态，删除同时移除远程和本人本地�
   const requests = [];
   t.mock.method(globalThis, "fetch", async (url, options) => {
     requests.push(options.method);
-    assert.equal(url, `https://api.fish.audio/model/${voice.voiceId}`);
+    assert.equal(url, `https://api.elevenlabs.io/v1/voices/${voice.voiceId}`);
     if (options.method === "DELETE") return new Response(null, { status: 204 });
-    return Response.json({ _id: voice.voiceId, type: "tts", state: "trained", languages: ["zh", "en"] });
+    return Response.json({ voice_id: voice.voiceId, name: "我的声音", category: "cloned", verified_languages: [{language: "zh"}, {language: "en"}] });
   });
   const refreshed = await call(member.token, voiceRoute.GET, voiceRequest(voice.profileId), voice.profileId);
   assert.equal(refreshed.status, 200);
@@ -225,15 +221,16 @@ test("远程删除失败保留本地记录，远程已经删除时完成本地�
   assert.equal(await Voice.exists({ _id: voice._id }), null);
 });
 
-test("删除账号清理本人 Fish 远程音色、本地记录和会话，保留其他用户音色", async (t) => {
+test("删除账号清理本人 ElevenLabs 远程音色、本地记录和会话，保留其他用户音色", async (t) => {
   const member = await login("delete-user");
   const other = await login("keep-user");
   const voice = await seedVoice(member.userId, "trained");
   const otherVoice = await seedVoice(other.userId, "trained");
+  await mongoose.connection.collection('fishvoices').insertMany([{ userId: new mongoose.Types.ObjectId(member.userId), voiceId: 'old-owner' }, { userId: new mongoose.Types.ObjectId(other.userId), voiceId: 'old-other' }]);
   const calls = [];
   t.mock.method(globalThis, "fetch", async (url, options) => {
     calls.push(url);
-    assert.equal(url, `https://api.fish.audio/model/${voice.voiceId}`);
+    assert.equal(url, `https://api.elevenlabs.io/v1/voices/${voice.voiceId}`);
     assert.equal(options.method, "DELETE");
     return new Response(null, { status: 204 });
   });
@@ -244,9 +241,11 @@ test("删除账号清理本人 Fish 远程音色、本地记录和会话，保�
   assert.ok(await Voice.exists({ _id: otherVoice._id }));
   assert.ok(await User.exists({ _id: other.userId }));
   assert.equal(calls.length, 1);
+  assert.equal(await mongoose.connection.collection('fishvoices').countDocuments({ userId: new mongoose.Types.ObjectId(member.userId) }), 0);
+  assert.equal(await mongoose.connection.collection('fishvoices').countDocuments({ userId: new mongoose.Types.ObjectId(other.userId) }), 1);
 });
 
-test("账号删除遇到 Fish 故障时保留音色和删除围栏，远程已删除后可完成清理", async (t) => {
+test("账号删除遇到 ElevenLabs 故障时保留音色和删除围栏，远程已删除后可完成清理", async (t) => {
   const member = await login("delete-user-interrupted");
   const voice = await seedVoice(member.userId, "trained");
   const fetch = t.mock.method(globalThis, "fetch", async () => new Response(null, { status: 503 }));
@@ -261,16 +260,17 @@ test("账号删除遇到 Fish 故障时保留音色和删除围栏，远程已�
   assert.equal(await User.exists({ _id: member.userId }), null);
 });
 
-test('聊天默认使用 Qwen 时，普通用户仍能选择并使用启用的 Fish 共享音色', async t => {
-  const member = await login('shared-fish');
-  const { default: Settings } = await import('../../models/MediaSettings.js');
-  await Settings.updateOne({ _id: 'media' }, { $set: { audioProvider: 'qwen' } });
+test('普通用户可使用管理员共享音色，且只可删除自己的音色', async t => {
+  const member = await login('shared-elevenlabs');
   const sharedId = '933563129e564b19a115bedd57b7406a';
-  const data = await (await call(member.token, voicesRoute.GET, new Request('https://app.test/api/media/audio/fish/voices'))).json();
+  t.mock.method(globalThis, 'fetch', async url => String(url).includes('/v2/voices')
+    ? Response.json({ voices: [{ voice_id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', category: 'premade' }], has_more: false })
+    : Response.json({ voice_id: sharedId, category: 'cloned', name: '共享声音', labels: { language: 'zh' } }));
+  const data = await (await call(member.token, voicesRoute.GET, new Request('https://app.test/api/media/audio/elevenlabs/voices'))).json();
   const shared = data.voices.find(voice => voice.voiceId === sharedId);
   assert.equal(shared.shared, true);
+  assert.equal(data.voices.some(voice => voice.builtin && voice.displayName === 'George'), true);
   assert.equal((await call(member.token, voiceRoute.DELETE, voiceRequest(shared.profileId, 'DELETE'), shared.profileId)).status, 404);
-  t.mock.method(globalThis, 'fetch', async () => Response.json({ _id: sharedId, type: 'tts', state: 'trained', title: '共享 Fish 声音', languages: ['zh'] }));
-  const { resolveFishVoice } = await import('../../lib/media/server/operations/fishSpeech.js');
-  assert.equal((await resolveFishVoice({ userId: member.userId, voiceId: sharedId })).voiceName, '共享 Fish 声音');
+  const { resolveElevenLabsVoice } = await import('../../lib/media/server/operations/elevenlabsSpeech.js');
+  assert.equal((await resolveElevenLabsVoice({ userId: member.userId, voiceId: sharedId })).voiceName, '共享声音');
 });

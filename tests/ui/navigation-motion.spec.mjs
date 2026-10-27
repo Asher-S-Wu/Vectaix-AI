@@ -23,7 +23,7 @@ test('普通用户可用对话与 Media，管理后台和全局配置仅对管�
       await page.waitForURL(`${base}/`);
     }
     for (const route of ['/api/admin/models', '/api/admin/skills', '/api/admin/media']) assert.equal((await context.request.get(`${base}${route}`)).status(), 403);
-    for (const route of ['/media', '/media/image', '/media/audio', '/api/media/capabilities', '/api/media/audio/fish/voices']) assert.equal((await context.request.get(`${base}${route}`)).status(), 200);
+    for (const route of ['/media', '/media/image', '/media/audio', '/api/media/capabilities', '/api/media/audio/elevenlabs/voices']) assert.equal((await context.request.get(`${base}${route}`)).status(), 200);
     for (const route of ['/api/memories', '/api/skills']) assert.equal((await context.request.get(`${base}${route}`)).status(), 404);
     await page.goto(`${base}/settings`);
     const navigation = page.getByRole('navigation', { name: '设置分类' });

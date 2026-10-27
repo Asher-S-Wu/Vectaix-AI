@@ -234,7 +234,7 @@ for (const savedOptions of [options, { model: 'gpt-image-2.5-flare', size: '1152
 
 test('首次保存单个媒体分组时建立完整的平台初始配置', async () => {
   await MediaSettings.deleteMany({});
-  await saveMediaSettings({ audio: { voiceId: '933563129e564b19a115bedd57b7406a', model: 's2.1-pro-free' } });
+  await saveMediaSettings({ audio: { voiceId: '933563129e564b19a115bedd57b7406a', model: 'eleven_multilingual_v2' } });
   const settings = await getMediaSettings();
   assert.equal(settings.image.model, model);
   assert.equal(settings.image.enabled, false);
@@ -245,7 +245,7 @@ test('首次保存单个媒体分组时建立完整的平台初始配置', async
 
 test('管理员可发布规范化共享音色，删除默认音色后Agent撤下配音能力', async () => {
   const voiceId = '933563129e564b19a115bedd57b7406a';
-  await saveMediaSettings({ audio: { model: 's2.1-pro-free', voiceId: `  ${voiceId}  `, enabled: true } });
+  await saveMediaSettings({ audio: { model: 'eleven_multilingual_v2', voiceId: `  ${voiceId}  `, enabled: true } });
   assert.equal((await getAgentMediaSettings()).audio.voiceId, voiceId);
   await clearSharedVoice('other-voice');
   assert.equal((await getAgentMediaSettings()).audio.voiceId, voiceId);

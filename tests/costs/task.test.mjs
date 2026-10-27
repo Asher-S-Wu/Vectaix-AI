@@ -7,7 +7,7 @@ const mongo = await MongoMemoryServer.create();
 process.env.MONGO_URI = mongo.getUri();
 process.env.APP_SECRETS_KEY = Buffer.alloc(32, 9).toString('base64');
 delete process.env.OPENROUTER_API_KEY;
-delete process.env.FISH_API_KEY;
+delete process.env.ELEVENLABS_API_KEY;
 const { createTaskBilling } = await import('../../lib/server/workbench/taskBilling.js');
 const { default: User } = await import('../../models/User.js');
 const { default: Task } = await import('../../models/WorkbenchTask.js');

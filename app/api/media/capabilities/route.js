@@ -9,7 +9,7 @@ async function GETHandler(request) {
   if (!auth) return unauthorizedResponse('请先登录');
   const config = await getMediaSettings();
   const available = section => Boolean(section.enabled && section.hasApiKey);
-  return Response.json({ image: available(config.image), fish: available(config.audio), qwen: available(config.qwenAudio), defaultAudioProvider: config.audioProvider }, { headers: { 'Cache-Control': 'no-store' } });
+  return Response.json({ image: available(config.image), elevenlabs: available(config.audio) }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export const GET = localizedRoute(GETHandler);

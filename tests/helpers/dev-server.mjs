@@ -6,7 +6,7 @@ import {mkdtemp,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
-import User from '../../models/User.js';
+const { default: User } = await import('../../models/User.js');
 const mongo=await MongoMemoryServer.create({instance:{port:27179,dbName:'vectaix_ui_test'}});
 await mongoose.connect(mongo.getUri());const password='Vectaix-Test-2026!';
 for(const email of ['admin@example.test','member@example.test'])await User.create({email,password:await bcrypt.hash(password,10)});

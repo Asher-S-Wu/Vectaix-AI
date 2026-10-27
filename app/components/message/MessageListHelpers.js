@@ -4,7 +4,7 @@ import { translate } from "@/lib/shared/i18n.mjs";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, ExternalLink, FileText, Loader2, Search, Terminal, X } from "lucide-react";
+import { Download, ExternalLink, FileText, Globe, Loader2, Search, Terminal, X } from "lucide-react";
 import BrandMark from "../common/BrandMark";
 import { formatAttachmentMeta } from "@/lib/shared/messageAttachments";
 import { toFileDownloadUrl } from "@/lib/shared/fileUrls";
@@ -18,25 +18,6 @@ const WEB_BROWSING_PREVIEW_LIMIT = 20;
 
 function getDomainFromUrl(url) {
   try { return new URL(url).hostname.replace("www.", ""); } catch { return ""; }
-}
-
-function WebFavicon({ url, size = 12, className = "" }) {
-  const [failed, setFailed] = useState(false);
-  const domain = getDomainFromUrl(url);
-  if (!domain || failed) return <Search size={size} className={className} />;
-  return (
-    <Image
-      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=${size * 2}`}
-      alt=""
-      width={size}
-      height={size}
-      unoptimized
-      className={`${className} rounded-sm`}
-      loading="lazy"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
-  );
 }
 
 export function AIAvatar({ size = 24, className = "" }) {
@@ -243,9 +224,9 @@ export function Citations({ citations }) {
         <Search size={12} className="text-zinc-500" />
         <span>{t("信息来源", "Sources")}</span>
         <span className="flex -space-x-1.5">
-          {previewItems.map((citation, idx) => (
+          {previewItems.map((_, idx) => (
             <span key={idx} className="inline-flex w-4 h-4 rounded-full border border-white dark:border-zinc-700 bg-white dark:bg-zinc-800 items-center justify-center overflow-hidden">
-              <WebFavicon url={citation.url} size={12} />
+              <Globe size={12} />
             </span>
           ))}
         </span>
@@ -300,7 +281,7 @@ export function Citations({ citations }) {
                         className="flex items-center gap-2 px-2.5 py-2 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 transition-colors"
                         title={citation.title || citation.url}
                       >
-                        <WebFavicon url={citation.url} size={16} className="flex-shrink-0" />
+                        <Globe size={16} className="flex-shrink-0" />
                         <span className="truncate flex-1">
                           {citation.title || domain}
                         </span>
@@ -351,7 +332,7 @@ export function ToolRunPreview({ tool }) {
               rel="noopener noreferrer"
               className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/70 dark:bg-zinc-900/40 px-2.5 py-2 text-xs text-zinc-600 dark:text-zinc-300 hover:border-primary/40 hover:text-primary transition-colors"
             >
-              <WebFavicon url={href} size={14} className="shrink-0" />
+              <Globe size={14} className="shrink-0" />
               <span className="truncate flex-1">{title}</span>
               <ExternalLink size={12} className="shrink-0 opacity-60" />
             </a>

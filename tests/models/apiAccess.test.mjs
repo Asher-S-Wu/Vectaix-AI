@@ -10,7 +10,7 @@ process.env.MONGO_URI=mongo.getUri();
 process.env.APP_SECRETS_KEY=Buffer.alloc(32,6).toString('base64');
 process.env.ADMIN_EMAILS='admin@example.com,audio-delete@example.com,skills-admin@example.com';
 delete process.env.DEEPSEEK_API_KEY;
-delete process.env.FISH_API_KEY;
+delete process.env.ELEVENLABS_API_KEY;
 const {workAsyncStorage}=await import('next/dist/server/app-render/work-async-storage.external.js');
 const {workUnitAsyncStorage}=await import('next/dist/server/app-render/work-unit-async-storage.external.js');
 const {RequestCookies}=await import('next/dist/server/web/spec-extension/cookies.js');
@@ -82,12 +82,12 @@ test('技能后台的查询、安装、启停、删除和更新仅对管理员�
 
 test('语音记录删除失败时不返回内部异常', async t => {
  const member = await login('audio-delete@example.com');
- const { default: AudioGeneration } = await import('../../models/FishAudioGeneration.js');
- const { DELETE } = await import('../../app/api/media/audio/fish/generations/[id]/route.js');
+ const { default: AudioGeneration } = await import('../../models/ElevenLabsAudioGeneration.js');
+ const { DELETE } = await import('../../app/api/media/audio/elevenlabs/generations/[id]/route.js');
  t.mock.method(AudioGeneration, 'findOne', () => { throw new Error('内部数据库异常：private-value'); });
  t.mock.method(console, 'error', () => {});
  const response = await call(member, request => DELETE(request, { params: Promise.resolve({ id: 'sample' }) }),
-  new Request('http://test/api/media/audio/fish/generations/sample', { method: 'DELETE' }));
+  new Request('http://test/api/media/audio/elevenlabs/generations/sample', { method: 'DELETE' }));
  assert.equal(response.status, 500);
  assert.deepEqual(await response.json(), { success: false, message: '删除语音记录失败' });
 });
@@ -109,7 +109,7 @@ test('上传文件的内部异常不返回给用户', async t => {
 test('普通用户可访问自己的媒体功能，全局密钥与默认配置保持管理员权限', async () => {
  const member = await login('media-member@example.com');
  const settings = await import('../../app/api/admin/media/route.js');
- for (const provider of ['fish', 'qwen']) {
+ for (const provider of ['elevenlabs']) {
   const voices = await import(`../../app/api/media/audio/${provider}/voices/route.js`);
   const generations = await import(`../../app/api/media/audio/${provider}/generations/route.js`);
   const generation = await import(`../../app/api/media/audio/${provider}/generations/[id]/route.js`);

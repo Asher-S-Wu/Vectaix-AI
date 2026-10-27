@@ -16,7 +16,7 @@ test('网站启动与定时任务无需请求语音服务，健康检查返回�
   process.env.APP_SECRETS_KEY = Buffer.alloc(32, 11).toString('base64');
   process.env.DEEPSEEK_API_KEY = 'startup-test-model-key';
   process.env.MICU_OPENAI_IMAGE_API_KEY = 'startup-test-image-key';
-  process.env.FISH_API_KEY = 'startup-test-audio-key';
+  process.env.ELEVENLABS_API_KEY = 'startup-test-audio-key';
   delete process.env.ADMIN_EMAILS;
   try {
     const { default: dbConnect } = await import('../lib/db.js');
