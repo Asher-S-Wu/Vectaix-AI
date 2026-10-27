@@ -19,11 +19,11 @@ export default function AudioGeneratingBanner({
     <motion.section
       initial={reduceMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-effect rounded-2xl border border-primary/20 p-5"
-      aria-live="polite"
+      className="rounded-2xl border border-primary/30 bg-primary/5 p-5"
+      role="status"
     >
       <div className="flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />
         </span>
         <div>
@@ -31,7 +31,6 @@ export default function AudioGeneratingBanner({
           <p className="mt-1 text-xs text-zinc-500">{description}</p>
         </div>
       </div>
-      <div className="mt-4 h-11 animate-pulse motion-reduce:animate-none rounded-xl bg-primary/10 motion-reduce:animate-none" aria-hidden="true" />
     </motion.section>
   );
 }

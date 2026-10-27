@@ -2,8 +2,9 @@
 
 import { useI18n } from '@/lib/client/i18n';
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, X } from "lucide-react";
-import { useCallback, useState, useEffect, useRef } from "react";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { useCallback, useId, useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 export default function ConfirmModal({
     open,
@@ -24,6 +25,8 @@ export default function ConfirmModal({
     const [isProcessing, setIsProcessing] = useState(false);
     const dialogRef = useRef(null);
     const cancelRef = useRef(null);
+    const titleId = useId();
+    const messageId = useId();
 
     const handleConfirm = useCallback(async () => {
         if (isProcessing) return;
@@ -71,7 +74,8 @@ export default function ConfirmModal({
         return () => dialog.removeEventListener('keydown', onKeyDown);
     }, [open, isProcessing, handleCancel]);
 
-    return (
+    if (typeof document === "undefined") return null;
+    return createPortal(
         <AnimatePresence>
             {open && (
                 <motion.div
@@ -81,65 +85,59 @@ export default function ConfirmModal({
                     exit={{ opacity: 0 }}
                     className="fixed inset-0 z-[70] flex items-center justify-center p-4"
                     onClick={handleCancel}
-                    role="dialog"
+                    role={danger ? "alertdialog" : "dialog"}
                     aria-modal="true"
-                    aria-label={title}
+                    aria-labelledby={titleId}
+                    aria-describedby={messageId}
                 >
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                    <div className="absolute inset-0 bg-black/40" />
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0, y: 8 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.95, opacity: 0, y: 8 }}
                         transition={{ duration: 0.18 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 max-w-sm w-full p-6"
+                        className="relative bg-white rounded-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 max-w-sm w-full p-6"
                     >
-                        <button
-                            onClick={handleCancel}
-                            disabled={isProcessing}
-                            aria-label={t("关闭", "Close")}
-                            className="absolute top-4 right-4 p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <X size={18} />
-                        </button>
+                        <div className="flex items-start gap-3">
+                            {danger && <span aria-hidden="true" className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-500">
+                                <AlertTriangle size={18} />
+                            </span>}
+                            <div className="min-w-0">
+                                <h2 id={titleId} className="text-base font-semibold text-zinc-800">
+                                    {title}
+                                </h2>
+                                <p id={messageId} className="mt-2 text-sm leading-relaxed text-zinc-600 break-words">{message}</p>
+                            </div>
+                        </div>
 
-                        <div className="flex flex-col items-center text-center">
-                            <div
-                                className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${danger ? "bg-red-100 text-red-500" : "bg-zinc-100 text-zinc-600 dark:text-zinc-400"
+                        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                ref={cancelRef}
+                                onClick={handleCancel}
+                                disabled={isProcessing}
+                                className="min-h-10 px-4 py-2 text-sm font-medium text-zinc-700 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {cancelText}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirm}
+                                disabled={isProcessing}
+                                className={`inline-flex min-h-10 items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-colors disabled:opacity-60 disabled:cursor-wait ${danger
+                                        ? "bg-red-600 text-white hover:bg-red-700"
+                                        : "btn-primary"
                                     }`}
                             >
-                                <AlertTriangle size={24} />
-                            </div>
-
-                            <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100 mb-2">
-                                {title}
-                            </h3>
-                            <p className="text-sm text-zinc-500 mb-6">{message}</p>
-
-                            <div className="flex gap-3 w-full">
-                                <button
-                                    ref={cancelRef}
-                                    onClick={handleCancel}
-                                    disabled={isProcessing}
-                                    className="flex-1 px-4 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {cancelText}
-                                </button>
-                                <button
-                                    onClick={handleConfirm}
-                                    disabled={isProcessing}
-                                    className={`flex-1 px-4 py-2.5 text-sm font-medium text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${danger
-                                            ? "bg-red-500 hover:bg-red-600"
-                                            : "bg-primary hover:bg-primary/90"
-                                        }`}
-                                >
-                                    {confirmText}
-                                </button>
-                            </div>
+                                {isProcessing && <Loader2 size={15} className="animate-spin motion-reduce:animate-none" />}
+                                {confirmText}
+                            </button>
                         </div>
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
     );
 }

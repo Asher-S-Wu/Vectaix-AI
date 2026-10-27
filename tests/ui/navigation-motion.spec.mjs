@@ -45,9 +45,9 @@ test('后台导航、资料栏与手机设置在减少动态效果时可以操�
     await page.waitForURL(`${base}/admin/media/audio`);
     await page.getByRole('tab', { name: '声音复刻' }).click();
     await page.getByRole('tabpanel', { name: '声音复刻' }).waitFor();
-    await page.getByRole('link', { name: '返回花卷' }).click();
+    await page.getByRole('link', { name: '返回对话' }).click();
     await page.waitForURL(`${base}/`);
-    await page.getByRole('button', { name: '查看资料与成果', exact: true }).click();
+    await page.getByRole('button', { name: '资料与成果', exact: true }).click();
     await page.getByRole('complementary', { name: '对话资料与成果' }).waitFor();
     await page.getByRole('tab', { name: '成果与引用', exact: true }).click();
     await page.keyboard.press('Escape');
@@ -61,7 +61,7 @@ test('后台导航、资料栏与手机设置在减少动态效果时可以操�
     await page.getByRole('navigation', { name: '设置分类' }).waitFor();
     await page.getByRole('link', { name: '管理后台', exact: true }).click();
     await page.waitForURL(`${base}/admin`);
-    await page.getByRole('heading', { name: '模型设置' }).waitFor();
+    await page.getByRole('heading', { name: '模型服务' }).waitFor();
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     assert.deepEqual(errors, []);
   } finally { await context.close(); await browser.close(); }

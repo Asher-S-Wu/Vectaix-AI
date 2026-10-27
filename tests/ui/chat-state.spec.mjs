@@ -122,10 +122,10 @@ test('连续切换对话只显示最后选择的内容，并清理上一段对�
     await page.getByRole('button', { name: '第一段对话', exact: true }).click({ position: { x: 20, y: 20 } });
     await page.getByText('第一段内容', { exact: true }).waitFor();
     await page.getByRole('button', { name: '编辑消息', exact: true }).click();
-    await page.getByRole('button', { name: '提交', exact: true }).waitFor();
+    await page.getByRole('button', { name: '重新发送', exact: true }).waitFor();
     await page.getByRole('button', { name: '第二段对话', exact: true }).click({ position: { x: 20, y: 20 } });
     await page.getByText('第二段内容', { exact: true }).waitFor();
-    assert.equal(await page.getByRole('button', { name: '提交', exact: true }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: '重新发送', exact: true }).count(), 0);
     assert.equal(await page.locator('textarea').count(), 1);
   });
 });
@@ -188,9 +188,9 @@ test('编辑历史消息提交途中切换对话，保留原消息附件', { tim
     await page.getByRole('button', { name: '编辑消息', exact: true }).click();
     await page.getByRole('img', { name: '参考图片 1', exact: true }).waitFor();
     assert.equal(await page.locator('.composer-shell input[type="file"]').count(), 1);
-    await page.getByRole('button', { name: '提交', exact: true }).waitFor();
+    await page.getByRole('button', { name: '重新发送', exact: true }).waitFor();
     const sent = page.waitForRequest(request => request.url().endsWith('/api/tasks') && request.method() === 'POST');
-    await page.getByRole('button', { name: '提交', exact: true }).click();
+    await page.getByRole('button', { name: '重新发送', exact: true }).click();
     await sent;
     await page.getByRole('button', { name: '第二段对话', exact: true }).click({ position: { x: 20, y: 20 } });
     await page.getByText('第二段内容', { exact: true }).waitFor();
@@ -524,20 +524,20 @@ test('删除确认默认聚焦取消，回车取消且焦点留在对话内', { 
       return route.fulfill({ json: { conversation: conversations[0] } });
     });
     const row = page.getByRole('button', { name: '第一段对话', exact: true });
-    await row.hover({ position: { x: 20, y: 20 } });
-    await row.locator('..').getByRole('button', { name: '删除', exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: '删除对话', exact: true });
+    await page.getByRole('button', { name: '“第一段对话”的操作', exact: true }).click();
+    await page.getByRole('menuitem', { name: '删除', exact: true }).click();
+    const dialog = page.getByRole('alertdialog', { name: '删除对话', exact: true });
     await dialog.waitFor();
     await dialog.getByRole('button', { name: '取消', exact: true }).focus();
     await page.keyboard.press('Enter');
     await dialog.waitFor({ state: 'hidden' });
     assert.equal(deletes, 0);
-    await row.hover({ position: { x: 20, y: 20 } });
-    await row.locator('..').getByRole('button', { name: '删除', exact: true }).click();
+    await page.getByRole('button', { name: '“第一段对话”的操作', exact: true }).click();
+    await page.getByRole('menuitem', { name: '删除', exact: true }).click();
     await dialog.waitFor();
     await dialog.getByRole('button', { name: '删除', exact: true }).focus();
     await page.keyboard.press('Tab');
-    assert.equal(await dialog.getByRole('button', { name: '关闭', exact: true }).evaluate(el => el === document.activeElement), true);
+    assert.equal(await dialog.getByRole('button', { name: '取消', exact: true }).evaluate(el => el === document.activeElement), true);
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'hidden' });
     assert.equal(deletes, 0);
@@ -595,7 +595,7 @@ test('历史重试明确确认会删除后续对话和成果，取消保留所�
     const regenerate = page.getByRole('button', { name: '重新生成', exact: true }).first();
     await regenerate.focus();
     await regenerate.click();
-    const dialog = page.getByRole('dialog', { name: '重新生成回复', exact: true });
+    const dialog = page.getByRole('alertdialog', { name: '重新生成回复', exact: true });
     await dialog.waitFor();
     assert.match(await dialog.textContent(), /后续.*对话.*成果/);
     assert.equal(submits, 0);
@@ -607,19 +607,21 @@ test('历史重试明确确认会删除后续对话和成果，取消保留所�
 
 test('资料栏加载失败明确提供重新加载入口', { timeout: 90000 }, async () => {
   await withChat(async page => {
-    let attempts = 0;
-    await page.route(`**/api/conversations/${firstId}/files`, route => ++attempts === 1
-      ? route.fulfill({ status: 503, json: { error: '资料读取失败' } })
-      : route.fulfill({ json: { files: [] } }));
+    let failing = true, retried = false;
+    await page.route(`**/api/conversations/${firstId}/files`, route => {
+      if (!failing) retried = true;
+      return failing ? route.fulfill({ status: 503, json: { error: '资料读取失败' } }) : route.fulfill({ json: { files: [] } });
+    });
     await page.getByRole('button', { name: '第一段对话', exact: true }).click({ position: { x: 20, y: 20 } });
     await page.getByText('第一段内容', { exact: true }).waitFor();
-    await page.getByRole('button', { name: '查看资料与成果', exact: true }).click();
+    await page.getByRole('button', { name: '资料与成果', exact: true }).click();
     const panel = page.getByRole('complementary', { name: '对话资料与成果', exact: true });
     await panel.getByRole('alert').waitFor();
+    failing = false;
     await panel.getByRole('button', { name: '重新加载资料', exact: true }).click();
     await panel.getByRole('button', { name: '上传文件', exact: true }).waitFor();
     assert.equal(await panel.getByRole('alert').count(), 0);
-    assert.equal(attempts, 2);
+    assert.equal(retried, true);
   }, '192.0.2.234');
 });
 
@@ -630,14 +632,15 @@ test('确认请求读取失败可手动重载，核对内容后只提交一次�
     { id: 'approval-reply', role: 'model', content: '', taskId, taskStatus: 'waiting_approval' },
   ] };
   await withChat(async page => {
-    let loads = 0, decisions = 0;
+    let failing = true, decisions = 0;
     const approval = { _id: 'review-one', status: 'pending', tool: '发送测试消息', arguments: { to: 'test@example.test', body: '确认正文' } };
     await page.route(`**/api/conversations/${firstId}`, route => route.fulfill({ json: { conversation } }));
     await page.route('**/api/tasks?*', route => route.fulfill({ json: { tasks: [{ _id: taskId, conversationId: firstId, status: 'waiting_approval', output: '', mediaTasks: [] }] } }));
-    await page.route(`**/api/tasks/${taskId}/approvals`, route => ++loads === 1 ? route.fulfill({ status: 503, json: { error: '确认请求读取失败' } }) : route.fulfill({ json: { approvals: [approval] } }));
+    await page.route(`**/api/tasks/${taskId}/approvals`, route => failing ? route.fulfill({ status: 503, json: { error: '确认请求读取失败' } }) : route.fulfill({ json: { approvals: [approval] } }));
     await page.route(`**/api/tasks/${taskId}/approvals/review-one`, async route => { decisions += 1; assert.equal(route.request().postDataJSON().decision, 'approved'); await route.fulfill({ json: { approval: { ...approval, status: 'approved' } } }); });
     await page.getByRole('button', { name: '第一段对话', exact: true }).click({ position: { x: 20, y: 20 } });
     await page.getByText('确认请求读取失败', { exact: true }).waitFor();
+    failing = false;
     await page.getByRole('button', { name: '重新加载确认请求', exact: true }).click();
     await page.getByText('确认正文', { exact: true }).waitFor();
     await page.getByRole('button', { name: '允许这一次', exact: true }).click();
@@ -679,7 +682,7 @@ test('编辑消息显示文档附件，移除后重发只包含保留的内容',
     await edit.focus(); await edit.click();
     await page.getByRole('button', { name: '移除 原始附件.pdf', exact: true }).click();
     await page.getByRole('textbox', { name: '编辑消息', exact: true }).fill('去掉附件的新问题');
-    await page.getByRole('button', { name: '提交', exact: true }).click();
+    await page.getByRole('button', { name: '重新发送', exact: true }).click();
     await page.getByRole('textbox', { name: '编辑消息', exact: true }).waitFor({ state: 'hidden' });
     assert.deepEqual(body.attachments, []);
     assert.equal(body.replaceFromMessageId, 'document-message');
@@ -733,7 +736,7 @@ test('资料栏保留未包含在最近任务列表中的历史成果和引用',
     await page.route(`**/api/conversations/${firstId}/files`, route => route.fulfill({ json: { files: [] } }));
     await page.getByRole('button', { name: '第一段对话', exact: true }).click({ position: { x: 20, y: 20 } });
     await page.getByText('历史调研结果', { exact: true }).waitFor();
-    await page.getByRole('button', { name: '查看资料与成果', exact: true }).click();
+    await page.getByRole('button', { name: '资料与成果', exact: true }).click();
     const panel = page.getByRole('complementary', { name: '对话资料与成果', exact: true });
     await panel.getByRole('tab', { name: '成果与引用', exact: true }).click();
     assert.equal(await panel.getByRole('link', { name: '历史报告.pdf', exact: true }).getAttribute('href'), '/api/files/old-report?download=1');

@@ -126,7 +126,7 @@ export default function ImageLightbox({ open, onClose, src }) {
           className="fixed inset-0 z-[80] flex items-center justify-center p-3"
           onClick={onClose}
         >
-          <div className="absolute inset-0 bg-black/60" />
+          <div className="absolute inset-0 bg-black/75" />
 
           <motion.div
             initial={{ scale: 0.98, opacity: 0 }}
@@ -134,11 +134,11 @@ export default function ImageLightbox({ open, onClose, src }) {
             exit={{ scale: 0.98, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
             style={displayStyle}
-            className="relative flex items-center justify-center bg-black/30 rounded-2xl border border-white/10 shadow-pop backdrop-blur overflow-hidden transition-[width,height] duration-200 min-w-[120px] min-h-[120px]"
+            className="relative flex items-center justify-center rounded-2xl overflow-hidden min-w-[120px] min-h-[120px]"
           >
             {(!loadedImage || loadedImage.src !== src) && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <Loader2 size={26} className="animate-spin text-white/70" />
+                <Loader2 size={26} className="animate-spin motion-reduce:animate-none text-white/70" />
               </div>
             )}
             <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
@@ -147,7 +147,7 @@ export default function ImageLightbox({ open, onClose, src }) {
                   type="button"
                   onClick={handleDownload}
                   disabled={downloading}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white/90 bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg transition-colors disabled:opacity-50"
+                  className="inline-flex h-9 items-center gap-1.5 px-3 text-xs font-medium text-white/90 bg-black/50 hover:bg-black/70 border border-white/15 rounded-lg transition-colors disabled:opacity-50"
                   title={t("下载原图", "Download original image")}
                 >
                   <Download size={14} />
@@ -158,8 +158,8 @@ export default function ImageLightbox({ open, onClose, src }) {
                 ref={closeRef}
                 type="button"
                 onClick={onClose}
-                className="inline-flex items-center justify-center w-9 h-9 text-white/85 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 rounded-lg transition-colors"
-                title={t("关闭", "Close")}
+                className="inline-flex items-center justify-center w-9 h-9 text-white/85 hover:text-white bg-black/50 hover:bg-black/70 border border-white/15 rounded-lg transition-colors"
+                aria-label={t("关闭", "Close")}
               >
                 <X size={16} />
               </button>

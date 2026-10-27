@@ -5,4 +5,4 @@ import UsersPanel from '@/app/components/settings/panels/UsersPanel';
 export default function UsersPage() {
   const { t } = useI18n();
   
- return <><header className="admin-page-heading"><h1>{t("用户管理", "Users")}</h1><p>{t("管理花卷的账号、访问权限与用量。", "Manage Huajuan accounts, access, and usage.")}</p></header><UsersPanel /></>; }
+ return <><header className="admin-page-heading"><h1>{t("用户管理", "Users")}</h1><p>{t("查看账号、重置密码，以及删除不再使用的账号。", "View accounts, reset passwords, and delete unused accounts.")}</p></header><UsersPanel /></>; }

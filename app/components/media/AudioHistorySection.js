@@ -3,8 +3,7 @@
 import { useI18n } from "@/lib/client/i18n";
 
 import { useId } from "react";
-import { AnimatePresence } from "framer-motion";
-import { AudioLines, History, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import AudioFormError from "@/app/components/media/AudioFormError";
 
 function HistorySkeleton() {
@@ -13,13 +12,11 @@ function HistorySkeleton() {
   return (
     <div className="space-y-2" aria-label={t("正在读取语音记录", "Loading audio history")} aria-busy="true">
       {[0, 1, 2, 3].map((item) => (
-        <div key={item} className="flex items-center gap-3 rounded-xl border border-zinc-200/70 bg-white/80 px-3.5 py-3 dark:border-zinc-800/70 dark:bg-zinc-950/70">
-          <div className="h-9 w-9 animate-pulse motion-reduce:animate-none rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
+        <div key={item} className="flex items-center gap-3 rounded-xl border border-zinc-200 px-3.5 py-3">
           <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="h-3.5 w-24 animate-pulse motion-reduce:animate-none rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
-            <div className="h-3 w-1/2 animate-pulse motion-reduce:animate-none rounded bg-zinc-100 motion-reduce:animate-none dark:bg-zinc-900" />
+            <div className="h-3.5 w-24 animate-pulse motion-reduce:animate-none rounded bg-zinc-200" />
+            <div className="h-3 w-1/2 animate-pulse motion-reduce:animate-none rounded bg-zinc-100" />
           </div>
-          <div className="h-4 w-4 animate-pulse motion-reduce:animate-none rounded bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800" />
         </div>
       ))}
     </div>
@@ -29,7 +26,6 @@ function HistorySkeleton() {
 export default function AudioHistorySection({
   title,
   description,
-  totalCount,
   items,
   loading,
   error,
@@ -38,32 +34,25 @@ export default function AudioHistorySection({
   hasMore = false,
   loadingMore = false,
   onLoadMore,
-  emptyTitle,
-  emptyDescription,
-  onlyLatestHint,
 }) {
   const { t, formatNumber } = useI18n();
   title ??= t("语音记录", "Audio history");
   description ??= t("记录保存在你的账号下，可播放、下载或删除。", "Recordings stay in your account. Play, download, or delete them here.");
-  emptyTitle ??= t("还没有语音记录", "No recordings yet");
-  emptyDescription ??= t("生成的语音会显示在这里，可播放或下载。", "Generated audio will appear here to play or download.");
-  onlyLatestHint ??= t("当前只有上方这条新记录。", "The new recording above is the only one so far.");
 
   const titleId = useId();
-  const count = totalCount ?? items.length;
+  const count = items.length;
 
   return (
     <section
-      className="glass-effect overflow-hidden rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60"
+      className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-700"
       aria-labelledby={titleId}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-200/60 px-5 py-4 dark:border-zinc-800/60 sm:px-6">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-4 sm:px-6">
+        <div className="min-w-0">
           <h2 id={titleId} className="flex items-center gap-2 text-base font-semibold">
-            <History className="h-4 w-4 text-primary" />
             {title}
             {!loading && count > 0 ? (
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium tabular-nums text-zinc-500">
                 {formatNumber(count)}
               </span>
             ) : null}
@@ -74,7 +63,7 @@ export default function AudioHistorySection({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm font-medium text-zinc-700 transition-[background-color,transform] hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-zinc-200 px-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} /> {t("刷新", "Refresh")} </button>
       </div>
@@ -85,22 +74,13 @@ export default function AudioHistorySection({
         {loading ? (
           <HistorySkeleton />
         ) : count === 0 ? (
-          <div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200/80 bg-white/60 px-6 text-center dark:border-zinc-800 dark:bg-zinc-950/50">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <AudioLines className="h-6 w-6" />
-            </span>
-            <p className="mt-4 text-sm font-medium text-zinc-700 dark:text-zinc-200">{emptyTitle}</p>
-            <p className="mt-1 max-w-sm text-xs leading-5 text-zinc-500">{emptyDescription}</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-200/80 bg-white/60 px-5 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/50">
-            {onlyLatestHint}
+          <div className="flex min-h-[160px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 px-6 text-center">
+            <p className="text-sm font-medium text-zinc-700">{t("还没有语音记录", "No recordings yet")}</p>
+            <p className="mt-1 max-w-sm text-xs leading-5 text-zinc-500">{t("生成的语音会显示在这里，可播放或下载。", "Generated audio will appear here to play or download.")}</p>
           </div>
         ) : (
-          <div className="fade-scrollbar max-h-[480px] space-y-2 overflow-y-auto overscroll-contain pr-1">
-            <AnimatePresence initial={false}>
-              {items.map(renderItem)}
-            </AnimatePresence>
+          <div className="space-y-2">
+            {items.map(renderItem)}
           </div>
         )}
         {hasMore && <button type="button" disabled={loading || loadingMore} onClick={onLoadMore} className="admin-button mt-4">{loadingMore ? t("正在读取…", "Loading…") : t("加载更多", "Load more")}</button>}

@@ -22,7 +22,7 @@ function ResourcesContent({ onClose, conversationId, projectId, tasks = [], mess
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [revision, setRevision] = useState(0);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(null);
   const uploadRef = useRef(null);
@@ -49,17 +49,18 @@ function ResourcesContent({ onClose, conversationId, projectId, tasks = [], mess
     return () => controller.abort();
   }, [conversationId, projectId, latestTaskId, revision]);
   useEffect(() => {
-    const closeOnEscape = event => { if (event.key === "Escape") onClose(); };
+    const closeOnEscape = event => { if (event.key === "Escape" && !event.defaultPrevented && !document.querySelector('[aria-modal="true"], dialog[open]') && window.innerWidth < 1024) onClose(); };
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
-  const run = async action => { setError(""); setBusy(true); try { await action(); } catch (failure) { setError(failure.message); } finally { setBusy(false); } };
+  const run = async (area, action) => { setError(""); setBusy(area); try { await action(); } catch (failure) { setError(failure.message); } finally { setBusy(""); } };
+  const sizeLabel = size => size < 1024 ? `${formatNumber(size)} B` : size < 1048576 ? `${formatNumber(size / 1024, { maximumFractionDigits: 1 })} KB` : `${formatNumber(size / 1048576, { maximumFractionDigits: 1 })} MB`;
   const upload = event => {
     const file = event.target.files[0];
     event.target.value = "";
     if (!file) return;
     const scope = scopeRef.current;
-    void run(async () => {
+    void run(scope, async () => {
       const body = new FormData(); body.append("file", file);
       const result = await apiRequest(scope === "project" ? `/api/projects/${projectId}/files` : `/api/conversations/${conversationId}/files`, { method: "POST", body });
       if (scope === "project") setProjectFiles(items => [result.file, ...items]);
@@ -68,19 +69,19 @@ function ResourcesContent({ onClose, conversationId, projectId, tasks = [], mess
   };
   const fileList = (items, scope) => items.map(file => {
     const canDelete = scope === "project" || (file.ownerType === "conversation" && file.ownerId === conversationId);
-    return <div key={file.fileId} className="rounded-xl border border-zinc-200 dark:border-zinc-700 p-3">
+    return <div key={file.fileId} className="rounded-xl border border-zinc-200 dark:border-zinc-700 p-3 transition-colors hover:border-primary/40">
       <div className="flex items-center gap-2">
         <FileText size={17} className="shrink-0 text-primary" />
-        <a href={file.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1"><span className="block truncate text-sm">{file.name}</span><span className="text-xs text-zinc-400">{formatNumber(file.size / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} KB</span></a>
-        {canDelete && <button disabled={busy} aria-label={t("删除 {name}", "Delete {name}", { name: file.name })} className="p-1.5 text-zinc-400 hover:text-red-500" onClick={() => setDeleting(file.fileId)}><Trash2 size={14} /></button>}
+        <a href={file.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 hover:text-primary"><span className="block truncate text-sm" title={file.name}>{file.name}</span><span className="text-xs text-zinc-500">{sizeLabel(file.size)}</span></a>
+        {canDelete && <button type="button" disabled={Boolean(busy)} aria-label={t("删除 {name}", "Delete {name}", { name: file.name })} className="rounded-lg p-2 text-zinc-500 hover:bg-red-50 hover:text-red-500" onClick={() => setDeleting(file.fileId)}><Trash2 size={15} /></button>}
       </div>
-      {deleting === file.fileId && <div className="mt-3 space-y-2 text-xs">
-        <p>{t("确认删除？使用中的共享资料须先从相关消息移除引用。", "Delete this file? Remove references to shared files from related messages first.")}</p>
-        <div className="flex gap-3"><button disabled={busy} className="text-red-500" onClick={() => void run(async () => {
+      {deleting === file.fileId && <div role="alert" className="mt-3 space-y-2 border-t border-zinc-100 pt-3 text-xs">
+        <p className="leading-5 text-zinc-600">{t("确认删除？使用中的共享资料须先从相关消息移除引用。", "Delete this file? Remove references to shared files from related messages first.")}</p>
+        <div className="flex gap-2"><button type="button" disabled={Boolean(busy)} className="rounded-lg bg-red-600 px-3 py-1.5 font-medium text-white hover:bg-red-700 disabled:opacity-50" onClick={() => void run(scope, async () => {
           if (scope === "project") { await apiJson(`/api/projects/${projectId}/files/${file.fileId}`, { method: "DELETE" }); setProjectFiles(items => items.filter(item => item.fileId !== file.fileId)); }
           else { await apiJson(`/api/conversations/${conversationId}/files`, { method: "DELETE", body: { fileId: file.fileId } }); setFiles(items => items.filter(item => item.fileId !== file.fileId)); }
           setDeleting(null);
-        })}>{t("删除", "Delete")}</button><button disabled={busy} onClick={() => setDeleting(null)}>{t("取消", "Cancel")}</button></div>
+        })}>{t("删除", "Delete")}</button><button type="button" disabled={Boolean(busy)} className="rounded-lg px-3 py-1.5 text-zinc-600 hover:bg-zinc-100" onClick={() => setDeleting(null)}>{t("取消", "Cancel")}</button></div>
       </div>}
     </div>;
   });
@@ -88,24 +89,24 @@ function ResourcesContent({ onClose, conversationId, projectId, tasks = [], mess
   const artifacts = deliveries.flatMap(delivery => delivery.artifacts || []);
   const citations = deliveries.flatMap(delivery => delivery.citations || []);
   return <>
-    <button className="fixed inset-0 z-[59] bg-black/30 lg:hidden" aria-label={t("关闭资料栏", "Close files panel")} onClick={onClose} />
-    <aside style={{ viewTransitionName: "resources-sidebar" }} role="complementary" aria-label={t("对话资料与成果", "Chat files and results")} className="fixed inset-y-0 right-0 z-[60] flex w-80 max-w-[90vw] flex-col border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl lg:relative lg:z-20 lg:shadow-none shrink-0">
-      <div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-800"><h2 className="font-semibold text-sm">{t("资料与成果", "Files and results")}</h2><button onClick={onClose} aria-label={t("关闭资料栏", "Close files panel")} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"><X size={17} /></button></div>
+    <button type="button" tabIndex={-1} className="fixed inset-0 z-[59] bg-black/30 lg:hidden" aria-label={t("关闭资料栏", "Close files panel")} onClick={onClose} />
+    <aside style={{ viewTransitionName: "resources-sidebar" }} aria-label={t("对话资料与成果", "Chat files and results")} className="fixed inset-y-0 right-0 z-[60] flex w-80 max-w-[90vw] shrink-0 flex-col border-l border-zinc-200 bg-white shadow-pop dark:border-zinc-700 lg:relative lg:z-20 lg:shadow-none">
+      <div className="flex min-h-14 items-center justify-between border-b border-zinc-200 px-4 py-2"><h2 className="font-semibold text-sm">{t("资料与成果", "Files and results")}</h2><button type="button" onClick={onClose} aria-label={t("关闭资料栏", "Close files panel")} className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"><X size={17} /></button></div>
       <div role="tablist" aria-label={t("资料分类", "File categories")} className="grid grid-cols-2 gap-1 p-3">
-        {[{ id: "files", label: t("资料", "Files") }, { id: "results", label: t("成果与引用", "Results and sources") }].map(item => <button key={item.id} id={`${panelId}-${item.id}`} role="tab" aria-selected={tab === item.id} aria-controls={`${panelId}-content`} tabIndex={tab === item.id ? 0 : -1} className={`rounded-lg py-2 text-sm ${tab === item.id ? "bg-primary/10 text-primary" : "text-zinc-500"}`} onClick={() => setTab(item.id)} onKeyDown={event => {
+        {[{ id: "files", label: t("资料", "Files") }, { id: "results", label: t("成果与引用", "Results and sources") }].map(item => <button key={item.id} id={`${panelId}-${item.id}`} role="tab" aria-selected={tab === item.id} aria-controls={`${panelId}-content`} tabIndex={tab === item.id ? 0 : -1} className={`rounded-lg py-2 text-sm transition-colors ${tab === item.id ? "bg-primary/10 font-medium text-primary" : "text-zinc-500 hover:bg-zinc-100"}`} onClick={() => setTab(item.id)} onKeyDown={event => {
           if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
           event.preventDefault();
           const next = event.key === "Home" ? "files" : event.key === "End" ? "results" : tab === "files" ? "results" : "files";
           setTab(next); document.getElementById(`${panelId}-${next}`).focus();
         }}>{item.label}</button>)}
       </div>
-      <div key={tab} id={`${panelId}-content`} role="tabpanel" aria-labelledby={`${panelId}-${tab}`} className="module-enter flex-1 overflow-y-auto px-4 pb-5 space-y-4 text-zinc-700 dark:text-zinc-200">
+      <div key={tab} id={`${panelId}-content`} role="tabpanel" aria-labelledby={`${panelId}-${tab}`} className="module-enter flex-1 overflow-y-auto fade-scrollbar px-4 pb-5 space-y-4 text-zinc-700">
         {error && <p role="alert" className="text-sm text-red-500">{localizeMessage(error)}</p>}
         <input type="file" aria-label={t("上传资料", "Upload files")} ref={uploadRef} hidden onChange={upload} accept=".pdf,.docx,.xlsx,.csv,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.m4a,.aac,.ogg,.weba,.mp4,.mov,.webm,.m4v" />
         {tab === "files" ? <>
-          {loading ? <p role="status" className="text-sm text-zinc-500">{t("正在加载资料…", "Loading files…")}</p> : loadError ? <div className="space-y-3"><p role="alert" className="text-sm text-red-500">{localizeMessage(loadError)}</p><button className={buttonClass} onClick={() => setRevision(value => value + 1)}>{t("重新加载资料", "Reload files")}</button></div> : <>
-            {[{ scope: "conversation", title: t("当前对话", "Current chat"), id: conversationId, items: files }, { scope: "project", title: t("项目共享资料", "Shared project files"), id: projectId, items: projectFiles }].map(({ scope, title, id, items }) => <section key={scope} className="space-y-3"><h3 className="text-xs font-semibold text-zinc-500 pt-2">{title}</h3>{id ? <><button className={`${buttonClass} w-full`} disabled={busy} onClick={() => { scopeRef.current = scope; uploadRef.current.click(); }}><Upload size={15} />{busy ? t("处理中…", "Working…") : t("上传文件", "Upload file")}</button>{fileList(items, scope)}{!items.length && <p className="text-xs text-zinc-400 py-2">{t("还没有文件", "No files yet")}</p>}</> : <p className="text-xs text-zinc-400 leading-relaxed">{scope === "conversation" ? t("开始对话后，可在这里上传和管理资料。", "Start a chat to upload and manage its files here.") : t("将对话加入项目，即可共享项目资料。", "Move this chat to a project to share its files.")}</p>}</section>)}
-            <p className="text-xs text-zinc-400">{t("支持文档、表格、图片、音频和视频，单个文件不超过 20 MB。", "Upload documents, spreadsheets, images, audio, and video. Maximum size: 20 MB per file.")}</p>
+          {loading ? <p role="status" className="text-sm text-zinc-500">{t("正在加载资料…", "Loading files…")}</p> : loadError ? <div className="space-y-3"><p role="alert" className="text-sm text-red-500">{localizeMessage(loadError)}</p><button type="button" className={buttonClass} onClick={() => setRevision(value => value + 1)}>{t("重新加载资料", "Reload files")}</button></div> : <>
+            {[{ scope: "conversation", title: t("当前对话", "Current chat"), id: conversationId, items: files }, { scope: "project", title: t("项目共享资料", "Shared project files"), id: projectId, items: projectFiles }].map(({ scope, title, id, items }) => <section key={scope} className="space-y-3"><h3 className="text-xs font-semibold text-zinc-500 pt-2">{title}</h3>{id ? <><button type="button" className={`${buttonClass} w-full`} disabled={Boolean(busy)} onClick={() => { scopeRef.current = scope; uploadRef.current.click(); }}><Upload size={15} />{busy === scope ? t("处理中…", "Working…") : t("上传文件", "Upload file")}</button>{fileList(items, scope)}{!items.length && <p className="text-xs text-zinc-500 py-2">{t("还没有文件", "No files yet")}</p>}</> : <p className="text-xs text-zinc-500 leading-relaxed">{scope === "conversation" ? t("开始对话后，可在这里上传和管理资料。", "Start a chat to upload and manage its files here.") : t("将对话加入项目，即可共享项目资料。", "Move this chat to a project to share its files.")}</p>}</section>)}
+            <p className="text-xs text-zinc-500">{t("支持文档、表格、图片、音频和视频，单个文件不超过 20 MB。", "Upload documents, spreadsheets, images, audio, and video. Maximum size: 20 MB per file.")}</p>
           </>}
         </> : <>
           {!artifacts.length && <p className="py-6 text-center text-sm text-zinc-500">{t("对话中生成的文件会显示在这里。", "Files created in this chat will appear here.")}</p>}
@@ -113,9 +114,9 @@ function ResourcesContent({ onClose, conversationId, projectId, tasks = [], mess
             {file.mimeType?.startsWith("image/") && <Image src={file.url} alt={file.name} width={600} height={450} unoptimized className="w-full h-auto" />}
             {file.mimeType?.startsWith("video/") && <video src={file.url} controls preload="metadata" className="w-full" />}
             {file.mimeType?.startsWith("audio/") && <audio src={file.url} controls preload="metadata" className="w-full" />}
-            <a href={toFileDownloadUrl(file.url)} download={file.name} className="flex items-center gap-2 p-3 text-sm"><Download size={15} className="shrink-0" /><span className="truncate">{file.name}</span></a>
+            <a href={toFileDownloadUrl(file.url)} download={file.name} className="flex items-center gap-2 p-3 text-sm hover:bg-primary/5 hover:text-primary"><Download size={15} className="shrink-0" /><span className="truncate" title={file.name}>{file.name}</span></a>
           </div>)}
-          {citations.length > 0 && <section className="space-y-3"><h3 className="text-xs font-semibold text-zinc-500">{t("引用来源", "Sources")}</h3>{citations.map((source, index) => <a key={`${source.url}:${index}`} href={source.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 text-sm text-primary"><span>{formatNumber(index + 1)}.</span><span className="min-w-0 flex-1 break-words">{source.title || source.url}</span><ExternalLink size={13} className="mt-1 shrink-0" /></a>)}</section>}
+          {citations.length > 0 && <section className="space-y-3"><h3 className="text-xs font-semibold text-zinc-500">{t("引用来源", "Sources")}</h3>{citations.map((source, index) => <a key={`${source.url}:${index}`} href={source.url} target="_blank" rel="noreferrer" className="flex items-start gap-2 rounded-lg text-sm text-primary hover:underline"><span className="tabular-nums">{formatNumber(index + 1)}.</span><span className="min-w-0 flex-1 break-words">{source.title || source.url}</span><ExternalLink size={13} className="mt-1 shrink-0" /></a>)}</section>}
         </>}
       </div>
     </aside>

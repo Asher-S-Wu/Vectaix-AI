@@ -20,8 +20,8 @@ export default function ApplyGlobalMediaButton({ section, value, disabled=false,
     } catch(error) {setError(error.message);} finally {setBusy(false);onBusyChange?.(false);}
   }
   return <div className="space-y-2">
-    <button type="button" disabled={disabled||busy} onClick={save} className="text-sm font-medium text-primary disabled:opacity-50">{busy?t("正在保存…", "Saving…"):t("设为全平台默认参数", "Set as default for all users")}</button>
-    {notice&&<p role="status" className="text-xs text-zinc-500">{notice}</p>}
+    <button type="button" disabled={disabled||busy} onClick={save} className="inline-flex min-h-9 items-center rounded-lg px-2 -ml-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50">{busy?t("正在保存…", "Saving…"):t("设为全平台默认参数", "Set as default for all users")}</button>
+    {notice&&<p role="status" className="text-xs text-primary">{notice}</p>}
     {error&&<p role="alert" className="text-xs text-red-500">{localizeMessage(error)}</p>}
   </div>;
 }

@@ -157,7 +157,7 @@ export default function ThinkingBlock({
                 ? <Terminal className="thinking-icon-step" />
                 : thoughtIcon;
 
-    const capsuleClass = `thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium transition-all duration-300 py-1.5 px-3 rounded-full ${isError ? "bg-red-50 text-red-600" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-primary hover:bg-primary/5"}`;
+    const capsuleClass = `thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium transition-colors py-1.5 px-3 rounded-full ${isError ? "bg-red-50 text-red-600" : "bg-zinc-100 text-zinc-600 hover:text-primary hover:bg-primary/10"}`;
 
     if (step.kind === "thought") {
       const hasContent = typeof step.content === "string" && step.content.trim();
@@ -172,9 +172,10 @@ export default function ThinkingBlock({
             <button
               type="button"
               onClick={() => toggleExpandedStep(step.id)}
+              aria-expanded={isThoughtOpen}
               className={capsuleClass}
             >
-              <div className={`p-1 rounded-md ${isThoughtStreaming ? "bg-primary/10 text-primary animate-pulse" : "bg-zinc-200 dark:bg-zinc-700"}`}>
+              <div className={`p-1 rounded-md ${isThoughtStreaming ? "bg-primary/10 text-primary animate-pulse motion-reduce:animate-none" : "bg-zinc-200"}`}>
                 {icon}
               </div>
               <StepStatusText text={isThoughtStreaming ? activeThoughtLabel : t("思考过程", "Reasoning")} active={showThoughtDots} />
@@ -184,7 +185,7 @@ export default function ThinkingBlock({
             </button>
           ) : (
             <div className={`${capsuleClass} cursor-default opacity-80`}>
-              <div className="p-1 rounded-md bg-zinc-200 dark:bg-zinc-700">
+              <div className="p-1 rounded-md bg-zinc-200">
                 {icon}
               </div>
               <StepStatusText text={isThoughtStreaming ? activeThoughtLabel : completedThoughtLabel} active={showThoughtDots} />
@@ -200,7 +201,7 @@ export default function ThinkingBlock({
                 className="overflow-hidden"
               >
                 <div
-                  className={`thinking-content mt-2 ml-4 p-4 glass-effect rounded-2xl text-sm leading-relaxed transition-all duration-500 max-h-[16em] overflow-y-auto fade-scrollbar ${isThoughtStreaming ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(56,189,248,0.18)] dark:shadow-[0_0_15px_rgba(56,189,248,0.14)]" : "border-zinc-200/50"}`}
+                  className={`thinking-content mt-2 ml-4 p-4 rounded-2xl border bg-white/60 text-sm leading-relaxed max-h-[16em] overflow-y-auto fade-scrollbar ${isThoughtStreaming ? "border-primary/40 ring-1 ring-primary/20" : "border-zinc-200/50"}`}
                   ref={containerRef}
                 >
                   <Markdown
@@ -212,8 +213,8 @@ export default function ThinkingBlock({
                   </Markdown>
                   {isThoughtStreaming && (
                     <div className="sticky bottom-2 flex justify-end mt-2 pointer-events-none">
-                      <div className="text-[10px] text-primary/70 flex items-center gap-1.5 backdrop-blur-md bg-white/80 dark:bg-zinc-800/90 px-2.5 py-1 rounded-full border border-primary/20 dark:border-primary/30 shadow-sm dark:shadow-none pointer-events-auto">
-                        <Loader2 className="w-3 h-3 animate-spin" />
+                      <div className="text-[11px] text-primary flex items-center gap-1.5 bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-full border border-primary/20 pointer-events-auto">
+                        <Loader2 className="w-3 h-3 animate-spin motion-reduce:animate-none" />
                         {t("正在思考…", "Thinking…")}
                       </div>
                     </div>
@@ -232,7 +233,7 @@ export default function ThinkingBlock({
       return (
         <div key={step.id || `search-${idx}`} className="w-full max-w-full md:max-w-[760px]">
           {hasLinkedToolPreview ? (
-            <button type="button" onClick={() => toggleExpandedStep(step.id)} className={capsuleClass}>
+            <button type="button" onClick={() => toggleExpandedStep(step.id)} aria-expanded={isOpen} className={capsuleClass}>
               {icon}
               {isRunning ? (
                 <SplitStatusText status={t("联网搜索中", "Searching the web")} suffix={querySuffix} active />
@@ -279,7 +280,7 @@ export default function ThinkingBlock({
       return (
         <div key={step.id || `reader-${idx}`} className="w-full max-w-full md:max-w-[760px]">
           {hasLinkedToolPreview ? (
-            <button type="button" onClick={() => toggleExpandedStep(step.id)} className={capsuleClass}>
+            <button type="button" onClick={() => toggleExpandedStep(step.id)} aria-expanded={isOpen} className={capsuleClass}>
               {icon}
               {isRunning ? (
                 <SplitStatusText status={t("浏览网页中", "Reading web pages")} suffix={urlSuffix} active />
@@ -339,7 +340,7 @@ export default function ThinkingBlock({
       return (
         <div key={step.id || `${step.kind}-${idx}`} className="w-full max-w-full md:max-w-[760px]">
           {canExpand ? (
-            <button type="button" onClick={() => toggleExpandedStep(step.id)} className={capsuleClass}>
+            <button type="button" onClick={() => toggleExpandedStep(step.id)} aria-expanded={isOpen} className={capsuleClass}>
               {icon}
               <StepStatusText text={detail || titleText} active={isRunning} />
               <div className="ml-auto flex items-center gap-1">
@@ -362,7 +363,7 @@ export default function ThinkingBlock({
                 className="overflow-hidden"
               >
                 <div
-                  className={`thinking-content mt-2 ml-4 p-4 glass-effect rounded-2xl text-sm leading-relaxed transition-all duration-500 ${isRunning ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(56,189,248,0.18)] dark:shadow-[0_0_15px_rgba(56,189,248,0.14)]" : "border-zinc-200/50"}`}
+                  className={`thinking-content mt-2 ml-4 p-4 rounded-2xl border bg-white/60 text-sm leading-relaxed ${isRunning ? "border-primary/40 ring-1 ring-primary/20" : "border-zinc-200/50"}`}
                   ref={containerRef}
                 >
                   <Markdown
@@ -374,8 +375,8 @@ export default function ThinkingBlock({
                   </Markdown>
                   {isRunning && (
                     <div className="sticky bottom-2 flex justify-end mt-2 pointer-events-none">
-                      <div className="text-[10px] text-primary/70 flex items-center gap-1.5 backdrop-blur-md bg-white/80 dark:bg-zinc-800/90 px-2.5 py-1 rounded-full border border-primary/20 dark:border-primary/30 shadow-sm dark:shadow-none pointer-events-auto">
-                        <Loader2 className="w-3 h-3 animate-spin" />
+                      <div className="text-[11px] text-primary flex items-center gap-1.5 bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-full border border-primary/20 pointer-events-auto">
+                        <Loader2 className="w-3 h-3 animate-spin motion-reduce:animate-none" />
                         {t("正在思考…", "Thinking…")}
                       </div>
                     </div>
@@ -394,8 +395,8 @@ export default function ThinkingBlock({
       const label = isRunning ? t("生成中{progress}", "Generating{progress}", { progress: progressText }) : (isError ? t("生成失败", "Generation failed") : t("已生成", "Generated"));
       return (
         <div key={step.id || `${step.kind}-${idx}`} className="w-full max-w-full md:max-w-[760px]">
-          <div className={`thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium py-1.5 px-3 rounded-full ${isError ? "bg-red-50 text-red-600" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500"}`}>
-            <div className={`p-1 rounded-md ${isRunning ? "bg-primary/10 text-primary animate-pulse" : "bg-zinc-200 dark:bg-zinc-700"}`}>
+          <div className={`thinking-capsule flex w-fit max-w-full items-center gap-2 font-medium py-1.5 px-3 rounded-full ${isError ? "bg-red-50 text-red-600" : "bg-zinc-100 text-zinc-600"}`}>
+            <div className={`p-1 rounded-md ${isRunning ? "bg-primary/10 text-primary animate-pulse motion-reduce:animate-none" : "bg-zinc-200"}`}>
               <Paintbrush className="thinking-icon-step" />
             </div>
             <StepStatusText text={label} active={isRunning} />
@@ -410,7 +411,7 @@ export default function ThinkingBlock({
       return (
         <div key={step.id || `tool-${idx}`} className="w-full max-w-full md:max-w-[760px]">
           {hasLinkedToolPreview ? (
-            <button type="button" onClick={() => toggleExpandedStep(step.id)} className={capsuleClass}>
+            <button type="button" onClick={() => toggleExpandedStep(step.id)} aria-expanded={isOpen} className={capsuleClass}>
               {icon}
               <StepStatusText text={label} active={isRunning} />
               <div className="ml-auto flex items-center gap-1">
@@ -449,12 +450,14 @@ export default function ThinkingBlock({
     <div className="thinking-block mb-2 w-full max-w-full">
       <>
           <button
+            type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className="thinking-btn flex items-center font-medium mb-1.5 transition-colors text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200"
+            aria-expanded={!collapsed}
+            className="thinking-btn flex items-center font-medium mb-1.5 transition-colors text-zinc-600 hover:text-zinc-800 bg-zinc-100 hover:bg-zinc-200"
           >
             {isThinkingActive ? <Loader2 className="thinking-icon-header animate-spin text-primary" /> : <Zap className="thinking-icon-header" />}
             <span className="thinking-btn-label flex items-center">
-              <span className="truncate max-w-[240px]">{t("执行过程", "Task activity")}</span>
+              <span className="truncate max-w-[240px]">{isThinkingActive ? t("正在执行", "Working") : t("执行过程", "Task activity")}</span>
             </span>
             {collapsed ? (
               <ChevronDown className="thinking-icon-chevron" />
@@ -489,7 +492,8 @@ export default function ThinkingBlock({
                         <button
                           type="button"
                           onClick={() => toggleExpandedStep("__simple__")}
-                          className="thinking-capsule inline-flex w-fit max-w-full items-center font-medium transition-colors text-zinc-500 cursor-pointer"
+                          className="thinking-capsule inline-flex w-fit max-w-full items-center font-medium transition-colors text-zinc-600 hover:text-primary"
+                          aria-expanded={expandedTimelineId === "__simple__"}
                         >
                           <Lightbulb className="thinking-icon-step" />
                           <StepStatusText text={isStreaming ? activeThoughtLabel : t("思考过程", "Reasoning")} active={isStreaming && expandedTimelineId !== "__simple__"} />
@@ -497,7 +501,7 @@ export default function ThinkingBlock({
                         </button>
                         {expandedTimelineId === "__simple__" ? (
                           <div
-                            className={`thinking-content thinking-content-panel bg-white/60 dark:bg-zinc-800/60 border overflow-y-auto fade-scrollbar w-full max-w-full md:max-w-[760px] text-zinc-400 transition-all duration-500 ${isStreaming ? "border-primary/40 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(56,189,248,0.18)] dark:shadow-[0_0_15px_rgba(56,189,248,0.14)]" : "border-zinc-200/60 dark:border-zinc-700/60"}`}
+                            className={`thinking-content thinking-content-panel bg-white/60 border overflow-y-auto fade-scrollbar w-full max-w-full md:max-w-[760px] ${isStreaming ? "border-primary/40 ring-1 ring-primary/20" : "border-zinc-200/60 dark:border-zinc-700/60"}`}
                             ref={containerRef}
                           >
                             <Markdown
@@ -509,8 +513,8 @@ export default function ThinkingBlock({
                             </Markdown>
                             {isStreaming && (
                               <div className="sticky bottom-2 flex justify-end mt-2 pointer-events-none">
-                                <div className="text-[10px] text-primary/70 flex items-center gap-1.5 backdrop-blur-md bg-white/80 dark:bg-zinc-800/90 px-2.5 py-1 rounded-full border border-primary/20 dark:border-primary/30 shadow-sm dark:shadow-none pointer-events-auto">
-                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                <div className="text-[11px] text-primary flex items-center gap-1.5 bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-full border border-primary/20 pointer-events-auto">
+                                  <Loader2 className="w-3 h-3 animate-spin motion-reduce:animate-none" />
                                   {t("正在思考…", "Thinking…")}
                                 </div>
                               </div>

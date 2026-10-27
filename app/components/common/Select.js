@@ -164,7 +164,7 @@ export default function Select({
         aria-controls={open ? listboxId : undefined}
         aria-label={ariaLabel}
         aria-describedby={ariaDescribedBy}
-        className={`focus-ring flex items-center justify-between gap-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${className || `${size === "lg" ? "h-11" : "h-10"} w-full rounded-xl border bg-white px-3 text-sm dark:bg-zinc-900 ${open ? "border-primary dark:border-primary" : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"}`}`}
+        className={`focus-ring flex items-center justify-between gap-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${className || `${size === "lg" ? "h-11" : size === "sm" ? "h-9" : "h-10"} w-full rounded-xl border bg-white px-3 text-sm dark:bg-zinc-900 ${open ? "border-primary dark:border-primary" : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"}`}`}
       >
         <span className="truncate">{selected?.label ?? t("请选择", "Select")}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />

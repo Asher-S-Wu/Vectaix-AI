@@ -2,7 +2,7 @@
 
 import { cloneElement, useId } from 'react';
 import { useI18n } from '@/lib/client/i18n';
-import { clientText } from '@/lib/shared/i18n.mjs';
+import { apiJson } from '@/lib/client/apiClient';
 
 export function AdminField({ label, hint, children, ...props }) {
   const id = useId();
@@ -16,9 +16,6 @@ export function AdminNotice({ error, notice }) {
   return <>{error && <p role="alert" className="admin-notice admin-error">{message(error)}</p>}{notice && <p role="status" className="admin-notice">{message(notice)}</p>}</>;
 }
 
-export async function adminRequest(url, options) {
-  const response = await fetch(url, { cache: 'no-store', ...options, ...(options?.body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(options.body) } : {}) });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || clientText('操作失败，请检查配置后重试', 'The operation failed. Check the settings and try again.'));
-  return data;
+export function adminRequest(url, options) {
+  return apiJson(url, { cache: 'no-store', ...options });
 }

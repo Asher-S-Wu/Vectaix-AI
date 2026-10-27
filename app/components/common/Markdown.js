@@ -80,8 +80,11 @@ export default function Markdown({
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins}
         components={{
-          img: ({ node, src, alt, ...props }) => <NextImage {...props} src={src} alt={alt || t("图片", "Image")} width={1200} height={800} unoptimized className="h-auto max-w-full" />,
-          a: ({ node, href, children, ...props }) => <a {...props} href={href}>{children}</a>,
+          img: ({ node, src, alt, width, height, ...props }) => <NextImage {...props} src={src} alt={alt || t("图片", "Image")} width={0} height={0} sizes="100vw" unoptimized loading="lazy" className="h-auto w-auto max-w-full rounded-lg" />,
+          a: ({ node, href, children, ...props }) => {
+            const external = typeof href === "string" && /^https?:\/\//i.test(href);
+            return <a {...props} href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{children}</a>;
+          },
           table: ({ children, ...props }) => (
             <div className="table-scroll-wrapper">
               <table {...props}>{children}</table>
@@ -109,12 +112,12 @@ export default function Markdown({
             const lang = match ? match[1] : "";
             const rawText = extractText(codeEl.props.children).replace(/\n$/, "");
             return (
-              <div className="relative group/code my-4 rounded-xl overflow-hidden border border-zinc-200/50 shadow-sm">
-                <div className="flex items-center justify-between px-4 py-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200/50 text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
-                  <span>{lang || "code"}</span>
+              <div className="code-block my-4 overflow-hidden rounded-xl">
+                <div className="flex items-center justify-between gap-3 px-4 py-1.5 text-xs text-[#9AAAA0]">
+                  <span>{lang || t("代码", "Code")}</span>
                   <CodeCopyButton text={rawText} />
                 </div>
-                <pre className="!bg-zinc-900 !m-0 !rounded-none p-4 overflow-x-auto fade-scrollbar">
+                <pre className="!m-0 !rounded-none !bg-transparent !border-0 !px-4 !pb-4 !pt-1 overflow-x-auto fade-scrollbar">
                   {cloneElement(codeEl, {
                     className: `${codeClass} !bg-transparent text-[13.5px] leading-relaxed`.trim(),
                   })}
@@ -139,32 +142,31 @@ function extractText(node) {
 
 function CodeCopyButton({ text }) {
   const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
-  
+  const [state, setState] = useState("idle");
+  const timerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
   const handleCopy = async () => {
+    clearTimeout(timerRef.current);
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {}
+      setState("copied");
+    } catch {
+      setState("failed");
+    }
+    timerRef.current = setTimeout(() => setState("idle"), 2000);
   };
 
   return (
     <button
+      type="button"
       onClick={handleCopy}
-      className="flex items-center gap-1 hover:text-primary transition-colors"
+      aria-live="polite"
+      className="flex min-h-8 items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-white/10 hover:text-[#F2F5F2]"
     >
-      {copied ? (
-        <>
-          <Check size={12} />
-          <span>{t("已复制", "Copied")}</span>
-        </>
-      ) : (
-        <>
-          <Copy size={12} />
-          <span>{t("复制", "Copy")}</span>
-        </>
-      )}
+      {state === "copied" ? <Check size={13} /> : <Copy size={13} />}
+      <span>{state === "copied" ? t("已复制", "Copied") : state === "failed" ? t("复制失败", "Copy failed") : t("复制", "Copy")}</span>
     </button>
   );
 }

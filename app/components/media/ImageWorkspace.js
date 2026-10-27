@@ -7,9 +7,10 @@ import ApplyGlobalMediaButton from '@/app/components/media/ApplyGlobalMediaButto
 import { useEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ImagePlus, Loader2, RefreshCw, Sparkles, Upload, Wand2, X } from 'lucide-react';
+import { ImagePlus, Loader2, RefreshCw, Sparkles, Upload, X } from 'lucide-react';
 import ImageResults from '@/app/components/media/ImageResults';
 import ImageHistory from '@/app/components/media/ImageHistory';
+import MediaWorkspaceHeading from '@/app/components/media/MediaWorkspaceHeading';
 import { editImage, generateImage } from '@/lib/media/client/media';
 import {
   getImageCountOptions,
@@ -35,6 +36,7 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
   const requestControllerRef = useRef(null);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [requestFailed, setRequestFailed] = useState(false);
   const [results, setResults] = useState([]);
   const [historyRevision, setHistoryRevision] = useState(0);
   const [count, setCount] = useState(1);
@@ -55,7 +57,8 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
   } catch (validationError) {
     optionsError = validationError.message;
   }
-  if (mode === 'edit') {
+  const missingReferences = mode === 'edit' && sourceImages.length === 0;
+  if (mode === 'edit' && !missingReferences) {
     try {
       validateImageReferences(model, sourceImages.map(({ file }) => file), { requireImages: true, locale });
     } catch (validationError) {
@@ -75,6 +78,7 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
     setError('');
+    setRequestFailed(false);
     setNotice('');
     setResults([]);
     setResultMode(nextMode);
@@ -133,6 +137,7 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
     event.preventDefault();
     if (!serviceEnabled || requestControllerRef.current) return;
     setError('');
+    setRequestFailed(false);
     setNotice('');
 
     if (!prompt.trim()) {
@@ -172,6 +177,7 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
     } catch (generateError) {
       if (controller.signal.aborted || requestControllerRef.current !== controller) return;
       if (generateError.results) setResults(generateError.results);
+      setRequestFailed(true);
       setError(generateError instanceof Error ? generateError.message : ["图片处理失败，请稍后再试", "Image processing failed. Please try again later."]);
     } finally {
       if (requestControllerRef.current === controller) {
@@ -190,14 +196,8 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
 
   return (
     <div className="space-y-6">
-      <div className="glass-effect rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 p-5">
-        <div className="mb-5 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Wand2 className="h-5 w-5" /></span>
-          <div>
-            <h2 className="text-lg font-semibold">{t("图片生成", "Image generation")}</h2>
-            <p className="text-sm text-zinc-500">{t("使用 {model} 生成新图片或编辑已有图片。", "Generate or edit images with {model}.", { model: modelConfig.name })}</p>
-          </div>
-        </div>
+      <MediaWorkspaceHeading title={t("图片生成", "Image generation")} description={t("用文字描绘画面，或上传参考图片进行编辑。", "Describe an image to generate it, or upload reference images to edit.")} modelLabel={modelConfig.name} />
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 dark:border-zinc-700">
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <AnimatePresence initial={false}>
@@ -210,10 +210,10 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:text-red-300">
                   <span role="alert">{displayedError}</span>
-                  {!validationError ? (
-                    <button type="submit" disabled={isGenerating} className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline disabled:opacity-50 dark:text-red-300">
+                  {requestFailed && !validationError ? (
+                    <button type="submit" disabled={isGenerating} className="shrink-0 inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-950/50">
                       <RefreshCw className="h-3 w-3" /> {t("重试", "Retry")} </button>
                   ) : null}
                 </div>
@@ -221,9 +221,32 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
             ) : null}
           </AnimatePresence>
 
+          <div role="group" aria-label={t("处理方式", "Mode")} className="relative grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 p-1">
+            <button type="button" aria-pressed={mode === 'generate'} disabled={isGenerating} onClick={() => handleModeChange('generate')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'generate' ? 'text-zinc-800' : 'text-zinc-500 hover:text-zinc-700'}`}>
+              {mode === 'generate' && (
+                <motion.span
+                  layoutId="image-mode-pill"
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 320 }}
+                  className="selection-surface absolute inset-0 rounded-lg"
+                />
+              )}
+              <span className="relative flex items-center gap-2"><Sparkles className="h-4 w-4" /> {t("生成图片", "Generate image")}</span>
+            </button>
+            <button type="button" aria-pressed={mode === 'edit'} disabled={isGenerating} onClick={() => handleModeChange('edit')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'edit' ? 'text-zinc-800' : 'text-zinc-500 hover:text-zinc-700'}`}>
+              {mode === 'edit' && (
+                <motion.span
+                  layoutId="image-mode-pill"
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 320 }}
+                  className="selection-surface absolute inset-0 rounded-lg"
+                />
+              )}
+              <span className="relative flex items-center gap-2"><ImagePlus className="h-4 w-4" /> {t("编辑图片", "Edit image")}</span>
+            </button>
+          </div>
+
           <div className="space-y-2">
             <label htmlFor="image-model" className="text-sm font-medium">{t("图片模型", "Image model")}</label>
-            <Select disabled={isGenerating} id="image-model" value={modelOption.id} onChange={handleModelChange} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary" options={IMAGE_MODEL_OPTIONS.map(option => ({
+            <Select disabled={isGenerating} id="image-model" value={modelOption.id} onChange={handleModelChange} size="lg" options={IMAGE_MODEL_OPTIONS.map(option => ({
   id: option.id,
   label: option.name
 }))} />
@@ -232,32 +255,9 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
           {modelOption.modes.length > 0 ? (
             <div className="space-y-2">
               <label htmlFor="image-generation-mode" className="text-sm font-medium">{t("生成模式", "Generation mode")}</label>
-              <Select disabled={isGenerating} id="image-generation-mode" value={model} onChange={handleModelChange} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary" options={modelOption.modes} />
+              <Select disabled={isGenerating} id="image-generation-mode" value={model} onChange={handleModelChange} size="lg" options={modelOption.modes} />
             </div>
           ) : null}
-
-          <div className="relative grid grid-cols-2 gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/70 dark:bg-zinc-900/70 p-1">
-            <button type="button" disabled={isGenerating} onClick={() => handleModeChange('generate')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'generate' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
-              {mode === 'generate' && (
-                <motion.span
-                  layoutId="image-mode-pill"
-                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 320 }}
-                  className="selection-surface absolute inset-0 rounded-lg shadow-sm"
-                />
-              )}
-              <span className="relative flex items-center gap-2"><Sparkles className="h-4 w-4" /> {t("生成图片", "Generate image")}</span>
-            </button>
-            <button type="button" disabled={isGenerating} onClick={() => handleModeChange('edit')} className={`relative flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'edit' ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>
-              {mode === 'edit' && (
-                <motion.span
-                  layoutId="image-mode-pill"
-                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 320 }}
-                  className="selection-surface absolute inset-0 rounded-lg shadow-sm"
-                />
-              )}
-              <span className="relative flex items-center gap-2"><ImagePlus className="h-4 w-4" /> {t("编辑图片", "Edit image")}</span>
-            </button>
-          </div>
 
           <AnimatePresence initial={false}>
           {mode === 'edit' ? (
@@ -269,7 +269,7 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label
                   htmlFor="source-images"
-                  className={`flex min-h-[164px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 px-4 py-5 text-center text-sm text-zinc-500 transition-colors ${sourceImages.length >= modelConfig.maxReferenceImages ? 'cursor-default opacity-70' : 'cursor-pointer hover:border-primary hover:text-primary'}`}
+                  className={`flex min-h-[164px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 px-4 py-5 text-center text-sm text-zinc-500 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30 ${sourceImages.length >= modelConfig.maxReferenceImages || isGenerating ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-primary hover:text-primary'}`}
                 >
                   <Upload className="mb-2 h-6 w-6" />
                   <span className="font-medium">
@@ -287,18 +287,18 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
                       ...modelConfig.extensions.map((extension) => `.${extension}`),
                     ].join(',')}
                     multiple
-                    disabled={sourceImages.length >= modelConfig.maxReferenceImages}
+                    disabled={isGenerating || sourceImages.length >= modelConfig.maxReferenceImages}
                     className="sr-only"
                     onChange={(event) => handleSourceImagesChange(event.target.files)}
                   />
                 </label>
 
                 {sourceImages.map(({ file, previewUrl }, index) => (
-                  <div key={previewUrl} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
+                  <div key={previewUrl} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50">
                     <div className="relative h-[132px]">
                       <NextImage src={previewUrl} alt={t("第 {index} 张参考图片：{name}", "Reference image {index}: {name}", { index: formatNumber(index + 1), name: file.name })} fill sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 25vw" unoptimized className="object-contain" />
                       <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs text-white">{t("第 {index} 张", "Image {index}", { index: formatNumber(index + 1) })}</span>
-                      <button type="button" onClick={() => handleRemoveSourceImage(previewUrl)} className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label={t("移除第 {index} 张参考图片", "Remove reference image {index}", { index: formatNumber(index + 1) })}>
+                      <button type="button" disabled={isGenerating} onClick={() => handleRemoveSourceImage(previewUrl)} className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50" aria-label={t("移除第 {index} 张参考图片", "Remove reference image {index}", { index: formatNumber(index + 1) })}>
                         <X className="h-4 w-4" />
                       </button>
                     </div>
@@ -312,13 +312,13 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
 
           <div className="space-y-2">
             <label htmlFor="image-prompt" className="text-sm font-medium">{t("图片描述", "Image description")}</label>
-            <textarea id="image-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={modelConfig.promptMaxLength} placeholder={mode === 'edit' ? t("描述你想修改的地方", "Describe what you want to change") : t("描述你想生成的画面", "Describe the image you want to create")} className="min-h-[140px] w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-sm outline-none focus:border-primary" />
-            <div className="text-right text-xs text-zinc-500">{prompt.length}/{modelConfig.promptMaxLength}</div>
+            <textarea id="image-prompt" disabled={isGenerating} value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={modelConfig.promptMaxLength} placeholder={mode === 'edit' ? t("描述你想修改的地方", "Describe what you want to change") : t("描述你想生成的画面", "Describe the image you want to create")} className="min-h-[140px] w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60" />
+            <div aria-live="polite" className="text-right text-xs tabular-nums text-zinc-500">{formatNumber(prompt.length)}/{formatNumber(modelConfig.promptMaxLength)}</div>
           </div>
 
           <div className="space-y-2">
             <label htmlFor="image-size" className="text-sm font-medium">{t("图片比例", "Image aspect ratio")}</label>
-            <Select disabled={isGenerating} id="image-size" value={size} onChange={handleSizeChange} className="h-11 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm outline-none cursor-pointer transition-colors hover:border-zinc-300 focus:border-primary" options={modelConfig.sizes} />
+            <Select disabled={isGenerating} id="image-size" value={size} onChange={handleSizeChange} size="lg" options={modelConfig.sizes} />
           </div>
 
           <div className="space-y-2">
@@ -326,12 +326,13 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
             <Select id="image-count" ariaLabel={t("图片数量", "Image count")} value={count} onChange={setCount} options={getImageCountOptions(locale)} disabled={isGenerating} size="lg" />
           </div>
           {canManageDefaults && <ApplyGlobalMediaButton section="image" value={selectedOptions} disabled={isGenerating || Boolean(optionsError)} />}
-          <button type="submit" disabled={!serviceEnabled || isGenerating || Boolean(validationError)} className="btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:opacity-60">
+          {missingReferences && <p className="text-sm text-zinc-500">{t("先添加至少 1 张参考图片。", "Add at least one reference image first.")}</p>}
+          <button type="submit" disabled={!serviceEnabled || isGenerating || Boolean(validationError) || missingReferences} className="btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl font-medium disabled:cursor-not-allowed disabled:opacity-60">
             {isGenerating ? <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" /> : <Sparkles className="h-5 w-5" />}
             {isGenerating ? t("处理中…", "Processing…") : (mode === 'edit' ? t("编辑图片", "Edit image") : t("生成图片", "Generate image"))}
           </button>
           {isGenerating ? (
-            <button type="button" onClick={handleCancel} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
+            <button type="button" onClick={handleCancel} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100">
               <X className="h-4 w-4" /> {t("取消", "Cancel")} </button>
           ) : null}
           {notice ? <p role="status" className="text-sm text-zinc-500">{t(...notice)}</p> : null}
@@ -343,12 +344,9 @@ export default function ImageWorkspace({ canManageDefaults = false, serviceEnabl
       ) : results.length ? (
         <ImageResults results={results} title={resultTitle} />
       ) : (
-        <div className="glass-effect rounded-2xl border border-dashed border-zinc-200/60 dark:border-zinc-800/60 p-8 flex flex-col items-center justify-center text-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <ImagePlus className="h-6 w-6" />
-          </span>
-          <p className="text-sm font-medium text-zinc-500">{mode === 'edit' ? t("编辑后的图片会显示在这里", "Your edited images will appear here") : t("生成的图片会显示在这里", "Your generated images will appear here")}</p>
-          <p className="text-xs text-zinc-400">{mode === 'edit' ? t("上传参考图片，描述修改要求，点击「编辑图片」。", "Upload reference images, describe your changes, then select “Edit image”.") : t("输入画面描述，点击「生成图片」。", "Describe an image, then select “Generate image”.")}</p>
+        <div className="rounded-2xl border border-dashed border-zinc-300 p-8 flex flex-col items-center justify-center text-center gap-2">
+          <p className="text-sm font-medium text-zinc-600">{mode === 'edit' ? t("编辑后的图片会显示在这里", "Your edited images will appear here") : t("生成的图片会显示在这里", "Your generated images will appear here")}</p>
+          <p className="text-xs text-zinc-500">{mode === 'edit' ? t("上传参考图片，描述修改要求，点击「编辑图片」。", "Upload reference images, describe your changes, then select “Edit image”.") : t("输入画面描述，点击「生成图片」。", "Describe an image, then select “Generate image”.")}</p>
         </div>
       )}
       <ImageHistory refreshKey={historyRevision} onDeleted={fileId => setResults(current => current.filter(image => image.fileId !== fileId))} />

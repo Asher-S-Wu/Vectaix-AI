@@ -2,6 +2,7 @@
 import { useI18n } from "@/lib/client/i18n";
 import { translate } from "@/lib/shared/i18n.mjs";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, ExternalLink, FileText, Globe, Loader2, Search, Terminal, X } from "lucide-react";
@@ -131,8 +132,8 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
     <button
       type="button"
       onClick={() => onClick?.(activeSrc)}
-      className={`block text-left group/thumb ${className}`}
-      title={t("点击查看", "View image")}
+      className={`block rounded-lg text-left group/thumb ${className}`}
+      aria-label={t("查看大图", "View full-size image")}
     >
       <Image
         src={activeSrc}
@@ -140,7 +141,7 @@ export function Thumb({ src, previewSrc = "", className = "", onClick }) {
         width={280}
         height={240}
         unoptimized
-        className="block max-w-[240px] sm:max-w-[280px] max-h-[180px] sm:max-h-[240px] w-auto h-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 transition-all duration-300 group-hover/thumb:shadow-md group-hover/thumb:scale-[1.02]"
+        className="block max-w-[240px] sm:max-w-[280px] max-h-[180px] sm:max-h-[240px] w-auto h-auto object-cover rounded-lg border border-zinc-200 bg-zinc-50 transition-opacity group-hover/thumb:opacity-90"
         loading="lazy"
         decoding="async"
       />
@@ -157,13 +158,13 @@ export function AttachmentCard({ file, compact = false }) {
     : null;
 
   return (
-    <div className={`flex items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/70 px-3 py-2 ${compact ? "min-w-[220px]" : "min-w-[240px]"}`}>
+    <div className={`flex w-full max-w-sm items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-zinc-800 ${compact ? "sm:min-w-[220px]" : "sm:min-w-[240px]"}`}>
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 shrink-0">
         <FileText size={18} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-zinc-700 dark:text-zinc-300">{file.name}</div>
-        <div className="truncate text-xs text-zinc-400">{formatAttachmentMeta(file, locale)}</div>
+        <div className="truncate text-sm font-medium text-zinc-700" title={file.name}>{file.name}</div>
+        <div className="truncate text-xs text-zinc-500">{formatAttachmentMeta(file, locale)}</div>
         {file.category === "audio" && file.url ? (
           <audio controls preload="metadata" src={file.url} className="mt-2 h-8 w-full max-w-[320px]" />
         ) : null}
@@ -174,8 +175,9 @@ export function AttachmentCard({ file, compact = false }) {
       {downloadUrl ? (
         <a
           href={downloadUrl}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
           title={t("下载附件", "Download attachment")}
+          aria-label={t("下载 {name}", "Download {name}", { name: file.name })}
         >
           <Download size={15} />
         </a>
@@ -210,40 +212,30 @@ export function Citations({ citations }) {
 
   if (uniqueCitations.length === 0) return null;
 
-  const previewCount = Math.min(5, uniqueCitations.length);
-  const previewItems = uniqueCitations.slice(0, previewCount);
+  const previewItems = uniqueCitations.slice(0, 3);
 
   return (
-    <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
+    <div className="mt-3 pt-3 border-t border-zinc-200">
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 px-2.5 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-full text-xs transition-colors"
-        title={t("查看全部来源", "View all sources")}
+        aria-haspopup="dialog"
+        className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-full text-xs transition-colors"
       >
-        <Search size={12} className="text-zinc-500" />
-        <span>{t("信息来源", "Sources")}</span>
-        <span className="flex -space-x-1.5">
-          {previewItems.map((_, idx) => (
-            <span key={idx} className="inline-flex w-4 h-4 rounded-full border border-white dark:border-zinc-700 bg-white dark:bg-zinc-800 items-center justify-center overflow-hidden">
-              <Globe size={12} />
-            </span>
-          ))}
-        </span>
-        {uniqueCitations.length > previewCount && (
-          <span className="text-zinc-500">+{formatNumber(uniqueCitations.length - previewCount)}</span>
-        )}
+        <Globe size={13} className="text-zinc-500" />
+        <span>{t("{count} 个信息来源", "{count} sources", { count: formatNumber(uniqueCitations.length) })}</span>
+        <span className="hidden max-w-[16rem] truncate text-zinc-500 sm:inline">{previewItems.map(item => getDomainFromUrl(item.url)).filter(Boolean).slice(0, 3).join("、")}</span>
       </button>
 
-      <AnimatePresence>
+      {typeof document !== "undefined" && createPortal(<AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label={t("信息来源", "Sources")}>
+          <div className="fixed inset-0 z-[70] flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label={t("信息来源", "Sources")}>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/40"
               onClick={() => setOpen(false)}
             />
             <motion.div
@@ -251,25 +243,26 @@ export function Citations({ citations }) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.2 }}
-              className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 w-full max-w-md p-4"
+              className="relative bg-white rounded-2xl shadow-pop border border-zinc-200 dark:border-zinc-700 w-full max-w-md p-4"
             >
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 font-medium">
-                <Search size={14} />
+              <h2 className="flex items-center gap-2 text-sm text-zinc-800 font-medium">
+                <Globe size={14} />
                 {t("信息来源", "Sources")}
-              </div>
+              </h2>
               <button
                 type="button"
+                autoFocus
                 onClick={() => setOpen(false)}
-                className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                title={t("关闭", "Close")}
+                className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100"
+                aria-label={t("关闭", "Close")}
               >
                 <X size={16} />
               </button>
             </div>
 
               <div className="max-h-[60vh] overflow-y-auto fade-scrollbar">
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-0.5">
                   {uniqueCitations.map((citation, idx) => {
                     const domain = getDomainFromUrl(citation.url) || citation.url;
                     return (
@@ -278,14 +271,14 @@ export function Citations({ citations }) {
                         href={citation.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-2.5 py-2 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 transition-colors"
+                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-100 rounded-lg text-sm text-zinc-700 transition-colors"
                         title={citation.title || citation.url}
                       >
-                        <Globe size={16} className="flex-shrink-0" />
-                        <span className="truncate flex-1">
-                          {citation.title || domain}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">{citation.title || domain}</span>
+                          <span className="block truncate text-xs text-zinc-500">{domain}</span>
                         </span>
-                        <ExternalLink size={14} className="text-zinc-400" />
+                        <ExternalLink size={14} className="shrink-0 text-zinc-400" />
                       </a>
                     );
                   })}
@@ -294,7 +287,7 @@ export function Citations({ citations }) {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
     </div>
   );
 }
@@ -330,7 +323,7 @@ export function ToolRunPreview({ tool }) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/70 dark:bg-zinc-900/40 px-2.5 py-2 text-xs text-zinc-600 dark:text-zinc-300 hover:border-primary/40 hover:text-primary transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-xs text-zinc-600 hover:border-primary/40 hover:text-primary transition-colors"
             >
               <Globe size={14} className="shrink-0" />
               <span className="truncate flex-1">{title}</span>
@@ -348,7 +341,7 @@ export function ToolRunPreview({ tool }) {
   if (!previewText) return null;
 
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white/70 dark:bg-zinc-900/40 px-3 py-2 text-xs text-zinc-600 dark:text-zinc-300 whitespace-pre-wrap break-words">
+    <div className="max-h-60 overflow-y-auto fade-scrollbar rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 whitespace-pre-wrap break-words">
       {previewText}
     </div>
   );
@@ -374,15 +367,15 @@ export function ToolRunCards({ tools }) {
         return (
           <div
             key={tool.id}
-            className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-900/50 px-3 py-3"
+            className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3"
           >
             <div className="flex items-center gap-2 mb-2">
-              <div className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                {isRunning ? <Loader2 size={13} className="animate-spin text-primary" /> : icon}
+              <div className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-200 text-zinc-600">
+                {isRunning ? <Loader2 size={13} className="animate-spin motion-reduce:animate-none text-primary" /> : icon}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-zinc-700 dark:text-zinc-200">{title}</div>
-                <div className={`text-[11px] ${isRunning ? "text-primary" : "text-zinc-400"}`}>{statusText}</div>
+                <div className="truncate text-sm font-medium text-zinc-700">{title}</div>
+                <div className={`text-xs ${tool.status === "error" ? "text-red-500" : isRunning ? "text-primary" : "text-zinc-500"}`}>{statusText}</div>
               </div>
             </div>
             <ToolRunPreview tool={tool} />

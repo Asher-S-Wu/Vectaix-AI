@@ -26,7 +26,7 @@ const TOAST_TYPES = {
   info: {
     icon: Info,
     bg: "toast-info",
-    iconColor: "text-blue-500",
+    iconColor: "text-primary",
   },
 };
 
@@ -46,24 +46,22 @@ function ToastItem({ toast, onDismiss }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: -40, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.95 }}
-      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-      className={`
-        flex items-center gap-2.5 px-4 py-2.5 rounded-full border shadow-pop backdrop-blur-sm
-        ${config.bg}
-        max-w-[90vw] sm:max-w-md
-      `}
+      role={toast.type === "error" ? "alert" : "status"}
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ type: "spring", stiffness: 420, damping: 32 }}
+      className={`flex items-center gap-2.5 pl-4 pr-2 py-2.5 rounded-2xl border shadow-pop ${config.bg} max-w-[calc(100vw-2rem)] sm:max-w-md`}
     >
       <Icon size={18} className={`flex-shrink-0 ${config.iconColor}`} />
       <span className="toast-text text-sm font-medium break-words line-clamp-2">
         {message}
       </span>
       <button
+        type="button"
         onClick={() => onDismiss(toast.id)}
         aria-label={t("关闭提示", "Dismiss notification")}
-        className="toast-close flex-shrink-0 p-0.5 rounded-full transition-colors"
+        className="toast-close flex-shrink-0 p-1.5 rounded-full transition-colors"
       >
         <X size={14} />
       </button>

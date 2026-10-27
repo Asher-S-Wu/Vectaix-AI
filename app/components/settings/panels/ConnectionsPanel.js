@@ -1,63 +1,156 @@
 'use client';
 import { useI18n } from '@/lib/client/i18n';
 import Select from '@/app/components/common/Select';
-import {useEffect,useRef,useState} from 'react';
+import ConfirmModal from '@/app/components/modals/ConfirmModal';
+import { useEffect, useRef, useState } from 'react';
+import { File, Folder } from 'lucide-react';
 import { apiJson } from '@/lib/client/apiClient';
-const request = (url, method = 'GET', body) => apiJson(url, { method, ...(body === undefined ? {} : { body }) });
-const field='w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2 text-sm';
-const button='rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm disabled:opacity-50';
+import { Section, Field, Action, ErrorNotice, inputClass } from '../SettingsUI';
 
-export default function ConnectionsPanel(){
-  const { t, formatDate, formatNumber, localizeMessage } = useI18n();
+const request = (url, method = 'GET', body) => apiJson(url, { method, ...(body === undefined ? {} : { body }) });
+const EMPTY_DRAFT = { name: '', kind: 'mcp', url: '', root: '', authType: 'apiKey', apiKey: '', username: '', password: '', accessKeyId: '', secretAccessKey: '', knownHosts: '', region: '', apiKeyHeader: 'Authorization', clientId: '', clientSecret: '' };
+
+export default function ConnectionsPanel() {
+  const { t, formatDate, formatNumber } = useI18n();
   const addressExamples = {
-   mcp: t("例如 https://example.com/mcp", "For example, https://example.com/mcp"),
-   webdav: t("例如 https://files.example.com/dav", "For example, https://files.example.com/dav"),
-   s3: t("例如 https://s3.example.com", "For example, https://s3.example.com"),
-   sftp: t("例如 sftp://files.example.com", "For example, sftp://files.example.com"),
-   smb: t("例如 smb://files.example.com", "For example, smb://files.example.com"),
-   ftp: t("例如 ftp://files.example.com", "For example, ftp://files.example.com"),
+    mcp: t("例如 https://example.com/mcp", "For example, https://example.com/mcp"),
+    webdav: t("例如 https://files.example.com/dav", "For example, https://files.example.com/dav"),
+    s3: t("例如 https://s3.example.com", "For example, https://s3.example.com"),
+    sftp: t("例如 sftp://files.example.com", "For example, sftp://files.example.com"),
+    smb: t("例如 smb://files.example.com", "For example, smb://files.example.com"),
+    ftp: t("例如 ftp://files.example.com", "For example, ftp://files.example.com"),
   };
 
- const [connections,setConnections]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[draft,setDraft]=useState({name:'',kind:'mcp',url:'',root:'',authType:'apiKey',apiKey:'',username:'',password:'',accessKeyId:'',secretAccessKey:'',knownHosts:'',region:'',apiKeyHeader:'Authorization',clientId:'',clientSecret:''}),[importText,setImportText]=useState(''),[files,setFiles]=useState(null),[preview,setPreview]=useState(''),[library,setLibrary]=useState([]),[writeFileId,setWriteFileId]=useState(''),[destination,setDestination]=useState(''),[writeConfirmed,setWriteConfirmed]=useState(false),[oauthLinks,setOauthLinks]=useState({});
- const running=useRef(false);
- const load=async()=>setConnections((await request('/api/connections')).connections);
- useEffect(()=>{let alive=true;request('/api/connections').then(data=>{if(alive)setConnections(data.connections);}).catch(e=>{if(alive)setError(e.message);});return()=>{alive=false;};},[]);
- const run=async fn=>{if(running.current)return;running.current=true;setBusy(true);setError('');try{await fn();await load();}catch(e){setError(e.message);}finally{running.current=false;setBusy(false);}};
- const edit=(key,value)=>setDraft(d=>({...d,[key]:value}));
- const browse=async(id,path='')=>{const data=await request(`/api/connections/${id}/files?path=${encodeURIComponent(path)}`);setFiles({id,path,items:data.files});setPreview('');setDestination(path?path+'/':'');setWriteConfirmed(false);setLibrary((await request('/api/library')).files);};
- return <fieldset disabled={busy} className="min-w-0 space-y-5"><div><h3 className="text-lg font-semibold">{t("外部工具与远端文件", "External tools and remote files")}</h3><p className="mt-1 text-sm text-slate-500">{t("连接外部工具和文件夹，选择允许助手使用的工具。调用外部工具或写回文件前会请你确认。", "Connect external tools and folders, then choose which tools your assistant can use. You will be asked to confirm before calling external tools or writing files back.")}</p></div>{error&&<p role="alert" className="text-sm text-red-500">{localizeMessage(error)}</p>}
- <div className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-700 p-4"><h4 className="font-medium">{t("添加连接", "Add connection")}</h4><div className="grid gap-3 sm:grid-cols-2"><input className={field} placeholder={t("连接名称", "Connection name")} value={draft.name} onChange={e=>edit('name',e.target.value)}/><Select className={field} ariaLabel={t('连接类型', 'Connection type')} value={draft.kind} onChange={e => edit('kind', e)} options={[...[['mcp', t("MCP 工具", "MCP tools")], ['webdav', 'WebDAV'], ['s3', t("S3 对象存储", "S3 storage")], ['sftp', 'SFTP'], ['smb', 'SMB'], ['ftp', t("FTP（加密连接）", "FTP (encrypted)")]].map(([value, label]) => ({
-  id: value,
-  label: label
-}))]} /></div><input className={field} aria-label={t("连接地址", "Connection URL")} placeholder={addressExamples[draft.kind]} value={draft.url} onChange={e=>edit('url',e.target.value)}/>
- {draft.kind==='mcp'?<><Select className={field} ariaLabel={t('认证方式', 'Authentication')} value={draft.authType} onChange={e => edit('authType', e)} options={[{
-  id: "apiKey",
-  label: t("API 密钥", "API key")
-}, {
-  id: "oauth",
-  label: t("网页登录授权（OAuth）", "Sign in to authorize (OAuth)")
-}, {
-  id: "none",
-  label: t("无需认证", "No authentication")
-}]} />{draft.authType==='apiKey'&&<><Select className={field} ariaLabel={t('密钥类型', 'API key type')} value={draft.apiKeyHeader} onChange={e => edit('apiKeyHeader', e)} options={[{
-  id: "Authorization",
-  label: t("Bearer 密钥", "Bearer token")
-}, {
-  id: "X-API-Key",
-  label: t("X-API-Key 密钥", "X-API-Key header")
-}]} /><input className={field} type="password" autoComplete="new-password" placeholder={t("API 密钥", "API key")} value={draft.apiKey} onChange={e=>edit('apiKey',e.target.value)}/></>}{draft.authType==='oauth'&&<details><summary className="text-sm cursor-pointer">{t("填写服务商提供的客户端信息（如需要）", "Enter client details from your provider, if required")}</summary><input className={`${field} mt-2`} placeholder={t("客户端编号（Client ID）", "Client ID")} value={draft.clientId} onChange={e=>edit('clientId',e.target.value)}/><input className={`${field} mt-2`} type="password" placeholder={t("客户端密钥（Client Secret，选填）", "Client secret (optional)")} value={draft.clientSecret} onChange={e=>edit('clientSecret',e.target.value)}/></details>}</>:<><input className={field} placeholder={t("限定文件夹（S3 请填写 bucket/文件夹）", "Allowed folder (use bucket/folder for S3)")} value={draft.root} onChange={e=>edit('root',e.target.value)}/>{draft.kind==='s3'?<div className="grid gap-3"><input className={field} placeholder="Access Key ID" value={draft.accessKeyId} onChange={e=>edit('accessKeyId',e.target.value)}/><input className={field} type="password" placeholder="Secret Access Key" value={draft.secretAccessKey} onChange={e=>edit('secretAccessKey',e.target.value)}/><input className={field} placeholder={t("区域", "Region")} value={draft.region} onChange={e=>edit('region',e.target.value)}/></div>:<div className="grid gap-3 sm:grid-cols-2"><input className={field} autoComplete="off" placeholder={t("用户名", "Username")} value={draft.username} onChange={e=>edit('username',e.target.value)}/><input className={field} type="password" autoComplete="new-password" placeholder={t("密码", "Password")} value={draft.password} onChange={e=>edit('password',e.target.value)}/></div>}{draft.kind==='sftp'&&<textarea className={field} placeholder={t("服务器 known_hosts 公钥记录", "Server public key from known_hosts")} value={draft.knownHosts} onChange={e=>edit('knownHosts',e.target.value)}/>}</>}
- <button disabled={busy} className={button} onClick={()=>run(async()=>{await request('/api/connections','POST',{name:draft.name,kind:draft.kind,config:{url:draft.url,root:draft.root,region:draft.region,authType:draft.authType,apiKeyHeader:draft.apiKeyHeader},credentials:{apiKey:draft.apiKey,username:draft.username,password:draft.password,accessKeyId:draft.accessKeyId,secretAccessKey:draft.secretAccessKey,knownHosts:draft.knownHosts,...(draft.clientId?{clientInformation:{client_id:draft.clientId,...(draft.clientSecret?{client_secret:draft.clientSecret}:{})}}:{})}});setDraft(d=>({...d,apiKey:'',password:'',secretAccessKey:'',clientSecret:''}));})}>{t("添加连接", "Add connection")}</button>
- <details><summary className="cursor-pointer text-sm">{t("从 MCP 配置导入", "Import MCP configuration")}</summary><textarea className={`${field} mt-3 min-h-28`} placeholder={t("{\"mcpServers\":{\"我的工具\":{\"url\":\"https://example.com/mcp\"}}}", "{\"mcpServers\":{\"My tool\":{\"url\":\"https://example.com/mcp\"}}}")} value={importText} onChange={e=>setImportText(e.target.value)}/><button disabled={busy} className={`${button} mt-2`} onClick={()=>run(async()=>{await request('/api/connections','POST',{import:JSON.parse(importText)});setImportText('');})}>{t("导入配置", "Import configuration")}</button></details></div>
- {connections.map(c=><div key={c.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3"><div className="flex items-center justify-between gap-3"><div><h4 className="font-medium">{c.name}</h4><p className="text-xs text-slate-500 break-all">{c.config.url}</p></div><label className="text-sm flex gap-2"><input type="checkbox" checked={c.enabled} disabled={busy} onChange={e=>run(()=>request(`/api/connections/${c.id}`,'PATCH',{enabled:e.target.checked}))}/>{t("启用", "Enabled")}</label></div><div className="flex flex-wrap gap-2">{c.config.authType==='oauth'&&<button className={button} disabled={busy} onClick={()=>run(async()=>{const result=await request(`/api/connections/${c.id}/oauth`,'POST');if(result.authorizationUrl)setOauthLinks(links=>({...links,[c.id]:result.authorizationUrl}));})}>{t("网页登录授权", "Sign in to authorize")}</button>}{oauthLinks[c.id]&&<a href={oauthLinks[c.id]} target="_blank" rel="noopener noreferrer" className={`${button} text-blue-600`}>{t("前往授权页面", "Open authorization page")}</a>}<button className={button} disabled={busy} onClick={()=>run(async()=>{await request(`/api/connections/${c.id}/test`,'POST');})}>{t("测试连接", "Test connection")}</button>{c.kind!=='mcp'&&<button className={button} disabled={busy} onClick={()=>run(()=>browse(c.id))}>{t("浏览文件", "Browse files")}</button>}<button className={`${button} text-red-500`} disabled={busy} onClick={()=>run(async()=>{await request(`/api/connections/${c.id}`,'DELETE');if(files?.id===c.id)setFiles(null);})}>{t("删除", "Delete")}</button></div>{c.testedAt&&<p className="text-xs text-emerald-600">{t("已测试 · ", "Tested · ")}{formatDate(c.testedAt, { dateStyle: "medium", timeStyle: "short" })}</p>}{c.tools?.map(tool=><label key={tool.name} className="flex gap-3 text-sm border-t border-slate-100 dark:border-slate-800 pt-2"><input type="checkbox" disabled={busy} checked={tool.enabled===true} onChange={e=>run(()=>request(`/api/connections/${c.id}`,'PATCH',{tools:[{name:tool.name,enabled:e.target.checked}]}))}/><span><span className="font-medium">{tool.title||tool.name}</span><span className="block text-xs text-slate-500">{tool.description}</span></span></label>)}{Boolean(c.resources?.length||c.prompts?.length)&&<p className="text-xs text-slate-500">{t("{resources} 份资料 · {prompts} 个提示模板", "{resources} resources · {prompts} prompt templates", { resources: formatNumber(c.resources.length), prompts: formatNumber(c.prompts.length) })}</p>}</div>)}
- {files&&<div className="rounded-xl border p-4 space-y-2"><div className="flex justify-between"><h4 className="font-medium">/{files.path}</h4><button className={button} onClick={()=>setFiles(null)}>{t("关闭", "Close")}</button></div>{files.path&&<button className={button} onClick={()=>run(()=>browse(files.id,files.path.split('/').slice(0,-1).join('/')))}>{t("上一级", "Parent folder")}</button>}{files.items.map(item=><div className="flex flex-wrap items-center gap-2 py-1" key={item.path}><span className="flex-1 text-sm break-all">{item.isDirectory?'📁':'📄'} {item.name}</span>{item.isDirectory?<button className={button} onClick={()=>run(()=>browse(files.id,item.path))}>{t("打开", "Open")}</button>:<><button className={button} onClick={()=>run(async()=>setPreview((await request(`/api/connections/${files.id}/files?read=true&path=${encodeURIComponent(item.path)}`)).text))}>{t("查看文本", "View text")}</button><button className={button} onClick={()=>run(async()=>{const result=await request(`/api/connections/${files.id}/files`,'POST',{action:'import',path:item.path});setPreview(["已导入：{name}", "Imported: {name}", { name: result.file.name }]);})}>{t("导入", "Import")}</button></>}</div>)}<details className="border-t pt-3"><summary className="text-sm cursor-pointer">{t("将文件写回远端", "Write a file to remote storage")}</summary><div className="space-y-2 mt-2"><Select className={field} ariaLabel={t("选择要写回的文件", "Choose a file to write")} value={writeFileId} onChange={e => {
-  setWriteFileId(e);
-  setWriteConfirmed(false);
-}} options={[{
-  id: "",
-  label: t("从文件库选择文件", "Choose a file from your library")
-}, ...library.map(file => ({
-  id: file.fileId,
-  label: file.name
-}))]} /><input className={field} placeholder={t("远端完整文件路径", "Full remote file path")} value={destination} onChange={e=>{setDestination(e.target.value);setWriteConfirmed(false);}}/><label className="flex gap-2 text-sm"><input type="checkbox" checked={writeConfirmed} onChange={e=>setWriteConfirmed(e.target.checked)}/>{t("我确认写入此路径，并覆盖同名文件", "I confirm writing to this path and replacing any file with the same name")}</label><button className={button} disabled={busy||!writeConfirmed||!writeFileId||!destination} onClick={()=>run(async()=>{await request(`/api/connections/${files.id}/files`,'POST',{action:'write',fileId:writeFileId,destinationPath:destination,confirmed:true});await browse(files.id,files.path);setPreview(["文件已写回远端", "File written to remote storage"]);})}>{t("确认写回", "Confirm write")}</button></div></details>{preview&&<pre className="whitespace-pre-wrap max-h-64 overflow-auto rounded-lg bg-slate-100 dark:bg-slate-900 p-3 text-xs">{Array.isArray(preview) ? t(...preview) : preview}</pre>}</div>}
- </fieldset>;
+  const [connections, setConnections] = useState([]);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState(EMPTY_DRAFT);
+  const [importText, setImportText] = useState('');
+  const [files, setFiles] = useState(null);
+  const [preview, setPreview] = useState('');
+  const [library, setLibrary] = useState([]);
+  const [writeFileId, setWriteFileId] = useState('');
+  const [destination, setDestination] = useState('');
+  const [writeConfirmed, setWriteConfirmed] = useState(false);
+  const [oauthLinks, setOauthLinks] = useState({});
+  const [deleting, setDeleting] = useState(null);
+  const running = useRef(false);
+
+  const load = async () => setConnections((await request('/api/connections')).connections);
+  useEffect(() => {
+    let alive = true;
+    request('/api/connections').then(data => { if (alive) setConnections(data.connections); }).catch(failure => { if (alive) setError(failure.message); });
+    return () => { alive = false; };
+  }, []);
+  const run = async (task, message = '') => {
+    if (running.current) return;
+    running.current = true; setBusy(true); setError(''); setNotice('');
+    try { await task(); await load(); if (message) setNotice(message); } catch (failure) { setError(failure.message); } finally { running.current = false; setBusy(false); }
+  };
+  const edit = (key, value) => setDraft(current => ({ ...current, [key]: value }));
+  const browse = async (id, path = '') => {
+    const data = await request(`/api/connections/${id}/files?path=${encodeURIComponent(path)}`);
+    setFiles({ id, path, items: data.files });
+    setPreview('');
+    setDestination(path ? `${path}/` : '');
+    setWriteConfirmed(false);
+    setLibrary((await request('/api/library')).files);
+  };
+  const addConnection = event => {
+    event.preventDefault();
+    run(async () => {
+      await request('/api/connections', 'POST', {
+        name: draft.name, kind: draft.kind,
+        config: { url: draft.url, root: draft.root, region: draft.region, authType: draft.authType, apiKeyHeader: draft.apiKeyHeader },
+        credentials: { apiKey: draft.apiKey, username: draft.username, password: draft.password, accessKeyId: draft.accessKeyId, secretAccessKey: draft.secretAccessKey, knownHosts: draft.knownHosts, ...(draft.clientId ? { clientInformation: { client_id: draft.clientId, ...(draft.clientSecret ? { client_secret: draft.clientSecret } : {}) } } : {}) },
+      });
+      setDraft(current => ({ ...EMPTY_DRAFT, kind: current.kind }));
+    }, t("连接已添加", "Connection added"));
+  };
+  const importConfiguration = () => run(async () => {
+    let parsed;
+    try { parsed = JSON.parse(importText); } catch { throw new Error(t("配置不是有效的 JSON，请检查括号和引号。", "The configuration is not valid JSON. Check the brackets and quotes.")); }
+    await request('/api/connections', 'POST', { import: parsed });
+    setImportText('');
+  }, t("配置已导入", "Configuration imported"));
+  const deletingConnection = connections.find(item => item.id === deleting);
+
+  return <fieldset disabled={busy} className="min-w-0 space-y-5">
+    <ErrorNotice error={error} />
+    {notice && <p role="status" className="text-sm text-primary">{notice}</p>}
+    <Section title={t("添加连接", "Add connection")} description={t("连接外部工具和文件夹，选择允许助手使用的工具。调用外部工具或写回文件前会请你确认。", "Connect external tools and folders, then choose which tools your assistant can use. You will be asked to confirm before calling external tools or writing files back.")}>
+      <form className="space-y-4" onSubmit={addConnection}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t("连接名称", "Connection name")} value={draft.name} onChange={event => edit('name', event.target.value)} required maxLength={100} />
+          <Field label={t("连接类型", "Connection type")}><Select className={inputClass} value={draft.kind} onChange={value => edit('kind', value)} options={[['mcp', t("MCP 工具", "MCP tools")], ['webdav', 'WebDAV'], ['s3', t("S3 对象存储", "S3 storage")], ['sftp', 'SFTP'], ['smb', 'SMB'], ['ftp', t("FTP（加密连接）", "FTP (encrypted)")]].map(([id, label]) => ({ id, label }))} /></Field>
+        </div>
+        <Field label={t("连接地址", "Connection URL")} value={draft.url} onChange={event => edit('url', event.target.value)} placeholder={addressExamples[draft.kind]} required />
+        {draft.kind === 'mcp' ? <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t("认证方式", "Authentication")}><Select className={inputClass} value={draft.authType} onChange={value => edit('authType', value)} options={[{ id: "apiKey", label: t("API 密钥", "API key") }, { id: "oauth", label: t("网页登录授权（OAuth）", "Sign in to authorize (OAuth)") }, { id: "none", label: t("无需认证", "No authentication") }]} /></Field>
+            {draft.authType === 'apiKey' && <Field label={t("密钥类型", "API key type")}><Select className={inputClass} value={draft.apiKeyHeader} onChange={value => edit('apiKeyHeader', value)} options={[{ id: "Authorization", label: t("Bearer 密钥", "Bearer token") }, { id: "X-API-Key", label: t("X-API-Key 密钥", "X-API-Key header") }]} /></Field>}
+          </div>
+          {draft.authType === 'apiKey' && <Field label={t("API 密钥", "API key")} type="password" autoComplete="new-password" value={draft.apiKey} onChange={event => edit('apiKey', event.target.value)} />}
+          {draft.authType === 'oauth' && <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700"><summary className="cursor-pointer text-sm font-medium">{t("填写服务商提供的客户端信息（如需要）", "Enter client details from your provider, if required")}</summary><div className="mt-3 grid gap-4 sm:grid-cols-2"><Field label={t("客户端编号（Client ID）", "Client ID")} value={draft.clientId} onChange={event => edit('clientId', event.target.value)} /><Field label={t("客户端密钥（选填）", "Client secret (optional)")} type="password" autoComplete="new-password" value={draft.clientSecret} onChange={event => edit('clientSecret', event.target.value)} /></div></details>}
+        </> : <>
+          <Field label={t("限定文件夹", "Allowed folder")} hint={t("S3 请填写 bucket/文件夹。", "For S3, use bucket/folder.")} value={draft.root} onChange={event => edit('root', event.target.value)} />
+          {draft.kind === 's3' ? <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t("访问密钥 ID", "Access key ID")} autoComplete="off" value={draft.accessKeyId} onChange={event => edit('accessKeyId', event.target.value)} />
+            <Field label={t("访问密钥", "Secret access key")} type="password" autoComplete="new-password" value={draft.secretAccessKey} onChange={event => edit('secretAccessKey', event.target.value)} />
+            <Field label={t("区域", "Region")} value={draft.region} onChange={event => edit('region', event.target.value)} />
+          </div> : <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t("用户名", "Username")} autoComplete="off" value={draft.username} onChange={event => edit('username', event.target.value)} />
+            <Field label={t("密码", "Password")} type="password" autoComplete="new-password" value={draft.password} onChange={event => edit('password', event.target.value)} />
+          </div>}
+          {draft.kind === 'sftp' && <Field label={t("服务器公钥", "Server public key")} hint={t("从 known_hosts 中复制该服务器的记录。", "Copy this server's entry from known_hosts.")}><textarea className={inputClass} rows={3} value={draft.knownHosts} onChange={event => edit('knownHosts', event.target.value)} /></Field>}
+        </>}
+        <Action type="submit" primary disabled={busy || !draft.name.trim() || !draft.url.trim()}>{t("添加连接", "Add connection")}</Action>
+      </form>
+      <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+        <summary className="cursor-pointer text-sm font-medium">{t("从 MCP 配置导入", "Import MCP configuration")}</summary>
+        <div className="mt-3 space-y-3">
+          <textarea aria-label={t("MCP 配置", "MCP configuration")} className={`${inputClass} min-h-28 font-mono text-xs`} placeholder={t("{\"mcpServers\":{\"我的工具\":{\"url\":\"https://example.com/mcp\"}}}", "{\"mcpServers\":{\"My tool\":{\"url\":\"https://example.com/mcp\"}}}")} value={importText} onChange={event => setImportText(event.target.value)} />
+          <Action disabled={busy || !importText.trim()} onClick={importConfiguration}>{t("导入配置", "Import configuration")}</Action>
+        </div>
+      </details>
+    </Section>
+
+    {connections.map(connection => <section key={connection.id} className="min-w-0 space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 dark:border-zinc-700">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0"><h3 className="break-words font-semibold">{connection.name}</h3><p className="mt-1 break-all text-xs text-zinc-500">{connection.config.url}</p>{connection.testedAt && <p className="mt-1 text-xs text-primary">{t("最近测试成功：{date}", "Last tested: {date}", { date: formatDate(connection.testedAt, { dateStyle: "medium", timeStyle: "short" }) })}</p>}</div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary" checked={connection.enabled} onChange={event => run(() => request(`/api/connections/${connection.id}`, 'PATCH', { enabled: event.target.checked }))} />{t("启用", "Enabled")}</label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {connection.config.authType === 'oauth' && <Action onClick={() => run(async () => { const result = await request(`/api/connections/${connection.id}/oauth`, 'POST'); if (result.authorizationUrl) setOauthLinks(links => ({ ...links, [connection.id]: result.authorizationUrl })); })}>{t("网页登录授权", "Sign in to authorize")}</Action>}
+        {oauthLinks[connection.id] && <a href={oauthLinks[connection.id]} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center rounded-xl border border-primary/40 px-4 text-sm font-medium text-primary hover:bg-primary/10">{t("前往授权页面", "Open authorization page")}</a>}
+        <Action onClick={() => run(() => request(`/api/connections/${connection.id}/test`, 'POST'), t("连接测试成功", "Connection test passed"))}>{t("测试连接", "Test connection")}</Action>
+        {connection.kind !== 'mcp' && <Action onClick={() => run(() => browse(connection.id))}>{t("浏览文件", "Browse files")}</Action>}
+        <Action danger onClick={() => setDeleting(connection.id)}>{t("删除", "Delete")}</Action>
+      </div>
+      {connection.tools?.length > 0 && <div className="divide-y divide-zinc-100 border-t border-zinc-100">{connection.tools.map(tool => <label key={tool.name} className="flex cursor-pointer gap-3 py-3 text-sm"><input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-primary" checked={tool.enabled === true} onChange={event => run(() => request(`/api/connections/${connection.id}`, 'PATCH', { tools: [{ name: tool.name, enabled: event.target.checked }] }))} /><span className="min-w-0"><span className="block break-words font-medium">{tool.title || tool.name}</span>{tool.description && <span className="mt-0.5 block text-xs leading-5 text-zinc-500">{tool.description}</span>}</span></label>)}</div>}
+      {Boolean(connection.resources?.length || connection.prompts?.length) && <p className="text-xs text-zinc-500">{t("{resources} 份资料，{prompts} 个提示模板", "{resources} resources, {prompts} prompt templates", { resources: formatNumber(connection.resources?.length || 0), prompts: formatNumber(connection.prompts?.length || 0) })}</p>}
+    </section>)}
+
+    {files && <section className="min-w-0 space-y-3 rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 dark:border-zinc-700">
+      <div className="flex items-center justify-between gap-3"><h3 className="min-w-0 break-all font-semibold">/{files.path}</h3><Action onClick={() => setFiles(null)}>{t("关闭", "Close")}</Action></div>
+      {files.path && <Action onClick={() => run(() => browse(files.id, files.path.split('/').slice(0, -1).join('/')))}>{t("上一级", "Parent folder")}</Action>}
+      {files.items.length === 0 && <p className="text-sm text-zinc-500">{t("这个文件夹是空的。", "This folder is empty.")}</p>}
+      <ul className="divide-y divide-zinc-100">{files.items.map(item => <li className="flex flex-wrap items-center gap-2 py-2" key={item.path}>
+        <span className="flex min-w-0 flex-1 items-center gap-2 text-sm">{item.isDirectory ? <Folder size={16} className="shrink-0 text-primary" /> : <File size={16} className="shrink-0 text-zinc-500" />}<span className="break-all">{item.name}</span></span>
+        {item.isDirectory ? <Action onClick={() => run(() => browse(files.id, item.path))}>{t("打开", "Open")}</Action> : <>
+          <Action onClick={() => run(async () => setPreview((await request(`/api/connections/${files.id}/files?read=true&path=${encodeURIComponent(item.path)}`)).text))}>{t("查看文本", "View text")}</Action>
+          <Action onClick={() => run(async () => { await request(`/api/connections/${files.id}/files`, 'POST', { action: 'import', path: item.path }); }, t("已导入到文件库：{name}", "Imported to your library: {name}", { name: item.name }))}>{t("导入", "Import")}</Action>
+        </>}
+      </li>)}</ul>
+      <details className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700"><summary className="cursor-pointer text-sm font-medium">{t("将文件写回远端", "Write a file to remote storage")}</summary><div className="mt-3 space-y-3">
+        <Select ariaLabel={t("选择要写回的文件", "Choose a file to write")} value={writeFileId} onChange={value => { setWriteFileId(value); setWriteConfirmed(false); }} options={[{ id: "", label: t("从文件库选择文件", "Choose a file from your library") }, ...library.map(file => ({ id: file.fileId, label: file.name }))]} />
+        <Field label={t("远端完整文件路径", "Full remote file path")} value={destination} onChange={event => { setDestination(event.target.value); setWriteConfirmed(false); }} />
+        <label className="flex cursor-pointer gap-2 text-sm"><input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-primary" checked={writeConfirmed} onChange={event => setWriteConfirmed(event.target.checked)} />{t("我确认写入此路径，并覆盖同名文件", "I confirm writing to this path and replacing any file with the same name")}</label>
+        <Action primary disabled={busy || !writeConfirmed || !writeFileId || !destination} onClick={() => run(async () => { await request(`/api/connections/${files.id}/files`, 'POST', { action: 'write', fileId: writeFileId, destinationPath: destination, confirmed: true }); await browse(files.id, files.path); }, t("文件已写回远端", "File written to remote storage"))}>{t("写回远端", "Write to remote")}</Action>
+      </div></details>
+      {preview && <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-100 p-3 text-xs">{preview}</pre>}
+    </section>}
+    <ConfirmModal open={Boolean(deletingConnection)} onClose={() => setDeleting(null)} onConfirm={async () => { const id = deleting; await run(async () => { await request(`/api/connections/${id}`, 'DELETE'); if (files?.id === id) setFiles(null); }, t("连接已删除", "Connection deleted")); setDeleting(null); }} title={t("删除连接", "Delete connection")} message={t("删除“{name}”？助手将无法再使用这个连接。", "Delete “{name}”? Your assistant will no longer be able to use it.", { name: deletingConnection?.name || '' })} confirmText={t("删除", "Delete")} danger />
+  </fieldset>;
 }

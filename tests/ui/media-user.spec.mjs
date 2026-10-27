@@ -30,12 +30,12 @@ test('普通用户从首页进入 Media，完成图片生成、刷新查看、�
     });
     await page.route('**/api/files/user-image*', route => route.fulfill({ contentType: 'image/png', body: png }));
     await page.goto(base);
-    await page.getByRole('link', { name: 'Media 创作', exact: true }).click();
+    await page.getByRole('link', { name: '媒体创作', exact: true }).click();
     await page.getByRole('heading', { name: '把想法变成画面与声音', exact: true }).waitFor();
     assert.equal(new URL(page.url()).pathname, '/media');
     assert.equal(await page.getByRole('link', { name: '管理后台', exact: true }).count(), 0);
     await page.screenshot({ path: '/tmp/huajuan-media-desktop.png' });
-    await page.getByRole('link', { name: /图片创作/ }).click();
+    await page.getByRole('link', { name: /描述画面生成图片/ }).click();
     await page.getByLabel('图片描述', { exact: true }).fill('一只绿色的花卷小助手');
     assert.equal(await page.getByRole('button', { name: '设为全平台默认参数', exact: true }).count(), 0);
     await page.getByRole('button', { name: '生成图片', exact: true }).last().click();
@@ -43,18 +43,18 @@ test('普通用户从首页进入 Media，完成图片生成、刷新查看、�
     assert.equal(generated.prompt, '一只绿色的花卷小助手');
     const liveHistory = page.getByRole('region', { name: '图片记录', exact: true });
     await liveHistory.getByRole('button', { name: '删除图片', exact: true }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: '确认', exact: true }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: '删除', exact: true }).click();
     await page.locator('img[src="/api/files/user-image"]').first().waitFor({ state: 'detached' });
     await page.getByRole('button', { name: '生成图片', exact: true }).last().click();
     await liveHistory.getByRole('button', { name: '删除图片', exact: true }).waitFor();
     await page.reload();
     const history = page.getByRole('region', { name: '图片记录', exact: true });
     await history.getByRole('button', { name: '删除图片', exact: true }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: '确认', exact: true }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: '删除', exact: true }).click();
     await history.getByRole('button', { name: '删除图片', exact: true }).waitFor({ state: 'detached' });
     await page.getByRole('link', { name: '我的文件', exact: true }).click();
     await page.getByRole('heading', { name: '文件', exact: true }).waitFor();
-    await page.getByRole('link', { name: '返回 Media', exact: true }).click();
+    await page.getByRole('link', { name: '返回媒体创作', exact: true }).click();
     await page.getByLabel('图片描述', { exact: true }).waitFor();
     assert.equal(new URL(page.url()).pathname, '/media/image');
     await page.setViewportSize({ width: 390, height: 844 });
@@ -95,7 +95,7 @@ test('Media 深链接要求登录，普通用户进入后台会返回前台', { 
     await session('192.0.2.212', async member => {
       await member.goto(`${base}/admin/media`);
       assert.equal(new URL(member.url()).pathname, '/');
-      await member.getByRole('link', { name: 'Media 创作', exact: true }).waitFor();
+      await member.getByRole('link', { name: '媒体创作', exact: true }).waitFor();
     });
   } finally { await browser.close(); }
 });

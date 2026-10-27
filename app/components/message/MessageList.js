@@ -23,7 +23,7 @@ import ThinkingBlock from "./ThinkingBlock";
 import ImageLightbox from "../modals/ImageLightbox";
 import ConfirmModal from "../modals/ConfirmModal";
 import BrandMark from "../common/BrandMark";
-import { BarChart3, Code2, Compass, Sparkles } from "lucide-react";
+import { ArrowUp, BarChart3, Code2, Compass, Sparkles } from "lucide-react";
 import { useToast } from "../common/ToastProvider";
 import { exportMessageContent } from "@/lib/client/messageExport";
 import {
@@ -76,6 +76,7 @@ export default function MessageList({
   userNickname,
   assistant,
   onSendStarterPrompt,
+  starterPromptsDisabled = false,
 }) {
   const { t, locale, formatNumber, localizeMessage } = useI18n();
   const EXPORT_FORMAT_LABELS = { markdown: "Markdown", pdf: "PDF", docx: t("Word 文档", "Word document") };
@@ -249,22 +250,21 @@ export default function MessageList({
       {messages.length === 0 ? (
         loading ? (
           <div className="h-full flex flex-col items-center justify-center">
-            <div className="flex items-center gap-1.5 px-6 py-4 glass-effect rounded-3xl shadow-sm">
+            <div className="flex items-center gap-1.5 px-6 py-4">
               <LoadingSweepText text="..." ariaText={t("加载中", "Loading")} className="loading-sweep-dots text-xl" />
             </div>
           </div>
         ) : (
           <div className="huajuan-welcome">
-            <div className="welcome-brand"><BrandMark size={108} /><span className="welcome-note">{t("花卷", "Huajuan")}</span></div>
+            <div className="welcome-brand"><BrandMark size={96} /><span className="welcome-note">{t("我是花卷，今天做点什么？", "Hi, I'm Huajuan.")}</span></div>
             <h1>{t("你想完成什么？", "What would you like to work on?")}</h1>
             <p className="welcome-description">{t("输入问题或上传文件，让花卷帮你查资料、分析数据、起草文稿。", "Ask a question or upload a file. Huajuan can research topics, analyze data, and draft documents.")}</p>
             <div className="welcome-prompts">
               {getStarterPrompts(locale).map(prompt => {
                 const StarterIcon = STARTER_ICONS[prompt.icon];
-                return <button type="button" key={prompt.title} onClick={() => onSendStarterPrompt?.(prompt.description)} className="welcome-prompt"><StarterIcon size={18} strokeWidth={1.6} /><span>{prompt.title}</span><span aria-hidden="true" className="welcome-prompt-plus">+</span></button>;
+                return <button type="button" key={prompt.title} disabled={starterPromptsDisabled} onClick={() => onSendStarterPrompt?.(prompt.description)} className="welcome-prompt"><StarterIcon size={18} strokeWidth={1.6} /><span>{prompt.title}</span><span aria-hidden="true" className="welcome-prompt-send"><ArrowUp size={15} strokeWidth={2.2} /></span></button>;
               })}
             </div>
-            <p className="welcome-footnote">{t("选一个任务开始，或在下方输入你的需求。", "Choose a task above, or describe what you need below.")}</p>
           </div>
         )
       ) : (
@@ -301,15 +301,16 @@ export default function MessageList({
             <motion.div
               key={msg.id}
               layout="position"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
               className={`flex flex-col gap-3 ${msg.role === "user" ? "items-end" : "items-start"} max-w-4xl mx-auto w-full group`}
             >
               {msg.role === "model" && (msg.taskId || msg.thought || hasVisibleContent || (msg.isStreaming && !msg.isWaitingFirstChunk) || hasParts || msg.isSearching || msg.searchError || hasThinkingTimeline || hasToolRuns) && (
                 <div className="flex items-center gap-2 pl-1">
                   {assistant?.avatarFileId ? <NextImage src={`/api/files/${assistant.avatarFileId}`} alt={assistant.name === "花卷" ? t("花卷", "Huajuan") : assistant.name} width={24} height={24} unoptimized className="h-6 w-6 rounded-lg object-cover" /> : <AIAvatar size={24} />}
-                  <span className="text-[11px] text-zinc-400 font-bold tracking-wider">
+                  <span className="text-xs font-medium text-zinc-500">
                     {assistant?.name === "花卷" ? t("花卷", "Huajuan") : assistant?.name}
                   </span>
                 </div>
@@ -318,19 +319,18 @@ export default function MessageList({
               <div className={`flex flex-col w-full ${msg.role === "user" ? "items-end" : "items-start"}`}>
                 {msg.role === "user" && (
                   <div className="flex items-center gap-2 pr-1 mb-1 relative">
-                    <span className="text-[11px] text-zinc-500 font-medium truncate max-w-[150px]">
+                    <span className="text-xs text-zinc-500 font-medium truncate max-w-[150px]">
                       {userNickname || t("你", "You")}
                     </span>
                     {userAvatar ? (
-                      <NextImage src={userAvatar} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-md object-cover ring-1 ring-zinc-200/50 dark:ring-zinc-700" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-md bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-500">
-                        {userNickname?.[0] || t("你", "Y")}
+                      <NextImage src={userAvatar} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-md object-cover" />
+                    ) : userNickname ? (
+                      <div aria-hidden="true" className="w-5 h-5 rounded-md bg-primary/15 flex items-center justify-center text-[10px] font-semibold text-primary">
+                        {userNickname[0].toUpperCase()}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 )}
-                {msg.role === "model" && msg.taskId && <TaskDelivery message={msg} task={tasks.find(task => task._id === String(msg.taskId))} />}
                 {msg.role === "model" && (msg.thought || msg.isSearching || msg.searchError || hasThinkingTimeline) && (
                   <ThinkingBlock
                     thought={msg.thought}
@@ -346,7 +346,7 @@ export default function MessageList({
 
                 {editingMsgIndex === i && msg.role === "user" ? (
                   <div className="w-full flex flex-col items-end gap-2">
-                    <div className="msg-bubble-user w-full max-w-full glass-effect !bg-white border-primary/20">
+                    <div className="w-full max-w-full rounded-2xl border border-primary bg-white px-4 py-3 shadow-[0_0_0_3px_var(--primary-ring)] dark:bg-zinc-900">
                       {editingImages.length > 0 && (
                         <div className="mb-3 flex flex-wrap items-center gap-2">
                           {editingImages.map((image, imageIndex) => (
@@ -383,12 +383,14 @@ export default function MessageList({
                       />
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors">{t("取消", "Cancel")}</button>
+                      <button type="button" onClick={onCancelEdit} className="px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors">{t("取消", "Cancel")}</button>
                       <button
+                        type="button"
                         onClick={requestSubmitEdit}
-                        className="btn-primary px-3 py-1.5 text-xs rounded-lg disabled:opacity-40"
+                        disabled={loading || hasStreamingContent || (!editingContent.trim() && editingImages.length === 0)}
+                        className="btn-primary px-3 py-2 text-sm rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        {t("提交", "Send")}
+                        {t("重新发送", "Resend")}
                       </button>
                     </div>
                   </div>
@@ -396,9 +398,9 @@ export default function MessageList({
                   <>
                     {shouldRenderBubble && (
                       <div
-                        className={`relative group/bubble px-4 py-3 sm:px-5 sm:py-4 transition-all duration-300 ${
+                        className={`relative px-4 py-3 sm:px-5 sm:py-4 ${
                           msg.role === "user" ? "msg-bubble-user max-w-[92%] sm:max-w-[85%] md:max-w-[75%]" : "msg-bubble-ai max-w-full md:max-w-[95%] w-full"
-                        } ${msg.isStreaming ? "ai-glow ai-glow-active" : ""}`}
+                        }`}
                         onCopy={handleBubbleCopy}
                       >
                         {hasParts && msg.role === "model" && msg.providerState?.media?.type === "image" ? (
@@ -449,13 +451,14 @@ export default function MessageList({
                     )}
 
                     {isFailedModelMessage && (
-                      <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-sm">
+                      <div role="alert" className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-sm">
                         <span>{t("回复生成失败，请重试。", "The reply failed to generate. Please try again.")}</span>
                         {canRegenerateMessage && (
                           <button
+                            type="button"
                             onClick={() => requestRegenerate(i)}
                             disabled={loading || hasStreamingContent}
-                            className="shrink-0 px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="shrink-0 px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             {t("重新生成", "Regenerate")}
                           </button>
@@ -463,18 +466,20 @@ export default function MessageList({
                       </div>
                     )}
 
+                    {msg.role === "model" && msg.taskId && <TaskDelivery message={msg} task={tasks.find(task => task._id === String(msg.taskId))} />}
+
                     {!msg.isStreaming && !isFailedModelMessage && (
                       <div className={`msg-actions flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0 group-focus-within:translate-y-0 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                         {msg.role === "model" && (hasParts || hasVisibleContent) && (
                           <div className="relative" ref={openExportMenuIndex === i ? exportMenuRef : null}>
-                            <button onClick={() => setOpenExportMenuIndex(prev => prev === i ? null : i)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title={t("导出", "Export")} aria-label={t("导出消息", "Export message")}>
+                            <button type="button" onClick={() => setOpenExportMenuIndex(prev => prev === i ? null : i)} aria-haspopup="menu" aria-expanded={openExportMenuIndex === i} className="p-2 text-zinc-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title={t("导出", "Export")} aria-label={t("导出消息", "Export message")}>
                               <Download size={16} />
                             </button>
                             <AnimatePresence>
                               {openExportMenuIndex === i && (
-                                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} className={`absolute right-0 z-20 min-w-[150px] rounded-xl glass-effect border-zinc-200/50 p-1.5 shadow-pop ${i >= messages.length - 2 ? "bottom-full mb-1" : "top-full mt-1"}`}>
+                                <motion.div role="menu" aria-label={t("导出格式", "Export format")} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: 0.14 }} className={`absolute left-0 z-20 min-w-[150px] rounded-xl border border-zinc-200 bg-white p-1 shadow-pop dark:border-zinc-700 ${i >= messages.length - 2 ? "bottom-full mb-1" : "top-full mt-1"}`}>
                                   {["markdown", "pdf", "docx"].map(format => (
-                                    <button key={format} onClick={() => handleExportMessage(format, msg)} className="w-full text-left px-3 py-2 text-sm hover:bg-primary/5 rounded-lg transition-colors">{EXPORT_FORMAT_LABELS[format] || format}</button>
+                                    <button type="button" role="menuitem" key={format} onClick={() => handleExportMessage(format, msg)} className="w-full text-left px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors">{EXPORT_FORMAT_LABELS[format] || format}</button>
                                   ))}
                                 </motion.div>
                               )}
@@ -483,9 +488,10 @@ export default function MessageList({
                         )}
                         {canRegenerateMessage ? (
                           <button
+                            type="button"
                             onClick={() => requestRegenerate(i)}
                             disabled={loading || hasStreamingContent}
-                            className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-400"
+                            className="p-2 text-zinc-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-500"
                             title={t("重新生成", "Regenerate")}
                             aria-label={t("重新生成", "Regenerate")}
                           >
@@ -494,16 +500,17 @@ export default function MessageList({
                         ) : null}
                         {msg.role === "model" && buildCopyText(msg, locale).trim() && <ReplyActions text={buildCopyText(msg, locale)} />}
                         <button
+                          type="button"
                           onClick={() => handleCopyClick(i, msg)}
-                          className={`p-2 rounded-lg transition-colors ${copiedIndex === i ? "text-emerald-500" : "text-zinc-400 hover:text-primary hover:bg-primary/5"}`}
-                          title={t("复制内容", "Copy text")}
-                          aria-label={t("复制内容", "Copy text")}
+                          className={`p-2 rounded-lg transition-colors ${copiedIndex === i ? "text-primary" : "text-zinc-500 hover:text-primary hover:bg-primary/10"}`}
+                          title={copiedIndex === i ? t("已复制", "Copied") : t("复制内容", "Copy text")}
+                          aria-label={copiedIndex === i ? t("已复制", "Copied") : t("复制内容", "Copy text")}
                         >
                           {copiedIndex === i ? <Check size={16} /> : <Copy size={16} />}
                         </button>
-                        <button onClick={() => handleDeleteClick(i, msg.role)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title={t("删除", "Delete")} aria-label={t("删除消息", "Delete message")}><Trash2 size={16} /></button>
+                        <button type="button" onClick={() => handleDeleteClick(i, msg.role)} disabled={loading || hasStreamingContent} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed" title={t("删除", "Delete")} aria-label={t("删除消息", "Delete message")}><Trash2 size={16} /></button>
                         {msg.role === "user" && (
-                          <button onClick={() => onStartEdit(i, msg)} className="p-2 text-zinc-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title={t("编辑", "Edit")} aria-label={t("编辑消息", "Edit message")}><Edit3 size={16} /></button>
+                          <button type="button" onClick={() => onStartEdit(i, msg)} disabled={loading || hasStreamingContent} className="p-2 text-zinc-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed" title={t("编辑", "Edit")} aria-label={t("编辑消息", "Edit message")}><Edit3 size={16} /></button>
                         )}
                       </div>
                     )}

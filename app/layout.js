@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { ToastProvider } from './components/common/ToastProvider';
 import { NavigationMotionProvider } from './components/layout/NavigationMotion';
 import FadeScrollbarGlobal from './components/layout/FadeScrollbarGlobal';
+import MotionPreferences from './components/layout/MotionPreferences';
 import { UI_THEME_MODE_KEY } from '@/lib/shared/storageKeys';
 import { I18nProvider } from '@/lib/client/i18n';
 import { getLocale } from '@/lib/server/i18n';
@@ -73,11 +74,11 @@ export default async function RootLayout({ children }) {
             </head>
             <body>
                 <FadeScrollbarGlobal />
-                <I18nProvider initialLocale={locale}><AppearanceProvider><ToastProvider>
+                <MotionPreferences><I18nProvider initialLocale={locale}><AppearanceProvider><ToastProvider>
                         <NavigationMotionProvider><div className="main-layout h-full">
                             {children}
                         </div></NavigationMotionProvider>
-                </ToastProvider></AppearanceProvider></I18nProvider>
+                </ToastProvider></AppearanceProvider></I18nProvider></MotionPreferences>
             </body>
         </html>
     );

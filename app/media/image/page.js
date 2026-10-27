@@ -5,5 +5,5 @@ import { MediaServiceNotice, useMediaAccess } from '@/app/components/media/Media
 
 export default function ImagePage() {
   const { capabilities } = useMediaAccess();
-  return <><MediaServiceNotice enabled={capabilities.image} /><ImageWorkspace serviceEnabled={capabilities.image} /></>;
+  return <div className="space-y-6"><MediaServiceNotice enabled={capabilities.image} /><ImageWorkspace serviceEnabled={capabilities.image} /></div>;
 }

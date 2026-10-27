@@ -29,7 +29,7 @@ export default function AudioWorkspaceTabs({ tabs, activeTab, onChange, ariaLabe
 
   return (
     <div
-      className="relative grid gap-2 rounded-2xl border border-zinc-200 bg-zinc-100/70 p-1 dark:border-zinc-800 dark:bg-zinc-900/70"
+      className="relative grid gap-2 rounded-2xl border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-700"
       style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       role="tablist"
       aria-label={ariaLabel}
@@ -45,20 +45,20 @@ export default function AudioWorkspaceTabs({ tabs, activeTab, onChange, ariaLabe
             type="button"
             role="tab"
             disabled={disabled}
-            aria-controls={`${layoutId}-panel-${tab.id}`}
+            aria-controls={active ? `${layoutId}-panel-${tab.id}` : undefined}
             aria-selected={active}
             data-tab-id={tab.id}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(tab.id)}
-            className={`relative flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-60 ${
-              active ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            className={`relative flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              active ? "text-zinc-800" : "text-zinc-500 hover:text-zinc-700"
             }`}
           >
             {active ? (
               <motion.span
                 layoutId={layoutId}
                 transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 28 }}
-                className="selection-surface absolute inset-0 rounded-xl shadow-sm"
+                className="selection-surface absolute inset-0 rounded-xl"
               />
             ) : null}
             <span className="relative flex items-center gap-2">

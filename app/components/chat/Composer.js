@@ -24,6 +24,7 @@ function ComposerDraft({ loading, isStreaming, isWaitingForAI, onSend, onStop })
   const [uploadName, setUploadName] = useState("");
   const [error, setError] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const uploadControllerRef = useRef(null);
@@ -137,12 +138,14 @@ function ComposerDraft({ loading, isStreaming, isWaitingForAI, onSend, onStop })
   return (
     <div className="max-w-4xl mx-auto w-full relative">
       <div
-        className="composer-shell relative p-3 md:p-4 glass-effect rounded-[24px] border-zinc-200/60 dark:border-zinc-800/60 hover:border-zinc-300 dark:hover:border-zinc-700"
-        onDragOver={event => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); event.dataTransfer.dropEffect = busy ? "none" : "copy"; } }}
-        onDrop={event => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); void addAttachments(Array.from(event.dataTransfer.files)); } }}
+        data-dragging={dragging ? "true" : undefined}
+        className="composer-shell relative rounded-[24px] p-3 md:p-4"
+        onDragOver={event => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); event.dataTransfer.dropEffect = busy ? "none" : "copy"; if (!busy) setDragging(true); } }}
+        onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false); }}
+        onDrop={event => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(false); if (!busy) void addAttachments(Array.from(event.dataTransfer.files)); } }}
       >
         {attachments.length > 0 && <ul aria-label={t("待发送附件", "Attachments to send")} className="flex gap-2 overflow-x-auto pb-2">
-          {attachments.map(file => <li key={file.fileId} className="flex w-52 shrink-0 items-center gap-2 rounded-xl border border-zinc-200 bg-white/70 p-2 dark:border-zinc-700 dark:bg-zinc-900/60">
+          {attachments.map(file => <li key={file.fileId} className="flex w-52 shrink-0 items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700">
             <a href={file.url} target="_blank" rel="noreferrer" aria-label={t("预览 {name}", "Preview {name}", { name: file.name })} className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800">
               {file.category === "image" ? <Image src={file.url} alt={file.name} width={40} height={40} unoptimized className="h-full w-full object-cover" /> : <FileText size={20} />}
             </a>

@@ -4,7 +4,7 @@ import MediaShell from '@/app/components/media/MediaShell';
 import { getLocale } from '@/lib/server/i18n';
 import { translate } from '@/lib/shared/i18n.mjs';
 
-export async function generateMetadata() { return { title: translate(await getLocale(), 'Media 创作 · 花卷', 'Media studio · Huajuan') }; }
+export async function generateMetadata() { return { title: translate(await getLocale(), '媒体创作 · 花卷', 'Media studio · Huajuan') }; }
 
 export default async function MediaLayout({ children }) {
   const user = await getCurrentUserWithAccess();

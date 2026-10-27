@@ -2,8 +2,7 @@
 
 import { useI18n } from "@/lib/client/i18n";
 
-import { AudioLines } from "lucide-react";
-import AudioWorkspaceHero from "@/app/components/media/AudioWorkspaceHero";
+import MediaWorkspaceHeading from "@/app/components/media/MediaWorkspaceHeading";
 import AudioWorkspace from "@/app/components/media/AudioWorkspace";
 import { ELEVENLABS_AUDIO_MODEL_LABEL } from '@/lib/media/shared/elevenlabsAudio';
 import { MediaServiceNotice } from './MediaShell';
@@ -13,9 +12,7 @@ export default function SpeechWorkspace({ canManageDefaults = false, availabilit
 
   return <div className="space-y-6">
     {availability && <MediaServiceNotice enabled={availability.elevenlabs} />}
-    <AudioWorkspaceHero icon={AudioLines} title={t("语音合成", "Text to speech")} description={t("使用 ElevenLabs 音色，复刻自己的声音，把文字变成自然语音。", "Choose an ElevenLabs voice, clone your voice, and turn text into natural speech.")}>
-      <span className="text-sm text-zinc-500">{ELEVENLABS_AUDIO_MODEL_LABEL}</span>
-    </AudioWorkspaceHero>
+    <MediaWorkspaceHeading title={t("语音合成", "Text to speech")} description={t("选择或复刻音色，把文字变成自然语音。", "Choose or clone a voice, then turn text into natural speech.")} modelLabel={ELEVENLABS_AUDIO_MODEL_LABEL} />
     <AudioWorkspace canManageDefaults={canManageDefaults} serviceEnabled={availability ? availability.elevenlabs : true} />
   </div>;
 }

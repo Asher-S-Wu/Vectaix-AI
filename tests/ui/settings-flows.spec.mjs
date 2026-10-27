@@ -136,7 +136,7 @@ test('用户管理弹窗可用键盘关闭，删除末页最后一位用户后�
     await dialog.getByRole('button', { name: '下一页', exact: true }).click();
     await dialog.getByText('last@example.test', { exact: true }).waitFor();
     await dialog.getByRole('button', { name: '删除用户', exact: true }).click();
-    await page.getByRole('dialog', { name: '删除用户', exact: true }).getByRole('button', { name: '删除', exact: true }).click();
+    await page.getByRole('alertdialog', { name: '删除用户', exact: true }).getByRole('button', { name: '删除', exact: true }).click();
     await dialog.getByText('first@example.test', { exact: true }).waitFor();
     assert.equal(await dialog.getByRole('button', { name: '下一页', exact: true }).count(), 0);
     await page.setViewportSize({ width: 390, height: 844 });

@@ -33,8 +33,8 @@ const browserActions = { navigate: t("打开网页", "Open a web page"), new_tab
   {isBrowser && <p>{t("即将执行：{action}。请核对网址、操作对象和填写内容。", "Action: {action}. Review the URL, target, and form contents before approving.", {action: browserActions[args.action]})}</p>}
   {isFileWrite && <p>{t("允许后将上传下方文件到指定路径，并覆盖同名文件。", "Approval will upload the file below to the specified path and replace any file with the same name.")}</p>}
   {!isBrowser && !isFileWrite && <p>{t("允许后将向“{tool}”提交以下内容并执行操作。", "Approval will submit the following content to “{tool}” and run the action.", {tool: localizeMessage(item.tool)})}</p>}
-  {args.reviewFile && <a href={args.reviewFile.url} className="inline-block text-blue-600 underline" download={args.reviewFile.name}>{t("查看待提交文件：{name}（{size} KB）", "Review file: {name} ({size} KB)", {name: args.reviewFile.name, size: formatNumber(Math.ceil(args.reviewFile.size/1024))})}</a>}
-  <div className="max-h-72 overflow-auto rounded-lg bg-white/60 p-3 text-xs dark:bg-slate-900/40"><ReviewValue value={details}/></div>
+  {args.reviewFile && <a href={args.reviewFile.url} className="inline-block text-primary underline" download={args.reviewFile.name}>{t("查看待提交文件：{name}（{size} KB）", "Review file: {name} ({size} KB)", {name: args.reviewFile.name, size: formatNumber(Math.ceil(args.reviewFile.size/1024))})}</a>}
+  <div className="max-h-72 overflow-auto rounded-lg bg-white/60 p-3 text-xs"><ReviewValue value={details}/></div>
  </div>;
 }
 export default function TaskApprovals({taskId,onChanged}) {
@@ -73,13 +73,13 @@ export default function TaskApprovals({taskId,onChanged}) {
  const pending = items.filter(item => item.status === 'pending');
  if (!pending.length && !error && !loadError) return null;
  return <div className="my-3 space-y-3">
-  {loadError && <div className="space-y-2"><p role="alert" className="text-sm text-red-500">{localizeMessage(loadError)}</p><button type="button" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" onClick={() => setRevision(value => value + 1)}>{t("重新加载确认请求", "Reload approval request")}</button></div>}
+  {loadError && <div className="space-y-2"><p role="alert" className="text-sm text-red-500">{localizeMessage(loadError)}</p><button type="button" className="rounded-lg border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-50" onClick={() => setRevision(value => value + 1)}>{t("重新加载确认请求", "Reload approval request")}</button></div>}
   {error && <p role="alert" className="text-sm text-red-500">{localizeMessage(error)}</p>}
-  {pending.map(item => <div key={item._id} className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4">
+  {pending.map(item => <div key={item._id} className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800">
    <p className="font-medium text-sm">{t("需要你确认：{tool}", "Approval needed: {tool}", {tool:localizeMessage(item.tool)})}</p>
    <p className="mt-1 text-xs text-slate-500">{t("请在请求发起后 5 分钟内确认，本次授权仅执行一次。", "Respond within 5 minutes of the request. Approval applies to this action once.")}</p>
    <ApprovalDetails item={item}/>
-   <div className="mt-3 flex gap-2"><button disabled={Boolean(busy) || Boolean(loadError)} onClick={() => decide(item._id,'approved')} className="rounded-lg bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white px-4 py-2 text-sm disabled:opacity-50">{t("允许这一次", "Allow once")}</button><button disabled={Boolean(busy) || Boolean(loadError)} onClick={() => decide(item._id,'rejected')} className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-50">{t("拒绝", "Decline")}</button></div>
+   <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={Boolean(busy) || Boolean(loadError)} onClick={() => decide(item._id,'approved')} className="btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">{busy === item._id ? t("处理中…", "Working…") : t("允许这一次", "Allow once")}</button><button type="button" disabled={Boolean(busy) || Boolean(loadError)} onClick={() => decide(item._id,'rejected')} className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed">{t("拒绝", "Decline")}</button></div>
   </div>)}
  </div>;
 }

@@ -1,16 +1,19 @@
 "use client";
 
 import { useI18n } from "@/lib/client/i18n";
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Volume2, Square, Share2, LoaderCircle } from 'lucide-react';
 import { useToast } from '../common/ToastProvider';
 import { apiJson } from '@/lib/client/apiClient';
+
+const subscribeNothing = () => () => {};
 
 export default function ReplyActions({text}) {
   const { t, localizeMessage } = useI18n();
   const toast = useToast();
   const player = useRef(null), request = useRef(null);
   const [state,setState] = useState('idle');
+  const canShare = useSyncExternalStore(subscribeNothing, () => typeof navigator.share === 'function', () => false);
   useEffect(()=>()=>{player.current?.pause();request.current?.abort();},[]);
   const speak = async () => {
     if (state !== 'idle') { request.current?.abort(); player.current?.pause(); setState('idle'); return; }
@@ -24,6 +27,6 @@ export default function ReplyActions({text}) {
     } catch(error) {setState('idle');if(error.name !== 'AbortError') toast.error(localizeMessage(error.message));}
     finally { request.current = null; }
   };
-  const share = async () => { if (!navigator.share) {toast.error(["请复制回复后分享，当前浏览器未提供系统分享。", "Copy the reply to share it. System sharing is unavailable in this browser."]);return;} try { await navigator.share({title:t("花卷回复", "Huajuan reply"),text}); } catch(error) {if(error.name !== 'AbortError')toast.error(["分享未完成", "Sharing was canceled or failed"]);} };
-  return <><button type="button" onClick={speak} title={state==='idle'?t("朗读回复", "Read aloud"):t("停止朗读", "Stop reading")} aria-label={state==='idle'?t("朗读回复", "Read aloud"):t("停止朗读", "Stop reading")} className="rounded-lg p-2 text-zinc-400 hover:bg-primary/5 hover:text-primary">{state==='loading'?<LoaderCircle size={16} className="animate-spin"/>:state==='playing'?<Square size={16}/>:<Volume2 size={16}/>}</button><button type="button" onClick={share} title={t("分享回复", "Share reply")} aria-label={t("分享回复", "Share reply")} className="rounded-lg p-2 text-zinc-400 hover:bg-primary/5 hover:text-primary"><Share2 size={16}/></button></>;
+  const share = async () => { try { await navigator.share({title:t("花卷回复", "Huajuan reply"),text}); } catch(error) {if(error.name !== 'AbortError')toast.error(["分享未完成", "Sharing was canceled or failed"]);} };
+  return <><button type="button" onClick={speak} title={state==='idle'?t("朗读回复", "Read aloud"):t("停止朗读", "Stop reading")} aria-label={state==='idle'?t("朗读回复", "Read aloud"):t("停止朗读", "Stop reading")} className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary">{state==='loading'?<LoaderCircle size={16} className="animate-spin motion-reduce:animate-none"/>:state==='playing'?<Square size={16}/>:<Volume2 size={16}/>}</button>{canShare && <button type="button" onClick={share} title={t("分享回复", "Share reply")} aria-label={t("分享回复", "Share reply")} className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary"><Share2 size={16}/></button>}</>;
 }
