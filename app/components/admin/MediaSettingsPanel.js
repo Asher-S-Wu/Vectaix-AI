@@ -2,7 +2,8 @@
 
 import { useI18n } from '@/lib/client/i18n';
 import { useEffect, useState } from 'react';
-import { AdminField, AdminNotice, adminRequest } from './AdminUI';
+import { AudioLines, ImagePlus } from 'lucide-react';
+import { AdminConfigSection, AdminField, AdminNotice, adminRequest } from './AdminUI';
 import { IMAGE_MODELS, getImageModelConfig } from '@/lib/media/shared/models';
 import { ELEVENLABS_AUDIO_FORMATS, ELEVENLABS_AUDIO_SAMPLE_RATES, ELEVENLABS_AUDIO_MODEL_LABEL } from '@/lib/media/shared/elevenlabsAudio';
 
@@ -50,11 +51,13 @@ export default function MediaSettingsPanel() {
     </div>;
   }
   return <><AdminNotice error={error} notice={notice} />{config ? <form onSubmit={save}><fieldset disabled={busy} className="min-w-0">
-    {sections.map(section => <section key={section} className="admin-section">
-      <div className="admin-section-title flex items-center justify-between gap-3"><div>
-        <h2>{section === 'image' ? t('图片服务', 'Image service') : `${t('语音服务', 'Audio service')} · ${ELEVENLABS_AUDIO_MODEL_LABEL}`}</h2>
-        <p>{section === 'image' ? t('为花卷提供图片生成和编辑能力。', 'Let Huajuan generate and edit images.') : t('为花卷提供语音合成、朗读和音色复刻能力。', 'Let Huajuan generate speech, read text aloud, and clone voices.')}</p>
-      </div><label className="flex items-center gap-2 text-xs"><input type="checkbox" className="h-4 w-4 accent-primary" checked={config[section].enabled} onChange={event => update(section, 'enabled', event.target.checked)} />{t('启用', 'Enable')}</label></div>
+    <div className="admin-config-groups">
+    {sections.map(section => <AdminConfigSection key={section}
+      title={section === 'image' ? t('图片服务', 'Image service') : t('语音服务', 'Audio service')}
+      description={section === 'image' ? t('图片生成与编辑，设置默认尺寸和张数。', 'Generate and edit images; set the default size and count.') : t('语音合成与朗读，设置默认音色和语速。', 'Generate and read speech; set the default voice and speed.')}
+      summary={<><span className={`admin-config-status ${config[section].enabled ? 'enabled' : ''}`}>{config[section].enabled ? t('已启用', 'Enabled') : t('已停用', 'Disabled')}</span><span>{section === 'image' ? getImageModelConfig(config.image.model, locale).name : ELEVENLABS_AUDIO_MODEL_LABEL}</span></>}
+      icon={section === 'image' ? ImagePlus : AudioLines}>
+      <label className="mb-5 flex w-fit items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary" checked={config[section].enabled} onChange={event => update(section, 'enabled', event.target.checked)} />{t('启用', 'Enable')}</label>
       <div className="admin-field-grid">
         <AdminField label={t('API 地址', 'API URL')} type="url" value={config[section].baseUrl} onChange={event => update(section, 'baseUrl', event.target.value)} required={config[section].enabled} />
         <AdminField label="API Key" type="password" autoComplete="new-password" value={keys[section]} onChange={event => setKeys(current => ({ ...current, [section]: event.target.value }))} placeholder={config[section].hasApiKey ? t('已安全保存，留空保持', 'Saved securely; leave blank to keep') : t('输入 API Key', 'Enter an API key')} />
@@ -64,7 +67,8 @@ export default function MediaSettingsPanel() {
         <AdminField label={t('默认尺寸', 'Default size')}><select value={config.image.size} onChange={event => update('image', 'size', event.target.value)}>{getImageModelConfig(config.image.model, locale).sizes.map(size => <option key={size.id} value={size.id}>{size.label}</option>)}</select></AdminField>
         <AdminField label={t('默认张数', 'Default image count')} type="number" min="1" max="4" step="1" value={config.image.count} onChange={event => update('image', 'count', (event.target.value === '' ? '' : Number(event.target.value)))} />
       </div> : audioFields(section)}
-    </section>)}
-    <button type="submit" className="admin-button primary mb-8" disabled={busy}>{busy ? t('正在保存…', 'Saving…') : t('保存媒体设置', 'Save media settings')}</button>
+    </AdminConfigSection>)}
+    </div>
+    <div className="admin-form-actions"><button type="submit" className="admin-button primary" disabled={busy}>{busy ? t('正在保存…', 'Saving…') : t('保存媒体设置', 'Save media settings')}</button></div>
   </fieldset></form> : error ? <button type="button" className="admin-button" onClick={() => window.location.reload()}>{t('重新加载', 'Reload')}</button> : <p role="status" className="py-8 text-sm text-zinc-500">{t('正在读取媒体配置…', 'Loading media settings…')}</p>}</>;
 }

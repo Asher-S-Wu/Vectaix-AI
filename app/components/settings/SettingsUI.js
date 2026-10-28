@@ -29,8 +29,8 @@ export function PanelState({ panel }) {
   if (panel.data) return null;
   return panel.error ? <Action disabled={panel.busy} onClick={() => panel.run(panel.reload)}>{t('重新加载', 'Reload')}</Action> : <p role="status" className="text-sm text-zinc-500">{t('正在加载设置…', 'Loading settings…')}</p>;
 }
-export function usePanelData(path) {
-  const [data, setData] = useState(null);
+export function usePanelData(path, initialData = null) {
+  const [data, setData] = useState(initialData);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const running = useRef(false);

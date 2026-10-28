@@ -26,13 +26,14 @@ test('管理员填入连接后自动获取模型，切换地址取消旧结果�
       if (input.baseUrl.includes('first.example')) await held;
       await route.fulfill({ json: { models: [{ id: input.baseUrl.includes('first.example') ? 'old-model' : 'new-model', name: input.baseUrl.includes('first.example') ? '旧模型' : '新模型' }] } });
     });
-    await page.goto(`${base}/admin`);
+    await page.goto(`${base}/settings?section=admin`);
     await page.getByLabel('API 地址', { exact: true }).fill('https://first.example/v1');
     await page.getByLabel('API Key', { exact: true }).fill('ui-test-key');
     await page.waitForRequest('**/api/admin/models/discover');
     await page.getByLabel('API 地址', { exact: true }).fill('https://second.example/v1');
     await page.getByRole('option', { name: '新模型', exact: true }).waitFor({ state: 'attached' });
     release();
+    await page.locator('summary').filter({ hasText: '使用的模型' }).click();
     await page.getByLabel('模型', { exact: true }).selectOption('new-model');
     await page.getByRole('button', { name: '保存模型设置', exact: true }).click();
     await page.getByText('模型服务已保存，所有用户的新任务将使用此配置。', { exact: true }).waitFor();

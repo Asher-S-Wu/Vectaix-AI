@@ -154,7 +154,7 @@ export default function Sidebar({
   return (
     <>
       <div
-        className={`agent-sidebar fixed md:relative z-50 md:z-40 flex w-72 max-w-[85vw] h-full border-r border-zinc-200 flex-col transform-gpu transition-[transform,visibility] duration-300 ease-out will-change-transform ${isOpen ? "translate-x-0" : "-translate-x-full max-md:invisible md:translate-x-0"}`}
+        className={`agent-sidebar workspace-sidebar fixed md:relative z-50 md:z-40 flex w-72 max-w-[85vw] h-full border-r border-zinc-200 flex-col transform-gpu transition-[transform,visibility] duration-300 ease-out will-change-transform ${isOpen ? "translate-x-0" : "-translate-x-full max-md:invisible md:translate-x-0"}`}
       >
         <div className="px-4 pt-4 pb-3 flex items-center gap-2.5">
           <BrandMark size={36} />
@@ -178,7 +178,7 @@ export default function Sidebar({
             {t("新任务", "New task")}
           </button>
           <Link href="/media" onNavigate={onClose} className="flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-primary/10 hover:text-primary"><Images size={17} />{t("媒体创作", "Media studio")}</Link>
-          {user?.isAdmin && <Link href="/admin" onNavigate={onClose} className="flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-primary/10 hover:text-primary"><Settings2 size={17} />{t("管理后台", "Admin")}</Link>}
+          {user?.isAdmin && <Link href="/settings?section=admin" onNavigate={onClose} className="flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-primary/10 hover:text-primary"><Settings2 size={17} />{t("管理后台", "Admin")}</Link>}
         </div>
 
         <div className="px-3 py-3 border-t border-zinc-200">

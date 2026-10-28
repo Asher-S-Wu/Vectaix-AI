@@ -55,10 +55,10 @@ test('英文覆盖所有设置与管理页面，保留中文用户内容，桌�
     const library = await (await context.request.get(`${base}/api/library`)).json();
     const userNames = [...new Set([...library.files, ...library.folders].map(item => item.name))];
     try {
-    const routes = ['/', '/admin', '/admin/skills', '/admin/media', '/admin/media/image', '/admin/media/audio', '/admin/users', ...['general', 'assistant', 'connections', 'browser', 'files', 'backups', 'permissions', 'usage'].map(section => `/settings?section=${section}`)];
+    const routes = ['/', '/settings?section=admin', '/settings?section=admin&adminSection=skills', '/settings?section=admin&adminSection=media', '/settings?section=admin&adminSection=image', '/settings?section=admin&adminSection=audio', '/settings?section=admin&adminSection=users', ...['general', 'assistant', 'connections', 'browser', 'files', 'backups', 'permissions', 'usage'].map(section => `/settings?section=${section}`)];
     for (const route of routes) {
       await page.goto(base + route);
-      await page.locator('main').first().waitFor();
+      await page.getByRole('main').first().waitFor();
       await page.waitForLoadState('networkidle');
       const han = await page.locator('body').innerText();
       const displaysFileNames = ['/settings?section=files', '/settings?section=usage'].includes(route);
@@ -76,7 +76,7 @@ test('英文覆盖所有设置与管理页面，保留中文用户内容，桌�
     await page.screenshot({ path: `${screenshots}/chat-zh-light.png` });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: '切换为 English' }).click();
-    for (const route of ['/', '/admin', '/admin/media', '/settings?section=general']) {
+    for (const route of ['/', '/settings?section=admin', '/settings?section=admin&adminSection=media', '/settings?section=general']) {
       await page.goto(base + route);
       await page.waitForLoadState('networkidle');
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `mobile ${route}`);
@@ -91,7 +91,7 @@ test('英文覆盖所有设置与管理页面，保留中文用户内容，桌�
 test('主题默认跟随系统，在所有页面实时切换，手选主题跨页保留', { timeout: 180000 }, async () => {
   await withPage({ locale: 'en-US', colorScheme: 'dark', reducedMotion: 'reduce' }, async (page, context) => {
     await context.request.put(`${base}/api/settings`, { data: { appearance: { themeMode: 'system' } } });
-    for (const route of ['/', '/admin', '/settings?section=general', '/admin/media/audio']) {
+    for (const route of ['/', '/settings?section=admin', '/settings?section=general', '/settings?section=admin&adminSection=audio']) {
       await page.goto(base + route);
       await page.waitForFunction(() => document.documentElement.classList.contains('dark-mode'));
       await page.emulateMedia({ colorScheme: 'light' });
@@ -107,7 +107,7 @@ test('主题默认跟随系统，在所有页面实时切换，手选主题跨�
     await page.getByRole('button', { name: 'Save appearance', exact: true }).click();
     await page.waitForFunction(() => !document.documentElement.classList.contains('dark-mode'));
     assert.equal(await page.evaluate(key => localStorage.getItem(key), themeKey), 'light');
-    await page.goto(`${base}/admin`);
+    await page.goto(`${base}/settings?section=admin`);
     assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark-mode')), false);
     await page.goto(`${base}/settings?section=general`);
     await page.getByLabel('Theme', { exact: true }).click();
@@ -118,7 +118,7 @@ test('主题默认跟随系统，在所有页面实时切换，手选主题跨�
     await context.request.put(`${base}/api/settings`, { data: { appearance: { themeMode: 'dark' } } });
     await page.evaluate(key => localStorage.removeItem(key), themeKey);
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`${base}/admin`);
+    await page.goto(`${base}/settings?section=admin`);
     await page.waitForFunction(() => document.documentElement.classList.contains('dark-mode'));
     assert.equal(await page.evaluate(key => localStorage.getItem(key), themeKey), 'dark');
     await context.request.put(`${base}/api/settings`, { data: { appearance: { themeMode: 'system' } } });

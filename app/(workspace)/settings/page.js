@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUserWithAccess } from '@/lib/admin';
-import SettingsCenter from '@/app/components/settings/SettingsCenter';
 import { getLocale } from '@/lib/server/i18n';
 import { translate } from '@/lib/shared/i18n.mjs';
 
@@ -12,6 +11,6 @@ export default async function SettingsPage({ searchParams }) {
   const user = await getCurrentUserWithAccess();
   if (!user) redirect('/');
   const params = await searchParams;
-  const returnTo = ['/', '/media', '/media/image', '/media/audio'].includes(params.returnTo) ? params.returnTo : '/';
-  return <SettingsCenter user={user} initialSection={params.section || 'general'} conversationId={params.conversationId || null} projectId={params.projectId || null} returnTo={returnTo} />;
+  if (params.section === 'admin' && !user.isAdmin) redirect('/');
+  return null;
 }

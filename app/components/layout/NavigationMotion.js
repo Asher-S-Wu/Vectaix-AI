@@ -17,6 +17,7 @@ export function animateChange(update, kind = "panel") {
   if (reduceMotion()) { update(); return; }
   document.documentElement.dataset.navigationKind = kind;
   const transition = document.startViewTransition(() => flushSync(update));
+  transition.ready.catch(error => { if (error.name !== "AbortError") throw error; });
   localTransition = transition;
   const finish = () => {
     if (localTransition !== transition) return;
@@ -90,6 +91,7 @@ export function NavigationMotionProvider({ children }) {
       router.push(href);
     });
     operation.transition = transition;
+    transition.ready.catch(error => { if (error.name !== "AbortError") throw error; });
     const finish = () => {
       if (navigation.current !== operation) return;
       operation.animationDone = true;
@@ -113,6 +115,11 @@ export function NavigationMotionProvider({ children }) {
 
 export function useMotionNavigation() {
   return useContext(NavigationContext);
+}
+
+export function NavigationScope({ navigate, children }) {
+  const parent = useMotionNavigation();
+  return <NavigationContext.Provider value={{ ...parent, navigate }}>{children}</NavigationContext.Provider>;
 }
 
 export default function TransitionLink({ href, mode = false, onNavigate, ...props }) {

@@ -4,9 +4,10 @@ import { readdir } from 'node:fs/promises';
 import { chromium } from 'playwright-chromium';
 
 const base = 'http://localhost:3100';
-const pages = (await readdir(new URL('../../app', import.meta.url), { recursive: true })).filter(name => name === 'page.js' || name.endsWith('/page.js')).map(name => `/${name.replace(/(^|\/)page\.js$/, '')}`).filter(route => route !== '/settings').sort();
+const pages = (await readdir(new URL('../../app', import.meta.url), { recursive: true })).filter(name => name === 'page.js' || name.endsWith('/page.js')).map(name => `/${name.replace(/\([^/]+\)\//g, '').replace(/(^|\/)page\.js$/, '')}`).filter(route => route !== '/settings').sort();
 const sections = ['general', 'assistant', 'connections', 'browser', 'files', 'backups', 'permissions', 'usage'];
-const routes = [...pages, ...sections.map(section => `/settings?section=${section}`)];
+const adminSections = ['models', 'skills', 'sandbox', 'media', 'image', 'audio', 'users'];
+const routes = [...pages, ...sections.map(section => `/settings?section=${section}`), ...adminSections.map(section => `/settings?section=admin&adminSection=${section}`)];
 
 test('逐页检查全部前后台页面和八项设置在桌面与手机深色下的渲染、权限和横向布局', { timeout: 240000 }, async () => {
   const browser = await chromium.launch();
@@ -21,7 +22,7 @@ test('逐页检查全部前后台页面和八项设置在桌面与手机深色�
       }
       try {
         for (const route of routes) {
-          const page = await contexts[route.startsWith('/admin') ? 'admin' : 'member'].newPage();
+          const page = await contexts[route.startsWith('/settings?section=admin') ? 'admin' : 'member'].newPage();
           const errors = [];
           page.on('pageerror', error => errors.push(error.message));
           const response = await page.goto(`${base}${route}`, { waitUntil: 'networkidle' });
@@ -33,7 +34,7 @@ test('逐页检查全部前后台页面和八项设置在桌面与手机深色�
           assert.equal(await page.getByText('Application error:', { exact: false }).count(), 0, `${route}: framework error`);
           assert.deepEqual(errors, [], `${route}: runtime errors`);
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `${route}: horizontal overflow at ${viewport.width}`);
-          if (route.startsWith('/admin')) assert.equal(await page.getByRole('navigation', { name: '后台管理', exact: true }).count(), 1);
+          if (route.startsWith('/settings?section=admin')) assert.equal(await page.getByRole('navigation', { name: '后台管理', exact: true }).count(), 1);
           if (route.startsWith('/media')) assert.equal(await page.getByRole('navigation', { name: '工作空间', exact: true }).count(), 1);
           checked++;
           await page.close();

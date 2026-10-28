@@ -1,7 +1,9 @@
 "use client";
 
 import { useI18n } from "@/lib/client/i18n";
-import { animateChange, useMotionNavigation } from "./components/layout/NavigationMotion";
+import { animateChange, NavigationScope } from "./components/layout/NavigationMotion";
+import useWorkspaceNavigation from './components/layout/useWorkspaceNavigation';
+import SettingsCenter from './components/settings/SettingsCenter';
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import ChatResourcesPanel from "./components/chat/ChatResourcesPanel";
 import ProjectManager from "./components/chat/ProjectManager";
@@ -18,7 +20,7 @@ import AuthModal from "./components/modals/AuthModal";
 import ChatLayout from "./components/layout/ChatLayout";
 
 const FONT_SIZE_CLASSES = { small: "text-size-small", medium: "text-size-medium", large: "text-size-large" };
-export default function ChatApp() {
+export default function ChatApp({ initialUser }) {
   const { t, localizeMessage } = useI18n();
   const toast = useToast();
   const savedConversationRef = useRef(typeof window !== "undefined" ? window.localStorage.getItem("vectaix-current-conversation") : null);
@@ -30,7 +32,6 @@ export default function ChatApp() {
   const [projects, setProjects] = useState([]);
   const [activeProjectId, setActiveProjectId] = useState("all");
   const [showProjects, setShowProjects] = useState(false);
-  const { navigate } = useMotionNavigation();
   const [showResources, setShowResources] = useState(false);
   const openSettings = (section = "general") => { const query = new URLSearchParams({section}); if (currentConversationId) query.set("conversationId",currentConversationId); if (projectId) query.set("projectId",projectId); navigate(`/settings?${query}`); };
   const selectedConversation = conversations.find(item => item._id === currentConversationId);
@@ -38,6 +39,7 @@ export default function ChatApp() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const {
+    settings,
     isSettingsReady,
     assistant,
     webSearch,
@@ -109,6 +111,7 @@ export default function ChatApp() {
     handleLogout,
     handleAuthExpired,
   } = useAuthSession({
+    initialUser,
     toast,
     stopOngoingChatWork,
     fetchConversations,
@@ -116,11 +119,23 @@ export default function ChatApp() {
     onAuthenticated: resetSessionView,
     onAuthExpired: handleSessionExpired,
   });
+  const { view, navigate } = useWorkspaceNavigation(user);
+  const settingsOpen = view.pathname === '/settings' && Boolean(user) && !showAuthModal;
+  const settingsParams = new URLSearchParams(view.search);
+  const returnTo = ['/', '/media', '/media/image', '/media/audio'].includes(settingsParams.get('returnTo')) ? settingsParams.get('returnTo') : '/';
+  const previousView = useRef(view.pathname);
+  useEffect(() => {
+    if (previousView.current === '/settings' && view.pathname === '/' && user) void fetchSettings();
+    previousView.current = view.pathname;
+  }, [view.pathname, user, fetchSettings]);
+  useEffect(() => {
+    document.title = view.pathname === '/settings' ? t('设置 · 花卷', 'Settings · Huajuan') : t('花卷 · AI 工作助手', 'Huajuan · AI workspace');
+  }, [view.pathname, t]);
 
   const {
     chatEndRef, messageListRef, resetScroll, showScrollButton,
     handleMessageListScroll, scrollToBottom,
-  } = useChatScroll({ messages, isStreaming, active: Boolean(user) && !showAuthModal });
+  } = useChatScroll({ messages, isStreaming, active: Boolean(user) && !showAuthModal && !settingsOpen });
 
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
@@ -376,10 +391,11 @@ export default function ChatApp() {
   };
 
   return (
-    <>
+    <NavigationScope navigate={navigate}>
       {showAuthModal ? (
         <AuthModal authMode={authMode} email={email} password={password} confirmPassword={confirmPassword} onEmailChange={setEmail} onPasswordChange={setPassword} onConfirmPasswordChange={setConfirmPassword} onSubmit={handleAuth} onPasskey={handlePasskeyAuth} onToggleMode={() => setAuthMode((m) => (m === "login" ? "register" : "login"))} loading={authLoading} />
       ) : (
+        <div className="h-full" hidden={settingsOpen} inert={settingsOpen}>
         <ChatLayout
           resourcesPanel={<ChatResourcesPanel open={showResources} onClose={() => animateChange(() => setShowResources(false), "resources")} conversationId={currentConversationId} projectId={projectId} tasks={taskActions.tasks} messages={messages} />}
           user={user}
@@ -445,11 +461,13 @@ export default function ChatApp() {
             onStop: taskActions.stop,
           }}
         />
+        </div>
       )}
+      {settingsOpen && <SettingsCenter key={view.revision} user={{ ...user, userId: user.id }} initialSection={settingsParams.get('section') || 'general'} initialAdminSection={settingsParams.get('adminSection') || 'models'} initialSettings={settings} conversationId={settingsParams.get('conversationId')} projectId={settingsParams.get('projectId')} returnTo={returnTo} />}
       {!showAuthModal && <>
-        <TaskNotifications userId={user?.id} />
+        <TaskNotifications userId={settings ? user?.id : null} />
         <ProjectManager open={showProjects} onClose={() => setShowProjects(false)} projects={projects} onChanged={async () => { await fetchProjects(); await fetchConversations(); }} onSelectProject={(id) => { setActiveProjectId(id); startNewChat(); }} />
       </>}
-    </>
+    </NavigationScope>
   );
 }

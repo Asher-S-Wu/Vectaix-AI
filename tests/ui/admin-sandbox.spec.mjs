@@ -23,7 +23,7 @@ for (const locale of ['zh-CN', 'en-US']) test(`管理员保存并测试云端沙
       }
       return route.fulfill({ json: { config } });
     });
-    await page.goto(`${base}/admin/sandbox`);
+    await page.goto(`${base}/settings?section=admin&adminSection=sandbox`);
     const english = locale === 'en-US';
     await page.getByLabel(english ? 'Railway environment ID' : 'Railway 环境 ID', { exact: true }).fill('00000000-0000-4000-8000-000000000001');
     await page.getByLabel('Railway API Token', { exact: true }).fill('sandbox_test_ui_key');

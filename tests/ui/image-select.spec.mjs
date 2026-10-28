@@ -34,7 +34,7 @@ test('图片页传递 1～4 张数量，等待整组完成并展示成功与失�
         ? { success: false, message: '测试图片未通过审核' }
         : { success: true, fileId: `ui-image-${index}`, url: `/api/files/ui-image-${index}` }) } });
     });
-    await page.goto(`${base}/admin/media/image`);
+    await page.goto(`${base}/settings?section=admin&adminSection=image`);
     await page.getByLabel('图片描述').fill('风景');
     assert.equal(await page.locator('select').count(), 0);
     for (const count of [1, 2, 3, 4]) {

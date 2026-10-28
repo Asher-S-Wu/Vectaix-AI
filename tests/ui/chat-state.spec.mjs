@@ -721,6 +721,14 @@ test('登录后滚动阅读历史时，任务刷新保留阅读位置，回到�
     assert.ok(updates > before);
     const after = await list.evaluate(element => element.scrollTop);
     assert.ok(Math.abs(after - top) < 80, `轮询更新应保留手动上滑后的阅读位置：${top} → ${after}`);
+    await page.getByRole('button', { name: '设置', exact: true }).click();
+    await page.getByLabel('昵称', { exact: true }).waitFor();
+    await page.waitForResponse(response => response.url().includes('/api/tasks?'));
+    await page.getByRole('link', { name: '返回对话', exact: true }).click();
+    await list.waitFor();
+    await page.waitForFunction(() => !document.documentElement.dataset.navigationKind);
+    const returned = await list.evaluate(element => element.scrollTop);
+    assert.ok(Math.abs(returned - top) < 80, `设置期间任务继续更新，返回后应保留阅读位置：${top} → ${returned}`);
     await page.getByRole('button', { name: '滚动到底部', exact: true }).click();
     await page.waitForFunction(() => { const list = document.querySelector('.mobile-scroll'); return list.scrollHeight - list.scrollTop - list.clientHeight < 80; });
   }, '192.0.2.238');

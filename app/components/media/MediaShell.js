@@ -16,10 +16,11 @@ export const useMediaAccess = () => useContext(MediaAccess);
 export function MediaServiceNotice({ enabled }) {
   const { t } = useI18n();
   const { user } = useMediaAccess();
+  const returnTo = encodeURIComponent(usePathname());
   if (enabled) return null;
   return <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900 dark:border-amber-900 dark:text-amber-200">
     {t('这项服务尚未开通。已有作品可以查看和删除，创作功能在管理员配置服务后开放。', 'This service has not been enabled. You can view and delete existing work. Creation becomes available after an administrator configures the service.')}
-    {user.isAdmin && <Link href="/admin/media" className="ml-2 font-medium underline">{t('前往媒体设置', 'Open media settings')}</Link>}
+    {user.isAdmin && <Link href={`/settings?section=admin&adminSection=media&returnTo=${returnTo}`} className="ml-2 font-medium underline">{t('前往媒体设置', 'Open media settings')}</Link>}
   </div>;
 }
 
@@ -56,7 +57,7 @@ export default function MediaShell({ user, children }) {
         <Link href={`/settings?section=files&returnTo=${returnTo}`}><FolderOpen size={18} />{t('我的文件', 'My files')}</Link>
       </nav>
       <div className="media-sidebar-footer">
-        {user.isAdmin && <Link href="/admin/media"><Settings2 size={17} />{t('媒体设置', 'Media settings')}</Link>}
+        {user.isAdmin && <Link href={`/settings?section=admin&adminSection=media&returnTo=${returnTo}`}><Settings2 size={17} />{t('媒体设置', 'Media settings')}</Link>}
         <Link href={`/settings?returnTo=${returnTo}`}><Settings2 size={17} /><span className="min-w-0"><span className="block">{t('设置', 'Settings')}</span><span className="mt-1 block truncate text-xs text-zinc-500">{user.email}</span></span></Link>
       </div>
     </aside>

@@ -1,8 +1,27 @@
 'use client';
 
-import { cloneElement, useId } from 'react';
+import { cloneElement, useId, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useI18n } from '@/lib/client/i18n';
 import { apiJson } from '@/lib/client/apiClient';
+
+export function AdminConfigSection({ title, description, summary, icon: Icon, defaultOpen = false, children }) {
+  const titleId = useId();
+  const [open, setOpen] = useState(defaultOpen);
+
+  return <details className="admin-config-section" open={open} onToggle={event => setOpen(event.currentTarget.open)} onInvalid={event => {
+    event.currentTarget.open = true;
+    setOpen(true);
+  }}>
+    <summary className="admin-config-trigger" aria-labelledby={titleId}>
+      <Icon size={20} className="admin-config-icon" aria-hidden="true" />
+      <div className="admin-config-heading"><h2 id={titleId}>{title}</h2><p>{description}</p></div>
+      <span className="admin-config-preview">{summary}</span>
+      <ChevronDown size={18} className="admin-config-chevron" aria-hidden="true" />
+    </summary>
+    <div className="admin-config-content">{children}</div>
+  </details>;
+}
 
 export function AdminField({ label, hint, children, ...props }) {
   const id = useId();

@@ -93,7 +93,7 @@ test('Media 深链接要求登录，普通用户进入后台会返回前台', { 
     await page.getByRole('heading', { name: '登录花卷', exact: true }).waitFor();
     await anonymous.close();
     await session('192.0.2.212', async member => {
-      await member.goto(`${base}/admin/media`);
+      await member.goto(`${base}/settings?section=admin&adminSection=media`);
       assert.equal(new URL(member.url()).pathname, '/');
       await member.getByRole('link', { name: '媒体创作', exact: true }).waitFor();
     });

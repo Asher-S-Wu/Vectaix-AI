@@ -18,6 +18,51 @@ async function withPage(run, ip) {
   } finally { await context.close(); await browser.close(); }
 }
 
+test('默认头像按账号固定分配，上传图片后保留自定义头像，移除后恢复原头像', { timeout: 45000 }, async () => {
+  await withPage(async (page, context) => {
+    const registration = await context.request.post(`${base}/api/auth/register`, { data: { email: `avatar-${Date.now()}@example.test`, password: 'Vectaix-Test-2026!', confirmPassword: 'Vectaix-Test-2026!' } });
+    assert.equal(registration.status(), 200);
+    const settings = (await (await context.request.get(`${base}/api/settings`)).json()).settings;
+    const defaultAvatar = settings.avatar;
+    assert.match(defaultAvatar, /^\/avatars\/[a-z]+\.svg$/);
+    const asset = await context.request.get(`${base}${defaultAvatar}`);
+    assert.equal(asset.status(), 200);
+    assert.match(asset.headers()['content-type'], /image\/svg\+xml/);
+    const saved = await context.request.put(`${base}/api/settings`, { data: { nickname: settings.nickname } });
+    assert.equal(saved.status(), 200);
+    assert.equal((await saved.json()).settings.avatar, defaultAvatar);
+    const repeated = await Promise.all(Array.from({ length: 3 }, async () => (await (await context.request.get(`${base}/api/settings`)).json()).settings.avatar));
+    assert.deepEqual(repeated, Array(3).fill(defaultAvatar));
+
+    await page.goto(base);
+    const sidebarAvatar = page.getByRole('button', { name: '设置', exact: true }).locator('img');
+    await sidebarAvatar.waitFor();
+    assert.equal(await sidebarAvatar.getAttribute('src'), defaultAvatar);
+    await page.getByRole('button', { name: '设置', exact: true }).click();
+    const profileAvatar = page.getByRole('img', { name: '我的头像', exact: true });
+    await profileAvatar.waitFor();
+    assert.equal(await profileAvatar.getAttribute('src'), defaultAvatar);
+    await page.getByLabel('头像', { exact: true }).setInputFiles({ name: '头像.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVMcAAAAASUVORK5CYII=', 'base64') });
+    await page.getByText('头像已更新', { exact: true }).waitFor();
+    const customAvatar = (await (await context.request.get(`${base}/api/settings`)).json()).settings.avatar;
+    assert.match(customAvatar, /^\/api\/files\//);
+    assert.equal(await profileAvatar.getAttribute('src'), customAvatar);
+    await page.reload();
+    await profileAvatar.waitFor();
+    assert.equal(await profileAvatar.getAttribute('src'), customAvatar);
+    await page.getByRole('button', { name: '恢复默认头像', exact: true }).click();
+    await page.getByText('已恢复默认头像', { exact: true }).waitFor();
+    assert.equal(await profileAvatar.getAttribute('src'), defaultAvatar);
+    assert.equal((await context.request.get(`${base}${customAvatar}`)).status(), 404);
+    await page.getByRole('link', { name: '返回对话', exact: true }).click();
+    await sidebarAvatar.waitFor();
+    assert.equal(await sidebarAvatar.getAttribute('src'), defaultAvatar);
+    await page.reload();
+    await sidebarAvatar.waitFor();
+    assert.equal(await sidebarAvatar.getAttribute('src'), defaultAvatar);
+  }, '192.0.2.228');
+});
+
 test('备份选择远端连接后提交该连接，并要求填写目标文件夹', { timeout: 45000 }, async () => {
   await withPage(async page => {
     let submitted;
@@ -129,7 +174,7 @@ test('用户管理弹窗可用键盘关闭，删除末页最后一位用户后�
       return route.fulfill({ json: { users: current === 2 && !deleted ? [user(lastUserId, 'last@example.test')] : [user('507f1f77bcf86cd799439015', 'first@example.test')], total: deleted ? 20 : 21, page: current, totalPages: deleted ? 1 : 2 } });
     });
     await page.route(`**/api/admin/users/${lastUserId}`, route => { deleted = true; return route.fulfill({ json: { success: true } }); });
-    await page.goto(`${base}/admin/users`);
+    await page.goto(`${base}/settings?section=admin&adminSection=users`);
     const opener = page.getByRole('button', { name: '管理用户', exact: true });
     await opener.click();
     const dialog = page.getByRole('dialog', { name: '用户管理', exact: true });
@@ -156,7 +201,8 @@ test('模型密钥可以明确清除，停用状态与保存结果保持一致',
       return route.fulfill({ json: { config } });
     });
     await page.route('**/api/admin/models/discover', route => route.fulfill({ json: { models: [] } }));
-    await page.goto(`${base}/admin`);
+    await page.goto(`${base}/settings?section=admin`);
+    await page.locator('summary').filter({ hasText: '服务连接' }).click();
     await page.getByLabel('保存时删除密钥并停用模型服务', { exact: true }).check();
     assert.equal(await page.getByLabel('API Key', { exact: true }).isDisabled(), true);
     await page.getByRole('button', { name: '保存模型设置', exact: true }).click();
@@ -173,7 +219,8 @@ test('手动获取模型会取消自动发现计时，随后仍可保存', { tim
     const config = { baseUrl: 'https://models.example.test/v1', protocol: 'responses', modelId: 'example-model', displayName: '测试模型', contextWindow: 128000, maxOutputTokens: 8192, nativeInputs: ['text', 'image'], supportsTools: true, pricing: { inputPerMillion: 1, cachedInputPerMillion: 0, outputPerMillion: 2 }, hasApiKey: true };
     await page.route('**/api/admin/models', route => route.fulfill({ json: { config } }));
     await page.route('**/api/admin/models/discover', route => route.fulfill({ json: { models: [{ id: 'example-model', name: '测试模型' }] } }));
-    await page.goto(`${base}/admin`);
+    await page.goto(`${base}/settings?section=admin`);
+    await page.locator('summary').filter({ hasText: '服务连接' }).click();
     await page.getByRole('button', { name: '获取模型列表', exact: true }).click();
     await page.getByRole('status').filter({ hasText: '已获取 1 个模型' }).waitFor();
     await page.clock.runFor(1200);

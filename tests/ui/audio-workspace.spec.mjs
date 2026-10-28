@@ -65,11 +65,11 @@ test('管理员声音库支持搜索、音色选择保持、全局参数保存�
       return route.fulfill({ json: { success: true, config: savedSettings || {} } });
     });
     await page.route('**/api/files/elevenlabs-ui-audio*', route => route.fulfill({ contentType: 'audio/wav', headers: new URL(route.request().url()).searchParams.has('download') ? { 'content-disposition': 'attachment; filename="elevenlabs-ui.wav"' } : {}, body: wav() }));
-    await page.goto(`${base}/admin/media/audio`);
+    await page.goto(`${base}/settings?section=admin&adminSection=audio`);
     const nav = page.getByRole('navigation', { name: '媒体工作区' });
-    assert.equal(await nav.getByRole('link').count(), 2);
+    assert.equal(await nav.getByRole('button').count(), 3);
     await page.getByRole('heading', { name: '语音合成', exact: true }).waitFor();
-    assert.equal(await page.locator('h1').count(), 1);
+    assert.equal(await page.getByRole('main').locator('h1').count(), 1);
     assert.match(await page.title(), /花卷/);
     await page.locator('span').filter({ hasText: /^ElevenLabs Multilingual v2$/ }).first().waitFor();
     await page.getByRole('button', { name: /^测试音色甲/ }).waitFor();
@@ -140,7 +140,7 @@ test('ElevenLabs 声音复刻提交样本授权、刷新状态、试听并删除
       return route.fulfill({ json: { success: true, generations: [] } });
     });
     await page.addInitScript(() => localStorage.setItem('vectaix_ui_elevenlabsAudioVoice_v1', 'd'.repeat(32)));
-    await page.goto(`${base}/admin/media/audio`);
+    await page.goto(`${base}/settings?section=admin&adminSection=audio`);
     await page.getByText('先复刻一个声音，即可在这里选择并生成配音。', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: '生成语音', exact: true }).isDisabled(), true);
     assert.equal(await page.evaluate(() => localStorage.getItem('vectaix_ui_elevenlabsAudioVoice_v1')), null);
@@ -189,8 +189,9 @@ test('后台 ElevenLabs 配置安全提交密钥和参数，保存后清空密�
       }
       return route.fulfill({ json: { config } });
     });
-    await page.goto(`${base}/admin/media`);
-    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: '语音服务 · ElevenLabs Multilingual v2', exact: true }) });
+    await page.goto(`${base}/settings?section=admin&adminSection=media`);
+    const section = page.locator('details').filter({ has: page.locator('summary').filter({ hasText: '语音服务' }) });
+    await section.locator('summary').click();
     await section.getByLabel('API Key', { exact: true }).fill('ui-test-elevenlabs-key');
     assert.equal(await section.getByLabel('API 地址', { exact: true }).inputValue(), 'https://api.elevenlabs.io');
     await section.getByRole('checkbox', { name: '启用', exact: true }).check();
@@ -204,6 +205,7 @@ test('后台 ElevenLabs 配置安全提交密钥和参数，保存后清空密�
     assert.ok(!JSON.stringify(config).includes('ui-test-elevenlabs-key'));
     assert.ok(!JSON.stringify(config).includes('encryptedApiKey'));
     await page.reload();
+    await section.locator('summary').click();
     await section.getByRole('checkbox', { name: '启用', exact: true }).waitFor();
     assert.equal(await section.getByLabel('API Key', { exact: true }).inputValue(), '');
   });
