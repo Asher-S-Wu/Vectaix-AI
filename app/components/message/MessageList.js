@@ -22,7 +22,7 @@ import ReplyActions from "./ReplyActions";
 import ThinkingBlock from "./ThinkingBlock";
 import ImageLightbox from "../modals/ImageLightbox";
 import ConfirmModal from "../modals/ConfirmModal";
-import BrandMark from "../common/BrandMark";
+import HuajuanMascot from "../common/HuajuanMascot";
 import { ArrowUp, BarChart3, Code2, Compass, Sparkles } from "lucide-react";
 import { useToast } from "../common/ToastProvider";
 import { exportMessageContent } from "@/lib/client/messageExport";
@@ -256,7 +256,7 @@ export default function MessageList({
           </div>
         ) : (
           <div className="huajuan-welcome">
-            <div className="welcome-brand"><BrandMark size={96} /><span className="welcome-note">{t("我是花卷，今天做点什么？", "Hi, I'm Huajuan.")}</span></div>
+            <div className="welcome-brand"><HuajuanMascot variant="welcome" size={112} /><span className="welcome-note">{t("我是花卷，今天做点什么？", "Hi, I'm Huajuan.")}</span></div>
             <h1>{t("你想完成什么？", "What would you like to work on?")}</h1>
             <p className="welcome-description">{t("输入问题或上传文件，让花卷帮你查资料、分析数据、起草文稿。", "Ask a question or upload a file. Huajuan can research topics, analyze data, and draft documents.")}</p>
             <div className="welcome-prompts">

@@ -89,6 +89,7 @@ export default function ChatLayout({
       <div style={{ viewTransitionName: "workspace-content" }} className="min-w-0 flex-1 flex flex-col w-full h-full relative overflow-hidden">
         <ChatHeader
           title={conversations.find(conversation => conversation._id === currentConversationId)?.title}
+          showMascot={messages.length > 0 || loading}
           onToggleSidebar={onToggleSidebar}
           onStartNewChat={onStartNewChat}
           sidebarOpen={sidebarOpen}

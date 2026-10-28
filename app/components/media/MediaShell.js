@@ -5,6 +5,8 @@ import { Images, MessageSquare, Settings2, FolderOpen } from 'lucide-react';
 import Link, { useMotionNavigation } from '@/app/components/layout/NavigationMotion';
 import { usePathname } from 'next/navigation';
 import BrandMark from '@/app/components/common/BrandMark';
+import HuajuanMascot from '@/app/components/common/HuajuanMascot';
+import HelpLink from '@/app/components/common/HelpLink';
 import MonthlyUsage from '@/app/components/layout/MonthlyUsage';
 import { useI18n } from '@/lib/client/i18n';
 import { apiJson } from '@/lib/client/apiClient';
@@ -27,7 +29,9 @@ export function MediaServiceNotice({ enabled }) {
 export default function MediaShell({ user, children }) {
   const { t, locale, setLocale, localizeMessage } = useI18n();
   const { navigate } = useMotionNavigation();
-  const returnTo = encodeURIComponent(usePathname());
+  const pathname = usePathname();
+  const returnTo = encodeURIComponent(pathname);
+  const mascotVariant = pathname === '/media/image' ? 'image' : pathname === '/media/audio' ? 'audio' : 'studio';
   const [capabilities, setCapabilities] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -63,7 +67,8 @@ export default function MediaShell({ user, children }) {
     </aside>
     <div className="media-main">
       <header className="media-topbar">
-        <div className="ml-auto flex items-center gap-1"><button type="button" onClick={() => setLocale(locale === 'zh' ? 'en' : 'zh')} className="min-h-10 rounded-lg px-3 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-primary" aria-label={t('切换为 English', 'Switch to 中文')}>{locale === 'zh' ? 'English' : '中文'}</button><Link href={`/settings?returnTo=${returnTo}`} className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-primary md:hidden" aria-label={t('设置', 'Settings')}><Settings2 size={18} /></Link><MonthlyUsage onOpenUsage={() => navigate(`/settings?section=usage&returnTo=${returnTo}`)} /></div>
+        <HuajuanMascot key={mascotVariant} variant={mascotVariant} size={52} />
+        <div className="ml-auto flex items-center gap-1"><HelpLink href={`/help?returnTo=${returnTo}`} /><button type="button" onClick={() => setLocale(locale === 'zh' ? 'en' : 'zh')} className="min-h-10 rounded-lg px-2 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-primary" aria-label={t('切换为 English', 'Switch to 中文')}>{locale === 'zh' ? 'English' : '中文'}</button><Link href={`/settings?returnTo=${returnTo}`} className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-primary md:hidden" aria-label={t('设置', 'Settings')}><Settings2 size={18} /></Link><MonthlyUsage onOpenUsage={() => navigate(`/settings?section=usage&returnTo=${returnTo}`)} /></div>
       </header>
       <main className="media-content"><div className="media-content-inner"><MediaHeader />
         {loading ? <p role="status" className="py-12 text-sm text-zinc-500">{t('正在读取创作服务…', 'Loading creative services…')}</p> : error ? <div role="alert" className="space-y-4 py-12"><p className="text-sm text-red-600">{localizeMessage(error.message)}</p>{error.status === 401 ? <Link href="/" className="admin-button">{t('重新登录', 'Sign in again')}</Link> : <button type="button" className="admin-button" onClick={() => { setLoading(true); setError(null); void load(); }}>{t('重新加载', 'Reload')}</button>}</div> : children}

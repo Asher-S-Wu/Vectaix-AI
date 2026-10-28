@@ -12,7 +12,7 @@ export default function useWorkspaceNavigation(user) {
 
   const syncLocation = useEffectEvent((fromHistory = false) => {
     const url = new URL(window.location.href);
-    if (!['/', '/settings'].includes(url.pathname)) return;
+    if (!['/', '/settings', '/help'].includes(url.pathname)) return;
     if (url.pathname === view.pathname && url.searchParams.toString() === view.search) return;
     const update = () => setView(current => ({ pathname: url.pathname, search: url.searchParams.toString(), revision: current.revision + Number(fromHistory) }));
     if (fromHistory) animateChange(update, 'workspace');
@@ -27,7 +27,7 @@ export default function useWorkspaceNavigation(user) {
 
   const navigate = (href, options) => {
     const target = new URL(href, window.location.href);
-    if (!user || target.origin !== window.location.origin || !['/', '/settings'].includes(target.pathname)) {
+    if (!user || pathname === '/help' || target.origin !== window.location.origin || !['/', '/settings'].includes(target.pathname)) {
       parentNavigation.navigate(href, options);
       return;
     }

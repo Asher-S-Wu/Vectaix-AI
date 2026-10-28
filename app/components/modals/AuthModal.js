@@ -3,7 +3,7 @@
 import { useI18n } from '@/lib/client/i18n';
 import { motion, useReducedMotion } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import BrandMark from "../common/BrandMark";
+import HuajuanMascot from "../common/HuajuanMascot";
 
 export default function AuthModal({
   authMode,
@@ -42,7 +42,7 @@ export default function AuthModal({
             animate={{ y: 0, rotate: 0, opacity: 1 }}
             transition={{ type: "spring", damping: 12, stiffness: 180, delay: 0.1 }}
           >
-            <BrandMark size={84} />
+            <HuajuanMascot key={authMode} variant={authMode} size={100} />
           </motion.div>
         </div>
         <h1 className="text-xl font-semibold text-center mb-1.5 text-zinc-900">

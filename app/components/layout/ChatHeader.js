@@ -3,11 +3,13 @@
 import { Menu, SquarePen, FolderOpen } from "lucide-react";
 import MonthlyUsage from "./MonthlyUsage";
 import { useI18n } from "@/lib/client/i18n";
+import HuajuanMascot from "../common/HuajuanMascot";
+import HelpLink from "../common/HelpLink";
 
-export default function ChatHeader({ title, onToggleSidebar, onStartNewChat, sidebarOpen, onOpenResources, projectName, userId, tasks, onOpenUsage }) {
+export default function ChatHeader({ title, showMascot, onToggleSidebar, onStartNewChat, sidebarOpen, onOpenResources, projectName, userId, tasks, onOpenUsage }) {
   const { t, locale, setLocale } = useI18n();
   return (
-    <header className="z-40 flex min-h-14 items-center gap-1 border-b border-zinc-200 bg-[var(--bg-primary)] px-2 py-2 sm:px-4">
+    <header className="z-40 flex min-h-14 items-center gap-1 border-b border-zinc-200 bg-[var(--bg-primary)] px-2 py-2 max-[420px]:flex-wrap sm:px-4">
       <button
         onClick={onToggleSidebar}
         type="button"
@@ -17,10 +19,12 @@ export default function ChatHeader({ title, onToggleSidebar, onStartNewChat, sid
       >
         <Menu size={20} />
       </button>
+      {showMascot && <HuajuanMascot variant="chat" size={44} />}
       <h1 className="min-w-0 flex-1 truncate px-1 text-sm font-medium text-zinc-800 sm:px-0">
         {title || t("新任务", "New task")}
       </h1>
-      <div className="flex shrink-0 items-center sm:gap-1">
+      <div className="flex shrink-0 items-center max-[420px]:w-full max-[420px]:justify-end sm:gap-1">
+        {userId && <HelpLink />}
         <button type="button" onClick={() => setLocale(locale === "zh" ? "en" : "zh")} lang={locale === "zh" ? "en" : "zh"} aria-label={t("切换为 English", "Switch to 中文")} className="rounded-lg px-2 py-2 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-primary">
           {locale === "zh" ? "English" : "中文"}
         </button>

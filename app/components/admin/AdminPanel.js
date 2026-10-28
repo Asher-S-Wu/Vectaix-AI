@@ -10,11 +10,14 @@ import UsersPanel from '../settings/panels/UsersPanel';
 
 const panels = { models: ModelsPanel, skills: GlobalSkillsPanel, sandbox: SandboxPanel, media: AdminMediaPanel, image: AdminMediaPanel, audio: AdminMediaPanel, users: UsersPanel };
 
+export function getAdminSection(section) {
+  return Object.hasOwn(panels, section) ? section : 'models';
+}
+
 export default function AdminPanel({ section, onSectionChange }) {
   const { t } = useI18n();
-  const selected = Object.hasOwn(panels, section) ? section : 'models';
-  const activeCategory = ['image', 'audio'].includes(selected) ? 'media' : selected;
-  const Panel = panels[selected];
+  const activeCategory = ['image', 'audio'].includes(section) ? 'media' : section;
+  const Panel = panels[section];
   const entries = [
     ['models', t('模型服务', 'Model services'), Cpu],
     ['skills', t('全局技能', 'Global skills'), BookOpen],
@@ -30,7 +33,7 @@ export default function AdminPanel({ section, onSectionChange }) {
       </button>)}
     </nav>
     <div className="admin-panel-content">
-      <Panel key={activeCategory} section={selected} onSectionChange={onSectionChange} />
+      <Panel key={activeCategory} section={section} onSectionChange={onSectionChange} />
     </div>
   </div>;
 }

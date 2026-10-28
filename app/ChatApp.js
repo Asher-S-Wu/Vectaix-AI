@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/client/i18n";
+import { usePathname } from 'next/navigation';
 import { animateChange, NavigationScope } from "./components/layout/NavigationMotion";
 import useWorkspaceNavigation from './components/layout/useWorkspaceNavigation';
 import SettingsCenter from './components/settings/SettingsCenter';
@@ -120,7 +121,8 @@ export default function ChatApp({ initialUser }) {
     onAuthExpired: handleSessionExpired,
   });
   const { view, navigate } = useWorkspaceNavigation(user);
-  const settingsOpen = view.pathname === '/settings' && Boolean(user) && !showAuthModal;
+  const helpOpen = usePathname() === '/help';
+  const settingsOpen = view.pathname === '/settings' && !helpOpen && Boolean(user) && !showAuthModal;
   const settingsParams = new URLSearchParams(view.search);
   const returnTo = ['/', '/media', '/media/image', '/media/audio'].includes(settingsParams.get('returnTo')) ? settingsParams.get('returnTo') : '/';
   const previousView = useRef(view.pathname);
@@ -129,13 +131,13 @@ export default function ChatApp({ initialUser }) {
     previousView.current = view.pathname;
   }, [view.pathname, user, fetchSettings]);
   useEffect(() => {
-    document.title = view.pathname === '/settings' ? t('设置 · 花卷', 'Settings · Huajuan') : t('花卷 · AI 工作助手', 'Huajuan · AI workspace');
-  }, [view.pathname, t]);
+    document.title = helpOpen ? t('帮助文档 · 花卷', 'Help docs · Huajuan') : view.pathname === '/settings' ? t('设置 · 花卷', 'Settings · Huajuan') : t('花卷 · AI 工作助手', 'Huajuan · AI workspace');
+  }, [view.pathname, helpOpen, t]);
 
   const {
     chatEndRef, messageListRef, resetScroll, showScrollButton,
     handleMessageListScroll, scrollToBottom,
-  } = useChatScroll({ messages, isStreaming, active: Boolean(user) && !showAuthModal && !settingsOpen });
+  } = useChatScroll({ messages, isStreaming, active: Boolean(user) && !showAuthModal && !settingsOpen && !helpOpen });
 
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
@@ -395,7 +397,7 @@ export default function ChatApp({ initialUser }) {
       {showAuthModal ? (
         <AuthModal authMode={authMode} email={email} password={password} confirmPassword={confirmPassword} onEmailChange={setEmail} onPasswordChange={setPassword} onConfirmPasswordChange={setConfirmPassword} onSubmit={handleAuth} onPasskey={handlePasskeyAuth} onToggleMode={() => setAuthMode((m) => (m === "login" ? "register" : "login"))} loading={authLoading} />
       ) : (
-        <div className="h-full" hidden={settingsOpen} inert={settingsOpen}>
+        <div className="h-full" hidden={settingsOpen || helpOpen} inert={settingsOpen || helpOpen}>
         <ChatLayout
           resourcesPanel={<ChatResourcesPanel open={showResources} onClose={() => animateChange(() => setShowResources(false), "resources")} conversationId={currentConversationId} projectId={projectId} tasks={taskActions.tasks} messages={messages} />}
           user={user}
