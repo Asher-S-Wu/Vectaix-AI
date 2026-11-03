@@ -12,7 +12,7 @@ import ApplyGlobalMediaButton from "./ApplyGlobalMediaButton";
 import ConfirmModal from "../modals/ConfirmModal";
 import { AUDIO_PROVIDERS, inputClass } from "./audioProviders";
 import { readLocalSetting, writeLocalSetting } from "@/lib/client/localSettings";
-import { playNewGenerationOnce } from "@/lib/media/client/audioAutoPlay.mjs";
+import { playRequestedAudioOnce } from "@/lib/media/client/audioAutoPlay.mjs";
 import { createAudioClient } from "@/lib/media/client/audio";
 
 const buttonClass = "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700";
@@ -52,6 +52,7 @@ export default function AudioWorkspace({ provider, onBusyChange, canManageDefaul
   const [createdVoiceName, setCreatedVoiceName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const pendingAutoPlay = useRef("");
+  const pendingPreviewAutoPlay = useRef("");
   const historyRequest = useRef(0);
   const operationLock = useRef(false);
   const busy = Boolean(operation) || defaultsSaving;
@@ -177,7 +178,10 @@ export default function AudioWorkspace({ provider, onBusyChange, canManageDefaul
     });
   }
   const audioRef = useCallback(element => {
-    if (element) playNewGenerationOnce({ generationId: element.dataset.generationId, pendingGenerationIdRef: pendingAutoPlay, audioElement: element });
+    if (element) playRequestedAudioOnce({ requestId: element.dataset.generationId, pendingRequestIdRef: pendingAutoPlay, audioElement: element });
+  }, []);
+  const previewAudioRef = useCallback(element => {
+    if (element) playRequestedAudioOnce({ requestId: element.getAttribute("src"), pendingRequestIdRef: pendingPreviewAutoPlay, audioElement: element });
   }, []);
 
   function voiceCard(voice) {
@@ -191,7 +195,9 @@ export default function AudioWorkspace({ provider, onBusyChange, canManageDefaul
       </button>
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" className={buttonClass} disabled={busy || !ready || !serviceEnabled} aria-label={t("试听 {name}", "Preview {name}", { name })} onClick={() => void run("preview", async () => {
-          setPreview({ voiceId: voice.voiceId, url: await api.previewVoice(voice.voiceId) });
+          const url = await api.previewVoice(voice.voiceId);
+          pendingPreviewAutoPlay.current = url;
+          setPreview({ voiceId: voice.voiceId, url });
           if (voice.status === "pending_activation") setVoices(current => current.map(item => item.profileId === voice.profileId ? { ...item, status: "trained" } : item));
         })}>{operation === "preview" ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : <Play className="h-3.5 w-3.5" />}{t("试听", "Preview")}</button>
         {!voice.builtin && !voice.shared && <><button type="button" disabled={busy} className={buttonClass} onClick={() => void run("refresh", async () => {
@@ -201,7 +207,7 @@ export default function AudioWorkspace({ provider, onBusyChange, canManageDefaul
         })}>{t("刷新状态", "Refresh status")}</button>
         <button type="button" disabled={busy} className={`${buttonClass} hover:text-red-600`} onClick={() => setDeleteTarget({ type: "voice", item: voice })}>{t("删除音色", "Delete voice")}</button></>}
       </div>
-      {preview?.voiceId === voice.voiceId && <audio key={preview.url} src={preview.url} controls autoPlay className="mt-3 h-10 w-full" aria-label={t("音色试听", "Voice preview")} />}
+      {preview?.voiceId === voice.voiceId && <audio key={preview.url} ref={previewAudioRef} src={preview.url} controls className="mt-3 h-10 w-full" aria-label={t("音色试听", "Voice preview")} />}
     </div>;
   }
 
