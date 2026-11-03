@@ -115,15 +115,17 @@ test('等待 MiniMax 响应超时保留费用核实状态，与建立连接超�
   await assert.rejects(synthesizeMiniMaxSpeech(input), { status: 504, upstreamRejected: false, message: /响应.*超时/ });
 });
 
-test('MiniMax 连接只协商 HTTP/1.1，避免线上 HTTP/2 音频流被重置', async t => {
-  let protocols;
+test('MiniMax 使用已验证的 X25519 握手及 HTTP/1.1，避免线上握手超时与音频流重置', async t => {
+  let connectionOptions;
   t.mock.method(globalThis, 'fetch', nativeFetch);
   t.mock.method(tls, 'connect', options => {
-    protocols = options.ALPNProtocols;
+    connectionOptions = options;
     throw new Error('TLS handshake inspected');
   });
   await assert.rejects(synthesizeMiniMaxSpeech(input));
-  assert.deepEqual(protocols, ['http/1.1']);
+  assert.deepEqual(connectionOptions.ALPNProtocols, ['http/1.1']);
+  assert.equal(connectionOptions.ecdhCurve, 'X25519');
+  assert.notEqual(connectionOptions.rejectUnauthorized, false);
 });
 
 test('音频响应传输中断返回连接提示，保留费用核实状态', async t => {
