@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
+import tls from 'node:tls';
 import { seedMediaSettings } from '../helpers/media-config.mjs';
 import { minimaxCloneStatus, parseMiniMaxSpeechInput } from '../../lib/media/shared/minimaxAudio.js';
 import { buildMiniMaxSpeechPayload, createMiniMaxVoice, deleteMiniMaxVoice, listMiniMaxVoices, minimaxVoiceLanguages, synthesizeMiniMaxSpeech } from '../../lib/media/server/minimaxAudio.js';
@@ -10,6 +11,7 @@ const { default: MediaSettings } = await import('../../models/MediaSettings.js')
 let database;
 const voiceId = 'Chinese (Mandarin)_News_Anchor';
 const input = { text: '今天很开心(laughs)，我们出发吧。', voiceId };
+const nativeFetch = globalThis.fetch;
 const ok = (extra = {}) => Response.json({ base_resp: { status_code: 0, status_msg: 'success' }, ...extra });
 test.before(async () => {
   database = await MongoMemoryServer.create();
@@ -111,6 +113,26 @@ test('连接 MiniMax 超时返回明确提示并标记请求未送达，整个�
 test('等待 MiniMax 响应超时保留费用核实状态，与建立连接超时分开处理', async t => {
   t.mock.method(globalThis, 'fetch', async () => { throw new DOMException('The operation was aborted due to timeout', 'TimeoutError'); });
   await assert.rejects(synthesizeMiniMaxSpeech(input), { status: 504, upstreamRejected: false, message: /响应.*超时/ });
+});
+
+test('MiniMax 连接只协商 HTTP/1.1，避免线上 HTTP/2 音频流被重置', async t => {
+  let protocols;
+  t.mock.method(globalThis, 'fetch', nativeFetch);
+  t.mock.method(tls, 'connect', options => {
+    protocols = options.ALPNProtocols;
+    throw new Error('TLS handshake inspected');
+  });
+  await assert.rejects(synthesizeMiniMaxSpeech(input));
+  assert.deepEqual(protocols, ['http/1.1']);
+});
+
+test('音频响应传输中断返回连接提示，保留费用核实状态', async t => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(new ReadableStream({
+    start(controller) {
+      controller.error(new TypeError('terminated', { cause: Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET', http2ErrorCode: 2 }) }));
+    },
+  })));
+  await assert.rejects(synthesizeMiniMaxSpeech(input), { status: 502, code: 'MINIMAX_CONNECTION_INTERRUPTED', upstreamRejected: false, message: /连接中断/ });
 });
 
 test('删除接口明确返回音色不存在时完成删除，其他参数错误照常报错', async t => {
