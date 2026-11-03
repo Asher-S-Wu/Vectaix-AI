@@ -23,7 +23,8 @@
       "NPM_CONFIG_PRODUCTION": ""
     },
     "aptPackages": [
-      "git"
+      "git",
+      "libatomic1"
     ]
   }
 }

@@ -36,10 +36,10 @@ test('合成参数按 MiniMax 官方字段发送，自动情绪、无音效和�
 });
 
 test('校验音色、长度、格式、采样率、语速、音量、语调和枚举参数', () => {
-  for (const invalid of [{ voiceId: '../secret' }, { voiceId: ' ' }, { text: '字'.repeat(10001) }, { speed: 0.4 }, { speed: 2.1 }, { volume: 0 }, { volume: 11 }, { pitch: 13 }, { pitch: 0.5 }, { format: 'flac' }, { sampleRate: 48000 }, { bitrate: 96000 }, { emotion: 'whisper' }, { languageBoost: 'Klingon' }, { soundEffect: 'echo' }, { textNormalization: true }, { model: 'speech-02-hd' }]) {
+  for (const invalid of [{ voiceId: ' ' }, { voiceId: 'a\u0000b' }, { text: '字'.repeat(10001) }, { speed: 0.4 }, { speed: 2.1 }, { volume: 0 }, { volume: 11 }, { pitch: 13 }, { pitch: 0.5 }, { format: 'flac' }, { sampleRate: 48000 }, { bitrate: 96000 }, { emotion: 'whisper' }, { languageBoost: 'Klingon' }, { soundEffect: 'echo' }, { textNormalization: true }, { model: 'speech-02-hd' }]) {
     assert.throws(() => parseMiniMaxSpeechInput({ ...input, ...invalid }), { status: 400 }, JSON.stringify(invalid));
   }
-  for (const id of ['male-qn-qingse', 'Chinese (Mandarin)_Lyrical_Voice', 'moss_audio_ce44fc67-7ce3-11f0-8de5-96e35d26fb85', 'hindi_female_2_v1', 'Vectaix0123456789abcdef0123456789abcdef']) {
+  for (const id of ['male-qn-qingse', 'Santa_Claus ', 'Chinese (Mandarin)_Lyrical_Voice', 'moss_audio_ce44fc67-7ce3-11f0-8de5-96e35d26fb85', 'hindi_female_2_v1', 'Vectaix0123456789abcdef0123456789abcdef']) {
     assert.equal(parseMiniMaxSpeechInput({ ...input, voiceId: id }).voiceId, id);
   }
 });
@@ -138,13 +138,13 @@ test('读取系统音色和已激活的复刻音色，删除复刻音色', async
       assert.deepEqual(body, { voice_type: 'voice_cloning', voice_id: 'Vectaix0123456789' });
       return ok({ voice_id: 'Vectaix0123456789' });
     }
-    if (body.voice_type === 'system') return ok({ system_voice: [{ voice_id: voiceId, voice_name: '新闻女声', description: ['专业播音腔'] }] });
+    if (body.voice_type === 'system') return ok({ system_voice: [{ voice_id: voiceId, voice_name: '新闻女声', description: ['专业播音腔'] }, { voice_id: 'Santa_Claus ', voice_name: null, description: null }] });
     return ok({ voice_cloning: null });
   });
-  assert.deepEqual((await listMiniMaxVoices('system')).map(voice => voice.voice_name), ['新闻女声']);
+  assert.deepEqual((await listMiniMaxVoices('system')).map(voice => voice.voice_id), [voiceId, 'Santa_Claus ']);
   assert.deepEqual(await listMiniMaxVoices('voice_cloning'), []);
   await deleteMiniMaxVoice('Vectaix0123456789');
-  t.mock.method(globalThis, 'fetch', async () => ok({ system_voice: [{ voice_id: 'bad"id' }] }));
+  t.mock.method(globalThis, 'fetch', async () => ok({ system_voice: [{ voice_id: 42 }] }));
   await assert.rejects(listMiniMaxVoices('system'), /音色信息有误/);
 });
 
