@@ -11,7 +11,6 @@ const { default: MediaSettings } = await import('../../models/MediaSettings.js')
 let database;
 const voiceId = 'Chinese (Mandarin)_News_Anchor';
 const input = { text: '今天很开心(laughs)，我们出发吧。', voiceId };
-const nativeFetch = globalThis.fetch;
 const ok = (extra = {}) => Response.json({ base_resp: { status_code: 0, status_msg: 'success' }, ...extra });
 test.before(async () => {
   database = await MongoMemoryServer.create();
@@ -56,7 +55,7 @@ test('从音色编号前缀判断语言，供试听选择中英文示例句', ()
 });
 
 test('使用 Bearer 密钥调用国内版接口，解码十六进制音频并保留计费字符与首次音色费用', async t => {
-  t.mock.method(globalThis, 'fetch', async (url, options) => {
+  const upstream = t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(url, 'https://api.minimax.cn/v1/t2a_v2');
     assert.equal(options.headers.Authorization, 'Bearer test-minimax-key');
     assert.equal(options.redirect, 'error');
@@ -70,7 +69,7 @@ test('使用 Bearer 密钥调用国内版接口，解码十六进制音频并保
   assert.equal(result.voiceCount, 1);
   assert.equal(result.requestId, 'trace-1');
   assert.equal(result.bytes, Buffer.byteLength(input.text, 'utf8'));
-  t.mock.method(globalThis, 'fetch', async () => ok({ data: { audio: '52494646' }, extra_info: { usage_characters: 4 } }));
+  upstream.mock.mockImplementation(async () => ok({ data: { audio: '52494646' }, extra_info: { usage_characters: 4 } }));
   const wav = await synthesizeMiniMaxSpeech({ ...input, format: 'wav' });
   assert.equal(wav.mimeType, 'audio/wav');
   assert.equal(wav.voiceCount, 0);
@@ -115,9 +114,8 @@ test('等待 MiniMax 响应超时保留费用核实状态，与建立连接超�
   await assert.rejects(synthesizeMiniMaxSpeech(input), { status: 504, upstreamRejected: false, message: /响应.*超时/ });
 });
 
-test('MiniMax 使用已验证的 X25519 握手及 HTTP/1.1，避免线上握手超时与音频流重置', async t => {
+test('MiniMax 连接使用 X25519 和 HTTP/1.1，并保留证书校验', async t => {
   let connectionOptions;
-  t.mock.method(globalThis, 'fetch', nativeFetch);
   t.mock.method(tls, 'connect', options => {
     connectionOptions = options;
     throw new Error('TLS handshake inspected');
@@ -177,14 +175,14 @@ test('声音复刻先上传样本，再用原样的大整数文件编号调用�
 
 test('复刻样本命中风控或账户未认证时拒绝创建', async t => {
   const upload = () => new Response('{"file":{"file_id":42},"base_resp":{"status_code":0}}');
-  t.mock.method(globalThis, 'fetch', async url => url.endsWith('/upload') ? upload() : ok({ input_sensitive: { type: 2 } }));
+  const upstream = t.mock.method(globalThis, 'fetch', async url => url.endsWith('/upload') ? upload() : ok({ input_sensitive: { type: 2 } }));
   await assert.rejects(createMiniMaxVoice({ voiceId: 'Vectaix0123456789', sample: new File(['x'], 'a.mp3'), needNoiseReduction: false, needVolumeNormalization: false }), { status: 400, message: /安全审核/ });
-  t.mock.method(globalThis, 'fetch', async url => url.endsWith('/upload') ? upload() : Response.json({ base_resp: { status_code: 2038 } }));
+  upstream.mock.mockImplementation(async url => url.endsWith('/upload') ? upload() : Response.json({ base_resp: { status_code: 2038 } }));
   await assert.rejects(createMiniMaxVoice({ voiceId: 'Vectaix0123456789', sample: new File(['x'], 'a.mp3'), needNoiseReduction: false, needVolumeNormalization: false }), { status: 403, message: /实名认证/ });
 });
 
 test('读取系统音色和已激活的复刻音色，删除复刻音色', async t => {
-  t.mock.method(globalThis, 'fetch', async (url, options) => {
+  const upstream = t.mock.method(globalThis, 'fetch', async (url, options) => {
     const body = JSON.parse(options.body);
     if (url.endsWith('/v1/delete_voice')) {
       assert.deepEqual(body, { voice_type: 'voice_cloning', voice_id: 'Vectaix0123456789' });
@@ -196,7 +194,7 @@ test('读取系统音色和已激活的复刻音色，删除复刻音色', async
   assert.deepEqual((await listMiniMaxVoices('system')).map(voice => voice.voice_id), [voiceId, 'Santa_Claus']);
   assert.deepEqual(await listMiniMaxVoices('voice_cloning'), []);
   await deleteMiniMaxVoice('Vectaix0123456789');
-  t.mock.method(globalThis, 'fetch', async () => ok({ system_voice: [{ voice_id: 42 }] }));
+  upstream.mock.mockImplementation(async () => ok({ system_voice: [{ voice_id: 42 }] }));
   await assert.rejects(listMiniMaxVoices('system'), /音色信息有误/);
 });
 
