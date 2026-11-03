@@ -247,11 +247,32 @@ test('管理员可发布规范化共享音色，删除默认音色后Agent撤下
   const voiceId = '933563129e564b19a115bedd57b7406a';
   await saveMediaSettings({ audio: { model: 'eleven_multilingual_v2', voiceId: `  ${voiceId}  `, enabled: true } });
   assert.equal((await getAgentMediaSettings()).audio.voiceId, voiceId);
-  await clearSharedVoice('other-voice');
+  await clearSharedVoice('elevenlabs', 'other-voice');
+  await clearSharedVoice('minimax', voiceId);
   assert.equal((await getAgentMediaSettings()).audio.voiceId, voiceId);
-  await clearSharedVoice(voiceId);
+  await clearSharedVoice('elevenlabs', voiceId);
   assert.equal((await getAgentMediaSettings()).audio, undefined);
   assert.equal((await getMediaSettings()).audio.hasApiKey, true);
+  await seedMediaSettings();
+});
+
+test('管理员把朗读服务切换到 MiniMax 后，Agent 使用 MiniMax 默认音色和参数', async () => {
+  await assert.rejects(saveMediaSettings({ audioProvider: 'qwen' }), /默认语音服务/);
+  await assert.rejects(saveMediaSettings({ minimaxAudio: { pitch: 1.5 } }), /整数/);
+  await assert.rejects(saveMediaSettings({ minimaxAudio: { provider: 'elevenlabs' } }), /MiniMax/);
+  await assert.rejects(saveMediaSettings({ minimaxAudio: { baseUrl: 'https://api.minimax.io', apiKey: 'international-key' } }), /国内版/);
+  const saved = await saveMediaSettings({ audioProvider: 'minimax', minimaxAudio: { voiceId: '  Chinese (Mandarin)_News_Anchor  ', emotion: 'calm', speed: 1.2 } });
+  assert.equal(saved.audioProvider, 'minimax');
+  assert.equal(saved.minimaxAudio.voiceId, 'Chinese (Mandarin)_News_Anchor');
+  assert.equal(saved.minimaxAudio.hasApiKey, true);
+  assert.equal(JSON.stringify(saved).includes('encryptedApiKey'), false);
+  const runtime = await getAgentMediaSettings();
+  assert.equal(runtime.audio.provider, 'minimax');
+  assert.equal(runtime.audio.voiceId, 'Chinese (Mandarin)_News_Anchor');
+  assert.equal(runtime.audio.emotion, 'calm');
+  assert.equal(runtime.audio.baseUrl, undefined);
+  await clearSharedVoice('minimax', 'Chinese (Mandarin)_News_Anchor');
+  assert.equal((await getAgentMediaSettings()).audio, undefined);
   await seedMediaSettings();
 });
 

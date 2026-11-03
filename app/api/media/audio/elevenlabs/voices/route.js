@@ -18,7 +18,7 @@ async function GETHandler(request) {
     const auth = await requireUserRecord({ request, connectDb: true, select: null });
     if (!auth?.payload) return unauthorizedResponse("未登录");
     const voices = await ElevenLabsVoice.find({ userId: auth.payload.userId }).sort({ createdAt: -1 }).lean();
-    const sharedId = await getSharedAudioVoice();
+    const sharedId = await getSharedAudioVoice('elevenlabs');
     const { audio } = await getMediaSettings();
     const defaults = audio.enabled && audio.hasApiKey ? await listElevenLabsDefaultVoices({ signal: request.signal }) : [];
     const builtin = defaults.filter(voice => !voices.some(item => item.voiceId === voice.voice_id)).map(voice => ({ profileId: `builtin:${voice.voice_id}`, voiceId: voice.voice_id, displayName: voice.name, status: elevenlabsVoiceStatus(voice), languages: elevenlabsVoiceLanguages(voice), builtin: true }));

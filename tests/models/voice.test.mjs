@@ -17,12 +17,27 @@ test('聊天朗读使用 ElevenLabs 已选音色并返回可播放音频', async
   assert.equal(result.data.billing.actualCostCny, 0.001);
 });
 
+test('管理员选择 MiniMax 后，聊天朗读交给 MiniMax 合成', async () => {
+  const audio = { provider: 'minimax', model: 'speech-2.8-hd', voiceId: 'Chinese (Mandarin)_News_Anchor', emotion: 'calm' };
+  const result = await dispatchSpeech({ text: '你好', audio, userId: 'user' }, {
+    elevenlabs: async () => { throw new Error('不应调用 ElevenLabs'); },
+    minimax: async input => {
+      assert.deepEqual(input.body, { ...audio, text: '你好' });
+      return { status: 201, data: { success: true, generation: { audioUrl: '/api/files/minimax' } } };
+    },
+  });
+  assert.equal(result.data.audioUrl, '/api/files/minimax');
+});
+
 test('朗读拒绝旧服务、未配置音色和超长文本，上游失败如实返回', async () => {
   for (const provider of ['fish', 'qwen', 'unknown']) {
     await assert.rejects(dispatchSpeech({ text: '你好', audio: { provider, voiceId: 'selected' } }, {}), /管理员/);
   }
   await assert.rejects(dispatchSpeech({ text: '你好', audio: { provider: 'elevenlabs' } }, {}), /管理员/);
-  await assert.rejects(dispatchSpeech({ text: '字'.repeat(10001) }, {}), /10000/);
+  await assert.rejects(dispatchSpeech({ text: '你好' }, {}), /管理员/);
+  for (const provider of ['elevenlabs', 'minimax']) {
+    await assert.rejects(dispatchSpeech({ text: '字'.repeat(10001), audio: { provider, voiceId: 'selected' } }, {}), /10000/);
+  }
   const failure = { status: 429, data: { success: false, message: '请求较多' } };
   assert.equal(await dispatchSpeech({ text: '你好', audio: { provider: 'elevenlabs', voiceId: 'selected' } }, { elevenlabs: async () => failure }), failure);
 });

@@ -109,7 +109,7 @@ test('上传文件的内部异常不返回给用户', async t => {
 test('普通用户可访问自己的媒体功能，全局密钥与默认配置保持管理员权限', async () => {
  const member = await login('media-member@example.com');
  const settings = await import('../../app/api/admin/media/route.js');
- for (const provider of ['elevenlabs']) {
+ for (const provider of ['elevenlabs', 'minimax']) {
   const voices = await import(`../../app/api/media/audio/${provider}/voices/route.js`);
   const generations = await import(`../../app/api/media/audio/${provider}/generations/route.js`);
   const generation = await import(`../../app/api/media/audio/${provider}/generations/[id]/route.js`);

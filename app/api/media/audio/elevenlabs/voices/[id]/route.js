@@ -27,7 +27,7 @@ async function operate(request, context, remove) {
         if (error?.code !== "UPSTREAM_404") throw error;
       }
       await assertMediaWriteLeaseActive(lease);
-      await clearSharedVoice(record.voiceId);
+      await clearSharedVoice('elevenlabs', record.voiceId);
       await ElevenLabsVoice.deleteOne({ userId, _id: record._id });
       return Response.json({ success: true, deleted: true });
     }

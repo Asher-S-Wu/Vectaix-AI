@@ -9,7 +9,7 @@ const { default: dbConnect } = await import('../../lib/db.js');
 const { default: User } = await import('../../models/User.js');
 const { default: Transaction, ensureCreditTransactionIndexes } = await import('../../models/CreditTransaction.js');
 const { reserveCredits, settleCredits, releaseCredits, getCreditOperation } = await import('../../lib/server/credits/service.js');
-const { calculateElevenLabsTtsCost, createPricingSnapshot } = await import('../../lib/server/credits/pricing.js');
+const { calculateElevenLabsTtsCost, calculateMiniMaxTtsCost, createPricingSnapshot } = await import('../../lib/server/credits/pricing.js');
 const { DEFAULT_BILLING_SETTINGS } = await import('../../lib/server/credits/constants.js');
 await dbConnect();
 await ensureCreditTransactionIndexes();
@@ -54,4 +54,15 @@ test('ElevenLabs 按上游字符数记录费用，价格快照保留原汇率', 
   const snapshot = createPricingSnapshot(DEFAULT_BILLING_SETTINGS);
   assert.equal(snapshot.usdToCny, 6.72);
   assert.equal(Object.hasOwn(snapshot, 'costMultiplier'), false);
+});
+
+test('MiniMax 按国内版人民币价格记录字符费，首次使用复刻音色另计复刻费', () => {
+  const cost = calculateMiniMaxTtsCost({ characters: 20000, voiceCount: 0 }, DEFAULT_BILLING_SETTINGS);
+  assert.equal(cost.costCny, 7);
+  assert.equal(cost.costUsd, 7 / 6.72);
+  const firstUse = calculateMiniMaxTtsCost({ characters: 10000, voiceCount: 1 }, DEFAULT_BILLING_SETTINGS);
+  assert.deepEqual(firstUse.breakdown, { charactersCny: 3.5, clonedVoiceCny: 9.9 });
+  assert.equal(firstUse.costCny, 3.5 + 9.9);
+  assert.throws(() => calculateMiniMaxTtsCost({ characters: 1 }, DEFAULT_BILLING_SETTINGS), /voiceCount/);
+  assert.throws(() => calculateMiniMaxTtsCost({ characters: 1, voiceCount: 0 }, { ...DEFAULT_BILLING_SETTINGS, rates: {} }), /MiniMax/);
 });

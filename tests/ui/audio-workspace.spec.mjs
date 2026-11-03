@@ -190,7 +190,7 @@ test('后台 ElevenLabs 配置安全提交密钥和参数，保存后清空密�
       return route.fulfill({ json: { config } });
     });
     await page.goto(`${base}/settings?section=admin&adminSection=media`);
-    const section = page.locator('details').filter({ has: page.locator('summary').filter({ hasText: '语音服务' }) });
+    const section = page.locator('details').filter({ has: page.locator('summary').filter({ hasText: 'ElevenLabs 语音服务' }) });
     await section.locator('summary').click();
     await section.getByLabel('API Key', { exact: true }).fill('ui-test-elevenlabs-key');
     assert.equal(await section.getByLabel('API 地址', { exact: true }).inputValue(), 'https://api.elevenlabs.io');
@@ -208,5 +208,101 @@ test('后台 ElevenLabs 配置安全提交密钥和参数，保存后清空密�
     await section.locator('summary').click();
     await section.getByRole('checkbox', { name: '启用', exact: true }).waitFor();
     assert.equal(await section.getByLabel('API Key', { exact: true }).inputValue(), '');
+  });
+});
+
+test('MiniMax 声音库显示系统音色，保存默认参数时切换朗读服务，生成与复刻提交完整参数', { timeout: 180000 }, async () => {
+  await withPage('192.0.2.244', async page => {
+    const system = { profileId: 'builtin:Chinese (Mandarin)_News_Anchor', voiceId: 'Chinese (Mandarin)_News_Anchor', displayName: '新闻女声', description: '专业播音腔的中年女声', status: 'trained', languages: ['zh'], builtin: true };
+    const plain = { profileId: 'builtin:male-qn-qingse', voiceId: 'male-qn-qingse', displayName: '青涩青年音色', description: '', status: 'trained', languages: [], builtin: true };
+    const cloned = { id: 'minimax-profile', profileId: 'minimax-profile', voiceId: 'Vectaix0123456789abcdef', displayName: '我的 MiniMax 声音', status: 'pending_activation', expiresAt: '2026-11-10T00:00:00Z', languages: [] };
+    let generated, cloneForm, savedSettings, previewed;
+    await page.route('**/api/media/audio/minimax/**', async route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname.endsWith('/voices') && request.method() === 'POST') { cloneForm = request.postDataBuffer().toString('latin1'); return route.fulfill({ status: 201, json: { success: true, voice: cloned } }); }
+      if (pathname.endsWith('/voices')) return route.fulfill({ json: { success: true, voices: [system, plain] } });
+      if (pathname.endsWith('/preview')) { previewed = request.postDataJSON(); return route.fulfill({ contentType: 'audio/wav', body: wav() }); }
+      if (pathname.endsWith('/generations') && request.method() === 'POST') {
+        generated = request.postDataJSON();
+        return route.fulfill({ status: 201, json: { success: true, generation: { id: 'minimax-generation', generationId: 'minimax-generation', ...generated, voiceName: system.displayName, audioUrl: '/api/files/minimax-ui-audio', createdAt: '2026-11-03T00:00:00Z' } } });
+      }
+      return route.fulfill({ json: { success: true, generations: [] } });
+    });
+    await page.route('**/api/media/audio/elevenlabs/**', route => route.fulfill({ json: { success: true, voices: [], generations: [] } }));
+    await page.route('**/api/files/minimax-ui-audio*', route => route.fulfill({ contentType: 'audio/wav', body: wav() }));
+    await page.route('**/api/admin/media', route => {
+      if (route.request().method() === 'PUT') savedSettings = route.request().postDataJSON();
+      return route.fulfill({ json: { config: {} } });
+    });
+    await page.goto(`${base}/settings?section=admin&adminSection=audio`);
+    await page.getByRole('radio', { name: 'MiniMax', exact: true }).click();
+    await page.locator('span').filter({ hasText: /^MiniMax Speech 2\.8 HD$/ }).first().waitFor();
+    await page.getByText(system.description, { exact: true }).waitFor();
+    await page.getByRole('button', { name: /^青涩青年音色/ }).getByText('可用', { exact: true }).waitFor();
+    await page.getByLabel('搜索音色', { exact: true }).fill('播音');
+    await chooseVoice(page, system);
+    await page.getByLabel('配音文本', { exact: true }).fill('今天很开心(laughs)。');
+    await page.getByLabel('情绪', { exact: true }).selectOption('happy');
+    await page.getByLabel('音效', { exact: true }).selectOption('robotic');
+    await page.getByLabel('语言增强', { exact: true }).selectOption('Chinese,Yue');
+    await page.getByLabel('语调', { exact: true }).fill('3');
+    await page.getByLabel('音频格式', { exact: true }).selectOption('wav');
+    assert.equal(await page.getByLabel('比特率', { exact: true }).count(), 0);
+    const parameters = { model: 'speech-2.8-hd', voiceId: system.voiceId, format: 'wav', sampleRate: 32000, bitrate: 128000, speed: 1, volume: 1, pitch: 3, emotion: 'happy', languageBoost: 'Chinese,Yue', soundEffect: 'robotic', textNormalization: 'off' };
+    await page.getByRole('button', { name: '设为全平台默认参数', exact: true }).click();
+    await page.getByText('已保存为全平台媒体默认参数', { exact: true }).waitFor();
+    assert.deepEqual(savedSettings, { audioProvider: 'minimax', minimaxAudio: { provider: 'minimax', ...parameters } });
+    await page.getByRole('button', { name: '生成语音', exact: true }).click();
+    await page.getByLabel(`${system.displayName} 生成的语音`, { exact: true }).waitFor();
+    assert.deepEqual(generated, { ...parameters, text: '今天很开心(laughs)。' });
+    await page.getByRole('tab', { name: '声音复刻', exact: true }).click();
+    await page.getByText(/7 天内没有使用，MiniMax 会自动删除该音色/).waitFor();
+    await page.getByLabel('音色名称', { exact: true }).fill(cloned.displayName);
+    await page.getByLabel('声音样本', { exact: true }).setInputFiles({ name: 'voice.wav', mimeType: 'audio/wav', buffer: wav(10) });
+    await page.getByRole('checkbox', { name: /^降噪处理/ }).check();
+    await page.getByRole('checkbox', { name: '我拥有这段录音的使用权，并已获得声音本人的授权。', exact: true }).check();
+    await page.getByRole('button', { name: '创建音色', exact: true }).click();
+    await page.getByRole('button', { name: /^我的 MiniMax 声音/ }).waitFor();
+    assert.match(cloneForm, /name="needNoiseReduction"\r\n\r\ntrue/);
+    assert.match(cloneForm, /name="needVolumeNormalization"\r\n\r\nfalse/);
+    await page.getByText(/^待激活：第一次试听或生成时收取复刻费/).waitFor();
+    assert.equal(await page.getByRole('button', { name: /^我的 MiniMax 声音/ }).isDisabled(), false);
+    await page.getByRole('button', { name: '试听 我的 MiniMax 声音', exact: true }).click();
+    await page.getByLabel('音色试听', { exact: true }).waitFor();
+    assert.deepEqual(previewed, { voiceId: cloned.voiceId });
+    await page.getByText('可用', { exact: true }).waitFor();
+    await page.reload();
+    assert.equal(await page.getByRole('radio', { name: 'MiniMax', exact: true }).getAttribute('aria-checked'), 'true');
+  });
+});
+
+test('后台 MiniMax 配置默认国内版地址，可设为聊天朗读服务', { timeout: 120000 }, async () => {
+  await withPage('192.0.2.245', async page => {
+    let config = (await (await page.request.get(`${base}/api/admin/media`)).json()).config;
+    let submitted;
+    await page.route('**/api/admin/media', route => {
+      if (route.request().method() === 'PUT') {
+        submitted = route.request().postDataJSON();
+        const { apiKey: _apiKey, ...minimaxAudio } = submitted.minimaxAudio;
+        config = { ...submitted, minimaxAudio: { ...minimaxAudio, hasApiKey: true } };
+      }
+      return route.fulfill({ json: { config } });
+    });
+    await page.goto(`${base}/settings?section=admin&adminSection=media`);
+    const section = page.locator('details').filter({ has: page.locator('summary').filter({ hasText: 'MiniMax 语音服务' }) });
+    await section.locator('summary').click();
+    assert.equal(await section.getByLabel('API 地址', { exact: true }).inputValue(), 'https://api.minimax.cn');
+    assert.equal(await section.getByLabel('API 地址', { exact: true }).isEditable(), false);
+    await section.getByLabel('API Key', { exact: true }).fill('ui-test-minimax-key');
+    await section.getByRole('checkbox', { name: '启用', exact: true }).check();
+    await section.getByLabel('默认音色 ID', { exact: true }).fill('male-qn-qingse');
+    await section.getByLabel('情绪', { exact: true }).selectOption('calm');
+    await page.getByLabel('聊天朗读与花卷配音使用', { exact: true }).selectOption('minimax');
+    await page.getByRole('button', { name: '保存媒体设置', exact: true }).click();
+    await page.getByText('媒体设置已保存，所有用户的花卷将使用这些服务。', { exact: true }).waitFor();
+    assert.equal(submitted.audioProvider, 'minimax');
+    assert.deepEqual([submitted.minimaxAudio.apiKey, submitted.minimaxAudio.enabled, submitted.minimaxAudio.voiceId, submitted.minimaxAudio.emotion, submitted.minimaxAudio.provider], ['ui-test-minimax-key', true, 'male-qn-qingse', 'calm', 'minimax']);
+    assert.equal(submitted.audio.provider, 'elevenlabs');
   });
 });

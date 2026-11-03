@@ -4,7 +4,7 @@ import { useI18n } from "@/lib/client/i18n";
 import { useState } from 'react';
 import { apiJson } from '@/lib/client/apiClient';
 
-export default function ApplyGlobalMediaButton({ section, value, disabled=false, onBusyChange }) {
+export default function ApplyGlobalMediaButton({ section, audioProvider, value, disabled=false, onBusyChange }) {
   const { t, localizeMessage } = useI18n();
 
   const [busy,setBusy]=useState(false);
@@ -15,12 +15,13 @@ export default function ApplyGlobalMediaButton({ section, value, disabled=false,
   async function save() {
     setBusy(true);onBusyChange?.(true);setSavedSelection('');setError('');
     try {
-      await apiJson('/api/admin/media',{method:'PUT',body:{[section]:value}});
+      await apiJson('/api/admin/media',{method:'PUT',body:{[section]:value,...(audioProvider?{audioProvider}:{})}});
       setSavedSelection(selection);
     } catch(error) {setError(error.message);} finally {setBusy(false);onBusyChange?.(false);}
   }
   return <div className="space-y-2">
     <button type="button" disabled={disabled||busy} onClick={save} className="inline-flex min-h-9 items-center rounded-lg px-2 -ml-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50">{busy?t("正在保存…", "Saving…"):t("设为全平台默认参数", "Set as default for all users")}</button>
+    {audioProvider&&<p className="text-xs text-zinc-500">{t("保存后，聊天朗读和花卷配音将使用这个音色和参数。", "Chat read-aloud and Huajuan’s speech will then use this voice and these settings.")}</p>}
     {notice&&<p role="status" className="text-xs text-primary">{notice}</p>}
     {error&&<p role="alert" className="text-xs text-red-500">{localizeMessage(error)}</p>}
   </div>;

@@ -10,7 +10,7 @@ export default function MediaPage() {
   const { capabilities } = useMediaAccess();
   const entries = [
     { href: '/media/image', icon: ImagePlus, title: t('图片生成', 'Image generation'), description: t('描述画面生成图片，或上传参考图进行编辑。', 'Describe an image to generate it, or upload reference images to edit.'), detail: 'GPT Image 2.5', enabled: capabilities.image },
-    { href: '/media/audio', icon: AudioLines, title: t('语音合成', 'Text to speech'), description: t('把文字变成配音，也可以用自己的录音复刻音色。', 'Turn text into speech, or clone a voice from your own recording.'), detail: 'ElevenLabs', enabled: capabilities.elevenlabs },
+    { href: '/media/audio', icon: AudioLines, title: t('语音合成', 'Text to speech'), description: t('把文字变成配音，也可以用自己的录音复刻音色。', 'Turn text into speech, or clone a voice from your own recording.'), detail: 'ElevenLabs · MiniMax', enabled: capabilities.elevenlabs || capabilities.minimax },
   ];
   return <div>
     <header className="media-page-heading"><h1>{t('把想法变成画面与声音', 'Give your ideas an image and a voice')}</h1><p>{t('选择一种创作方式。你的音色和作品保存在自己的账号下。', 'Choose how to create. Your voices and work stay in your own account.')}</p></header>
