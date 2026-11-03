@@ -89,6 +89,12 @@ async function POSTHandler(request) {
     createdVoiceId = "";
     return Response.json({ success: true, voice: serializeMiniMaxVoice(record) }, { status: 201 });
   } catch (error) {
+    console.error("[MiniMax] clone:", {
+      code: error.code,
+      status: minimaxErrorStatus(error),
+      message: minimaxPublicMessage(error, "声音复刻失败"),
+      requestId: error.requestId,
+    });
     if (createdVoiceId) await deleteMiniMaxVoice(createdVoiceId).catch((cleanupError) => {
       console.error("[MiniMax] cleanup unpersisted voice:", cleanupError);
     });

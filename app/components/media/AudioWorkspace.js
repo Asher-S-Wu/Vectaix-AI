@@ -48,6 +48,8 @@ export default function AudioWorkspace({ provider, onBusyChange, canManageDefaul
   const [sample, setSample] = useState(null);
   const [consent, setConsent] = useState(false);
   const [cloneOptions, setCloneOptions] = useState(config.cloneDefaults);
+  const [cloneError, setCloneError] = useState("");
+  const [createdVoiceName, setCreatedVoiceName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const pendingAutoPlay = useRef("");
   const historyRequest = useRef(0);
@@ -123,7 +125,11 @@ export default function AudioWorkspace({ provider, onBusyChange, canManageDefaul
   async function run(name, action) {
     if (operationLock.current || defaultsSaving) return;
     operationLock.current = true; setOperation(name); setError("");
-    try { await action(); } catch (error) { setError(error.message); }
+    if (name === "clone") { setCloneError(""); setCreatedVoiceName(""); }
+    try { await action(); } catch (error) {
+      if (name === "clone") setCloneError(error.message);
+      else setError(error.message);
+    }
     finally { operationLock.current = false; setOperation(""); }
   }
   function selectVoice(voice) {
@@ -152,6 +158,7 @@ export default function AudioWorkspace({ provider, onBusyChange, canManageDefaul
       for (const [key, value] of Object.entries(cloneOptions)) data.set(key, String(value));
       const result = await api.createVoice(data);
       setVoices(current => [result.voice, ...current]);
+      setCreatedVoiceName(result.voice.displayName);
       setDisplayName(""); setSample(null); setConsent(false); setCloneOptions(config.cloneDefaults); form.reset();
     });
   }
@@ -223,13 +230,16 @@ export default function AudioWorkspace({ provider, onBusyChange, canManageDefaul
           </>}
         </section>
       </div> : <div className="space-y-5">
-        <form onSubmit={clone} className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 sm:p-6">
+        <form onSubmit={clone} aria-busy={operation === "clone"} className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 sm:p-6">
           <h2 className="font-semibold">{t("复刻音色", "Clone a voice")}</h2><p className="text-sm text-zinc-500">{config.cloneHint(t)}</p>
           <div><label htmlFor={`${provider}-voice-name`} className="mb-2 block text-sm">{t("音色名称", "Voice name")}</label><input id={`${provider}-voice-name`} required maxLength={60} value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={busy} className={inputClass} /></div>
           <div><label htmlFor={`${provider}-sample`} className="mb-2 block text-sm">{t("声音样本", "Voice sample")}</label><input id={`${provider}-sample`} type="file" required accept=".wav,.mp3,.m4a,audio/wav,audio/mpeg,audio/mp4" disabled={busy} className={inputClass} onChange={event => setSample(event.target.files[0] || null)} /></div>
           {CloneOptions && <CloneOptions value={cloneOptions} disabled={busy} onChange={changes => setCloneOptions(current => ({ ...current, ...changes }))} />}
           <label className="flex cursor-pointer items-start gap-2 text-sm"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} disabled={busy} required className="mt-0.5 h-4 w-4 shrink-0 accent-primary" />{t("我拥有这段录音的使用权，并已获得声音本人的授权。", "I have the right to use this recording and the speaker’s permission.")}</label>
-          <button type="submit" disabled={!serviceEnabled || busy || !sample || !consent || !displayName.trim()} className="btn-primary rounded-xl px-5 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">{operation === "clone" ? t("正在创建…", "Creating…") : t("创建音色", "Create voice")}</button>
+          <button type="submit" disabled={!serviceEnabled || busy || !sample || !consent || !displayName.trim()} className="btn-primary inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">{operation === "clone" && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />}{operation === "clone" ? t("正在创建…", "Creating…") : t("创建音色", "Create voice")}</button>
+          {operation === "clone" && <p role="status" className="text-sm text-zinc-500">{t("正在上传样本并复刻声音，请保持此页面打开。完成后，新音色会显示在下方。", "Uploading the sample and cloning your voice. Keep this page open; your new voice will appear below when it is ready.")}</p>}
+          <AudioFormError message={cloneError} />
+          {createdVoiceName && <p role="status" className="text-sm text-primary">{t("音色“{name}”已创建，可在下方试听，或切换到“文字配音”使用。", 'Voice “{name}” was created. Preview it below or switch to Text to speech to use it.', { name: createdVoiceName })}</p>}
         </form>
         <AudioFormError message={voiceError} />
         {ownVoices.length ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{ownVoices.map(voiceCard)}</div> : !voicesLoading && <p className="text-sm text-zinc-500">{t("还没有复刻的音色。上传录音后会显示在这里。", "No cloned voices yet. Upload a recording to add one.")}</p>}
