@@ -39,9 +39,10 @@ test('校验音色、长度、格式、采样率、语速、音量、语调和�
   for (const invalid of [{ voiceId: ' ' }, { voiceId: 'a\u0000b' }, { text: '字'.repeat(10001) }, { speed: 0.4 }, { speed: 2.1 }, { volume: 0 }, { volume: 11 }, { pitch: 13 }, { pitch: 0.5 }, { format: 'flac' }, { sampleRate: 48000 }, { bitrate: 96000 }, { emotion: 'whisper' }, { languageBoost: 'Klingon' }, { soundEffect: 'echo' }, { textNormalization: true }, { model: 'speech-02-hd' }]) {
     assert.throws(() => parseMiniMaxSpeechInput({ ...input, ...invalid }), { status: 400 }, JSON.stringify(invalid));
   }
-  for (const id of ['male-qn-qingse', 'Santa_Claus ', 'Chinese (Mandarin)_Lyrical_Voice', 'moss_audio_ce44fc67-7ce3-11f0-8de5-96e35d26fb85', 'hindi_female_2_v1', 'Vectaix0123456789abcdef0123456789abcdef']) {
+  for (const id of ['male-qn-qingse', 'Chinese (Mandarin)_Lyrical_Voice', 'moss_audio_ce44fc67-7ce3-11f0-8de5-96e35d26fb85', 'hindi_female_2_v1', 'Vectaix0123456789abcdef0123456789abcdef']) {
     assert.equal(parseMiniMaxSpeechInput({ ...input, voiceId: id }).voiceId, id);
   }
+  assert.equal(parseMiniMaxSpeechInput({ ...input, voiceId: 'Santa_Claus ' }).voiceId, 'Santa_Claus');
 });
 
 test('从音色编号前缀判断语言，供试听选择中英文示例句', () => {
@@ -99,6 +100,33 @@ test('取消和缺失密钥均在网络请求前终止', async t => {
   assert.equal(upstream.mock.callCount(), 0);
 });
 
+test('连接 MiniMax 超时返回明确提示并标记请求未送达，整个请求只发起一次', async t => {
+  const upstream = t.mock.method(globalThis, 'fetch', async () => {
+    throw new TypeError('fetch failed', { cause: Object.assign(new Error('Connect Timeout Error'), { code: 'UND_ERR_CONNECT_TIMEOUT' }) });
+  });
+  await assert.rejects(synthesizeMiniMaxSpeech(input), { status: 504, code: 'MINIMAX_CONNECT_TIMEOUT', upstreamRejected: true, message: /连接.*超时/ });
+  assert.equal(upstream.mock.callCount(), 1);
+});
+
+test('等待 MiniMax 响应超时保留费用核实状态，与建立连接超时分开处理', async t => {
+  t.mock.method(globalThis, 'fetch', async () => { throw new DOMException('The operation was aborted due to timeout', 'TimeoutError'); });
+  await assert.rejects(synthesizeMiniMaxSpeech(input), { status: 504, upstreamRejected: false, message: /响应.*超时/ });
+});
+
+test('删除接口明确返回音色不存在时完成删除，其他参数错误照常报错', async t => {
+  const upstream = t.mock.method(globalThis, 'fetch', async () => Response.json({
+    voice_id: '', description: null, created_time: '',
+    base_resp: { status_code: 2013, status_msg: 'invalid params, voice_id does not exist' },
+  }));
+  await deleteMiniMaxVoice('VectaixAlreadyDeleted');
+  upstream.mock.mockImplementation(async () => Response.json({ base_resp: { status_code: 2054, status_msg: 'voice id not exist' } }));
+  await deleteMiniMaxVoice('VectaixAlreadyDeleted');
+  upstream.mock.mockImplementation(async () => Response.json({ base_resp: { status_code: 2013, status_msg: 'invalid params, voice_type is invalid' } }));
+  await assert.rejects(deleteMiniMaxVoice('VectaixAlreadyDeleted'), { status: 400, code: 'MINIMAX_2013' });
+  upstream.mock.mockImplementation(async () => Response.json({ base_resp: { status_code: 2013, status_msg: 'invalid params, voice_id does not exist' } }));
+  await assert.rejects(synthesizeMiniMaxSpeech(input), { status: 400, code: 'MINIMAX_2013' });
+});
+
 test('声音复刻先上传样本，再用原样的大整数文件编号调用复刻接口', async t => {
   const calls = [];
   t.mock.method(globalThis, 'fetch', async (url, options) => {
@@ -141,7 +169,7 @@ test('读取系统音色和已激活的复刻音色，删除复刻音色', async
     if (body.voice_type === 'system') return ok({ system_voice: [{ voice_id: voiceId, voice_name: '新闻女声', description: ['专业播音腔'] }, { voice_id: 'Santa_Claus ', voice_name: null, description: null }] });
     return ok({ voice_cloning: null });
   });
-  assert.deepEqual((await listMiniMaxVoices('system')).map(voice => voice.voice_id), [voiceId, 'Santa_Claus ']);
+  assert.deepEqual((await listMiniMaxVoices('system')).map(voice => voice.voice_id), [voiceId, 'Santa_Claus']);
   assert.deepEqual(await listMiniMaxVoices('voice_cloning'), []);
   await deleteMiniMaxVoice('Vectaix0123456789');
   t.mock.method(globalThis, 'fetch', async () => ok({ system_voice: [{ voice_id: 42 }] }));

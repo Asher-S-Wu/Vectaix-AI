@@ -21,11 +21,7 @@ async function operate(request, context, remove) {
     if (!record) return Response.json({ success: false, message: "复刻音色不存在" }, { status: 404 });
     await assertMediaWriteLeaseActive(lease);
     if (remove) {
-      try {
-        await deleteMiniMaxVoice(record.voiceId, { signal: request.signal });
-      } catch (error) {
-        if (error?.code !== "MINIMAX_2054") throw error;
-      }
+      await deleteMiniMaxVoice(record.voiceId, { signal: request.signal });
       await assertMediaWriteLeaseActive(lease);
       await clearSharedVoice('minimax', record.voiceId);
       await MiniMaxVoice.deleteOne({ userId, _id: record._id });

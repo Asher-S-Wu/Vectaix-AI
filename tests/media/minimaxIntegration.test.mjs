@@ -165,6 +165,23 @@ test("他人私有音色、未登记音色和已失效音色在调用合成与�
   assert.equal(fetch.mock.callCount(), 2);
 });
 
+test("官方列表中带尾部空格的系统音色使用有效编号展示、校验和试听", async t => {
+  const member = await login("system-voice-whitespace");
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    if (url.endsWith("/v1/get_voice")) return ok({ system_voice: [{ voice_id: "Santa_Claus ", voice_name: "Santa Claus" }] });
+    assert.equal(JSON.parse(options.body).voice_setting.voice_id, "Santa_Claus");
+    return speech(18);
+  });
+  const listed = await (await call(member.token, voicesRoute.GET, new Request("https://app.test/api/media/audio/minimax/voices"))).json();
+  const builtin = listed.voices.find(voice => voice.builtin);
+  assert.equal(builtin.voiceId, "Santa_Claus");
+  for (const voiceId of [builtin.voiceId, "Santa_Claus "]) {
+    const result = await preview({ userId: member.userId, body: { voiceId }, clientOperationId: crypto.randomUUID() });
+    assert.equal(result.status, 200);
+    assert.equal(result.audioBuffer.toString(), "ID3-minimax");
+  }
+});
+
 test("管理员共享的默认音色可供其他用户使用", async t => {
   const admin = await login("share-admin");
   const member = await login("share-member");
@@ -211,6 +228,39 @@ test("声音库合并本人复刻音色与系统音色，未登录请求在调�
   assert.ok(new Date(data.voices[0].expiresAt) > new Date());
   const builtin = data.voices.find(item => item.voiceId === systemVoiceId);
   assert.deepEqual([builtin.builtin, builtin.displayName, builtin.description, builtin.languages], [true, "新闻女声", "专业播音腔", ["zh"]]);
+});
+
+test("试听建立连接超时时释放预留费用，返回连接超时提示", async t => {
+  const member = await login("connect-timeout");
+  const voice = await seedVoice(member.userId, { activatedAt: new Date() });
+  t.mock.method(console, "error", () => {});
+  t.mock.method(globalThis, "fetch", async () => {
+    throw new TypeError("fetch failed", { cause: Object.assign(new Error("Connect Timeout Error"), { code: "UND_ERR_CONNECT_TIMEOUT" }) });
+  });
+  const result = await preview({ userId: member.userId, body: { voiceId: voice.voiceId }, clientOperationId: crypto.randomUUID() });
+  assert.equal(result.status, 504);
+  assert.match(result.data.message, /连接.*超时/);
+  assert.equal(result.data.billing.status, "released");
+  const transaction = await Transaction.findOne({ operationId: result.data.billing.operationId }).lean();
+  assert.equal(transaction.status, "released");
+  assert.equal((await Voice.findById(voice._id).lean()).activatedAt.getTime(), voice.activatedAt.getTime());
+});
+
+test("远程已删除的复刻音色可以清理本地记录和共享配置，其他删除错误保留记录", async t => {
+  const member = await login("already-deleted");
+  const voice = await seedVoice(member.userId);
+  const MediaSettings = (await import("../../models/MediaSettings.js")).default;
+  await MediaSettings.updateOne({ _id: "media" }, { $set: { "minimaxAudio.voiceId": voice.voiceId } });
+  t.after(() => seedMediaSettings());
+  const upstream = t.mock.method(globalThis, "fetch", async () => Response.json({ base_resp: { status_code: 2013, status_msg: "invalid params, voice_type is invalid" } }));
+  const request = () => new Request("https://app.test/x", { method: "DELETE" });
+  assert.equal((await call(member.token, voiceRoute.DELETE, request(), voice.profileId)).status, 400);
+  assert.ok(await Voice.exists({ _id: voice._id }));
+  assert.equal((await MediaSettings.findById("media").lean()).minimaxAudio.voiceId, voice.voiceId);
+  upstream.mock.mockImplementation(async () => Response.json({ voice_id: "", description: null, created_time: "", base_resp: { status_code: 2013, status_msg: "invalid params, voice_id does not exist" } }));
+  assert.equal((await call(member.token, voiceRoute.DELETE, request(), voice.profileId)).status, 200);
+  assert.equal(await Voice.exists({ _id: voice._id }), null);
+  assert.equal((await MediaSettings.findById("media").lean()).minimaxAudio.voiceId, "");
 });
 
 test("复刻接口校验授权和样本后上传，记录降噪选项；失败时不留下本地记录", async t => {

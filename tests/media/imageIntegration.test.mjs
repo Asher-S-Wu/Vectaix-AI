@@ -261,7 +261,7 @@ test('管理员把朗读服务切换到 MiniMax 后，Agent 使用 MiniMax 默�
   await assert.rejects(saveMediaSettings({ minimaxAudio: { pitch: 1.5 } }), /整数/);
   await assert.rejects(saveMediaSettings({ minimaxAudio: { provider: 'elevenlabs' } }), /MiniMax/);
   await assert.rejects(saveMediaSettings({ minimaxAudio: { baseUrl: 'https://api.minimax.io', apiKey: 'international-key' } }), /国内版/);
-  assert.equal((await saveMediaSettings({ minimaxAudio: { voiceId: 'Santa_Claus ' } })).minimaxAudio.voiceId, 'Santa_Claus ');
+  assert.equal((await saveMediaSettings({ minimaxAudio: { voiceId: 'Santa_Claus ' } })).minimaxAudio.voiceId, 'Santa_Claus');
   const saved = await saveMediaSettings({ audioProvider: 'minimax', minimaxAudio: { voiceId: 'Chinese (Mandarin)_News_Anchor', emotion: 'calm', speed: 1.2 } });
   assert.equal(saved.audioProvider, 'minimax');
   assert.equal(saved.minimaxAudio.voiceId, 'Chinese (Mandarin)_News_Anchor');
