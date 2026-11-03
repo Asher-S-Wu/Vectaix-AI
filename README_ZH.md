@@ -31,7 +31,7 @@
 
 ## Railway 部署
 
-项目使用 Node.js 24、Next.js 16、React 19 与 MongoDB，部署采用仓库中的 Railpack 配置。
+项目使用 Node.js 26、Next.js 16、React 19 与 MongoDB，部署采用仓库中的 Railpack 配置。
 
 | 环境变量 | 用途 |
 | --- | --- |
